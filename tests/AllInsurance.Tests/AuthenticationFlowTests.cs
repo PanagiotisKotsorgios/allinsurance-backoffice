@@ -202,10 +202,30 @@ public sealed class AuthenticationFlowTests
     }
 
     [Fact]
-    public async Task ExistingDatabaseWithoutAdministratorRequiresRepairAndCannotReenterSetup()
+    public async Task InterruptedFirstRunCanResumeAdministratorSetup()
     {
         await using var environment = new TestEnvironment();
         Assert.Equal(StartupState.AdministratorSetupRequired, environment.StartupState);
+        Assert.Equal(StartupState.AdministratorSetupRequired, environment.Initializer.Initialize());
+        await environment.CreateAdministratorAsync();
+        Assert.Equal(StartupState.LoginRequired, environment.Initializer.Initialize());
+
+        await using var db = await environment.ContextFactory.CreateDbContextAsync();
+        Assert.Single(await db.Users.ToListAsync());
+        Assert.DoesNotContain(await db.SecurityEvents.ToListAsync(), entry =>
+            entry.EventType == "ADMINISTRATOR_REPAIR_REQUIRED");
+    }
+
+    [Fact]
+    public async Task ExistingDatabaseWithoutAdministratorRequiresRepairAndCannotReenterSetup()
+    {
+        await using var environment = new TestEnvironment();
+        await using (var setupDb = await environment.ContextFactory.CreateDbContextAsync())
+        {
+            setupDb.AppMetadata.Single(entry => entry.Key == "first_run_pending").Value = "false";
+            await setupDb.SaveChangesAsync();
+        }
+
         Assert.Equal(StartupState.RepairRequired, environment.Initializer.Initialize());
         await Assert.ThrowsAsync<InvalidOperationException>(() => environment.CreateAdministratorAsync());
 
@@ -233,10 +253,10 @@ public sealed class AuthenticationFlowTests
             Task.Run(() => environment.Initializer.Initialize()),
             Task.Run(() => environment.Initializer.Initialize()));
 
-        Assert.All(startupResults, result => Assert.Equal(StartupState.RepairRequired, result));
+        Assert.All(startupResults, result => Assert.Equal(StartupState.AdministratorSetupRequired, result));
         await using var db = await environment.ContextFactory.CreateDbContextAsync();
         Assert.Equal(2, await db.Roles.CountAsync());
-        Assert.Single(await db.SecurityEvents
+        Assert.Empty(await db.SecurityEvents
             .Where(entry => entry.EventType == "ADMINISTRATOR_REPAIR_REQUIRED")
             .ToListAsync());
     }

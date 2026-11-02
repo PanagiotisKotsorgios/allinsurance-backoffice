@@ -61,7 +61,7 @@
 4. Create admin using secure password hashing. Generate one 160-bit-or-higher random recovery code.
 5. Store only the recovery-code digest and metadata; show recovery code **once** with `Copy` and `I have saved my recovery code` acknowledgment.
 6. Continue to login; regular launches skip setup.
-7. If an existing database lacks an admin, **do not silently provision another**; show a recovery/repair-required state and audit it.
+7. If setup was interrupted before any account was created, return to first-run setup. If an initialized database later loses its admin, **do not silently provision another**; show a recovery/repair-required state and audit it.
 
 ## Quality and non-functional requirements
 
@@ -386,7 +386,7 @@ Back navigation must not reveal a one-time recovery code after it has been dismi
 - [x] Source repo `.gitignore` excludes local `.db`, `.db-wal`, `.db-shm`, backups, secrets and user-specific config.
 - [x] CI executes unit tests and SQLite integration tests; sample fixtures contain no customer data.
 
-**Local validation:** The full solution builds with .NET 10, and all 14 tests pass. The Windows CI workflow is configured in `.github/workflows/ci.yml`.
+**Local validation:** The full solution builds with .NET 10, and all 15 tests pass. The Windows CI workflow is configured in `.github/workflows/ci.yml`.
 
 ## Scenarios to execute
 
@@ -397,7 +397,7 @@ Back navigation must not reveal a one-time recovery code after it has been dismi
 5. Invalid credentials 5 times -> lockout; retry after configured timeout succeeds with correct password.
 6. Valid recovery code -> password reset -> rotated code; attempt to reuse old code fails.
 7. Last active administrator cannot be removed or demoted; DB is not left without an admin.
-8. Existing initialized DB unexpectedly has zero admins -> explicit failure/recovery state; no silent unsafe admin creation.
+8. Interrupted first run with zero users -> setup resumes. An initialized DB unexpectedly lacking an admin -> explicit failure/recovery state; no silent unsafe admin creation.
 9. New app instance while schema migration is in progress -> controlled startup, no duplicate seed or corruption.
 
 ## Definition of done

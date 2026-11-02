@@ -72,6 +72,11 @@ public sealed class DatabaseInitializer(
             }
 
             var firstRunMarker = db.AppMetadata.SingleOrDefault(entry => entry.Key == "first_run_pending");
+            if (firstRunMarker?.Value == "true" && !db.Users.Any())
+            {
+                return StartupState.AdministratorSetupRequired;
+            }
+
             if (firstRunMarker is not null)
             {
                 firstRunMarker.Value = "false";

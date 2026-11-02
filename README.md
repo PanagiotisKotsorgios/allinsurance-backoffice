@@ -17,7 +17,7 @@ dotnet restore AllInsurance.slnx
 dotnet run --project src\AllInsurance.Desktop\AllInsurance.Desktop.csproj
 ```
 
-On the first launch, create the administrator and save the one-time recovery code before continuing to sign in. No default administrator or password is provisioned. The database is stored per Windows user at `%LOCALAPPDATA%\AllInsurance\Data\allinsurance.db`.
+On the first launch, create the administrator and save the one-time recovery code before continuing to sign in. If setup is interrupted before account creation, it resumes on the next launch. No default administrator or password is provisioned. The database is stored per Windows user at `%LOCALAPPDATA%\AllInsurance\Data\allinsurance.db`.
 
 The login flow supports local authentication, five-attempt/15-minute lockout, temporary-password replacement, and offline recovery-code rotation. A successful sign-in opens only a plain white workspace. Closing the window ends the in-memory session.
 
