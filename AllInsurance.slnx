@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AllInsurance.Application/AllInsurance.Application.csproj" />
+    <Project Path="src/AllInsurance.Desktop/AllInsurance.Desktop.csproj" />
+    <Project Path="src/AllInsurance.Domain/AllInsurance.Domain.csproj" />
+    <Project Path="src/AllInsurance.Infrastructure/AllInsurance.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AllInsurance.Tests/AllInsurance.Tests.csproj" />
+  </Folder>
+</Solution>

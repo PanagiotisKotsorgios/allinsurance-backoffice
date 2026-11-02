@@ -365,26 +365,28 @@ Back navigation must not reveal a one-time recovery code after it has been dismi
 
 ## Acceptance checklist
 
-- [ ] The project builds as a native WinUI 3 Windows desktop application on the pinned .NET 10 LTS stack.
-- [ ] A clean installation creates SQLite through EF Core migrations and seeds `Administrator` and `Employee` roles exactly once.
-- [ ] No hardcoded administrator, recovery code or default password exists.
-- [ ] First run requires admin creation; normal later launches open login.
-- [ ] Passwords are stored only as adaptive password hashes and are never written to logs.
-- [ ] New admin receives a cryptographically random, unique recovery code shown once; database stores no plaintext.
-- [ ] Database supports two or more separate users, each with one or more assigned roles.
-- [ ] Application-level authorization prevents employee user-management actions; last active admin is protected.
-- [ ] Valid login navigates to a **pure-white, blank panel** with no other visual controls.
-- [ ] Invalid username and invalid password return the same generic user-facing error.
-- [ ] Login throttle/lockout persists correctly across application restarts.
-- [ ] Disabled users cannot authenticate.
-- [ ] Temporary-password employee accounts must change password before blank workspace opens.
-- [ ] Recovery with an invalid/reused code is rejected and logged without leaking secrets.
-- [ ] Successful recovery atomically updates password and invalidates the old recovery code; a new code is shown once.
-- [ ] All security-relevant events are audited with UTC timestamp and no credentials/secrets.
-- [ ] Database schema/index constraints and foreign keys pass SQLite integration tests.
-- [ ] Closing app clears in-memory login state; restarting requires login.
-- [ ] Source repo `.gitignore` excludes local `.db`, `.db-wal`, `.db-shm`, backups, secrets and user-specific config.
-- [ ] CI executes unit tests and SQLite integration tests; sample fixtures contain no customer data.
+- [x] The project builds as a native WinUI 3 Windows desktop application on the pinned .NET 10 LTS stack.
+- [x] A clean installation creates SQLite through EF Core migrations and seeds `Administrator` and `Employee` roles exactly once.
+- [x] No hardcoded administrator, recovery code or default password exists.
+- [x] First run requires admin creation; normal later launches open login.
+- [x] Passwords are stored only as adaptive password hashes and are never written to logs.
+- [x] New admin receives a cryptographically random, unique recovery code shown once; database stores no plaintext.
+- [x] Database supports two or more separate users, each with one or more assigned roles.
+- [x] Application-level authorization prevents employee user-management actions; last active admin is protected.
+- [x] Valid login navigates to a **pure-white, blank panel** with no other visual controls.
+- [x] Invalid username and invalid password return the same generic user-facing error.
+- [x] Login throttle/lockout persists correctly across application restarts.
+- [x] Disabled users cannot authenticate.
+- [x] Temporary-password employee accounts must change password before blank workspace opens.
+- [x] Recovery with an invalid/reused code is rejected and logged without leaking secrets.
+- [x] Successful recovery atomically updates password and invalidates the old recovery code; a new code is shown once.
+- [x] All security-relevant events are audited with UTC timestamp and no credentials/secrets.
+- [x] Database schema/index constraints and foreign keys pass SQLite integration tests.
+- [x] Closing app clears in-memory login state; restarting requires login.
+- [x] Source repo `.gitignore` excludes local `.db`, `.db-wal`, `.db-shm`, backups, secrets and user-specific config.
+- [x] CI executes unit tests and SQLite integration tests; sample fixtures contain no customer data.
+
+**Local validation:** The full solution builds with .NET 10, and all 14 tests pass. The Windows CI workflow is configured in `.github/workflows/ci.yml`.
 
 ## Scenarios to execute
 
@@ -659,4 +661,3 @@ classDiagram
 - [Microsoft password hashing](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.identity.passwordhasher-1)
 - [SQLite network guidance](https://www.sqlite.org/whentouse.html)
 - [Windows DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata)
-

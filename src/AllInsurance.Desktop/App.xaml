@@ -1,0 +1,50 @@
+<Application
+    x:Class="AllInsurance.Desktop.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FFF7F8FA" />
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF5B6472" />
+                    <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB42318" />
+                    <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF1769AA" />
+                    <SolidColorBrush x:Key="ButtonAccentBrush" Color="#FF1769AA" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FF1F1F1F" />
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FF2C2C2C" />
+                    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFBBBBBB" />
+                    <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFFF8A80" />
+                    <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF66B8FF" />
+                    <SolidColorBrush x:Key="ButtonAccentBrush" Color="#FF005A9E" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FFF7F8FA" />
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF5B6472" />
+                    <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB42318" />
+                    <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF1769AA" />
+                    <SolidColorBrush x:Key="ButtonAccentBrush" Color="#FF1769AA" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        <Style TargetType="TextBox">
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="FontSize" Value="15" />
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="FontSize" Value="15" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="MinHeight" Value="42" />
+            <Setter Property="FontSize" Value="15" />
+        </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
