@@ -97,6 +97,40 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessRecords", (string)null);
                 });
 
+            modelBuilder.Entity("AllInsurance.Domain.Entities.BusinessRecordActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordId", "OccurredAtUtc");
+
+                    b.ToTable("BusinessRecordActivities", (string)null);
+                });
+
             modelBuilder.Entity("AllInsurance.Domain.Entities.CommissionRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -845,6 +879,17 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.BusinessRecordActivity", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.BusinessRecord", "Record")
+                        .WithMany()
+                        .HasForeignKey("RecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Record");
                 });
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.Customer", b =>

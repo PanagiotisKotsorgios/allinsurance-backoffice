@@ -8,7 +8,9 @@ public sealed class PolicyCardData
     public string? NoticeNumber { get; set; }
     public string? PolicyNumber { get; set; }
     public string? Insurer { get; set; }
+    public Guid? CompanyId { get; set; }
     public string? Agency { get; set; }
+    public Guid? AgencyId { get; set; }
     public string? Branch { get; set; }
     public string? Product { get; set; }
     public Guid? VehicleId { get; set; }

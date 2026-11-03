@@ -1,6 +1,6 @@
 # allinsurance-backoffice
 
-AllInsurance Backoffice Software is a Windows desktop application with Phase 01 authentication, a Phase 02 Greek workspace UI, and Phase 03 customer records and shared dashboard functions. It is native WinUI 3, uses a local SQLite database, and keeps application services independently testable.
+AllInsurance Backoffice Software is a Windows desktop application with Greek authentication, customer and partner workflows, and connected cards for vehicles, insurance documents, companies, agencies, claims, updates, reports, and company bridges. It is native WinUI 3, uses a local SQLite database, and keeps application services independently testable.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ On the first launch, create the administrator and save the one-time recovery cod
 
 The login flow supports local authentication, five-attempt/15-minute lockout, temporary-password replacement, and offline recovery-code rotation. A successful sign-in maximizes the Greek workspace with ten business sections and the supplied colorful section icons. The top bar provides navigation, administrator user management, audit log, system settings, keyboard shortcuts, and KALYPSIS SOFTWARE SOLUTIONS help and contact details. A footer displays database connection status and the active user. Closing the window ends the in-memory session.
 
-The authentication lockout values can be changed in `src\AllInsurance.Desktop\appsettings.json`. Application services enforce authorization on user and role management. The customer screen supports persisted profiles, linked records, financial movements, file attachments, and statistics. Other dashboards have a common persisted record workflow with customer links, ready for specialized fields in later phases. See [Phase 02 analysis](Software%20Analysis/02%20-%20Workspace%20UI/README.md) and [Phase 03 analysis](Software%20Analysis/03%20-%20Customers%20and%20Shared%20Dashboards/README.md).
+The authentication lockout values can be changed in `src\AllInsurance.Desktop\appsettings.json`. Application services enforce authorization on user and role management. The customer screen supports persisted profiles, linked records, financial movements, file attachments, and statistics. The remaining workspace cards include section-specific fields, linked records, search, pagination, and activity history. See [workspace UI](Software%20Analysis/02%20-%20Workspace%20UI/README.md), [customer workflows](Software%20Analysis/03%20-%20Customers%20and%20Shared%20Dashboards/README.md), and [connected workspace cards](Software%20Analysis/13%20-%20Connected%20Workspace%20Cards/README.md).
 
 Receipts and payments now record a payment method, currency, reference number, and notes. The balance refreshes immediately in the open customer card and customer list. EUR is the default currency; an administrator can change it in system settings before any monetary records exist. See [customer payments](Software%20Analysis/06%20-%20Customer%20Payments/README.md).
 

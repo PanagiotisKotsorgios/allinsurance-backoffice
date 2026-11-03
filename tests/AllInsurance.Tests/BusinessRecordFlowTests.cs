@@ -7,6 +7,57 @@ namespace AllInsurance.Tests;
 public sealed class BusinessRecordFlowTests
 {
     [Fact]
+    public async Task CompanyAgencyAndClaimLinksSurviveRenamesAndHaveHistory()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var customerId = await customers.SaveAsync(new Customer
+        { LastName = "Linked", FirstName = "Customer", TaxNumber = "100000091" });
+        var companyId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "companies", Title = "Insurer A", DetailsJson = new WorkspaceCardData().Write() });
+        var agencyId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "agencies", Title = "Agency A",
+            DetailsJson = new WorkspaceCardData { CompanyId = companyId }.Write() });
+        var vehicleId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "vehicles", Title = "TEST-456", CustomerId = customerId });
+        var policyId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "policies", Title = "POL-456", CustomerId = customerId,
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            { Insurer = "Insurer A", Agency = "Agency A", VehicleId = vehicleId }) });
+        var otherCompanyId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "companies", Title = "Insurer Other" });
+        await Assert.ThrowsAsync<ArgumentException>(() => records.SaveAsync(new BusinessRecord
+        { SectionKey = "claims", Title = "CLM-WRONG", CustomerId = customerId,
+            DetailsJson = new WorkspaceCardData
+            { CompanyId = otherCompanyId, PolicyId = policyId, VehicleId = vehicleId }.Write() }));
+        var claimId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "claims", Title = "CLM-456", CustomerId = customerId,
+            DetailsJson = new WorkspaceCardData
+            { CompanyId = companyId, AgencyId = agencyId, PolicyId = policyId,
+                VehicleId = vehicleId }.Write() });
+        Assert.Single(await records.GetActivitiesAsync(claimId));
+        var claim = (await records.GetAsync(claimId))!;
+        claim.Status = "Σε εξέλιξη";
+        await records.SaveAsync(claim);
+        Assert.Equal(2, (await records.GetActivitiesAsync(claimId)).Count);
+        var company = (await records.GetAsync(companyId))!;
+        company.Title = "Insurer B";
+        await records.SaveAsync(company);
+        var agency = (await records.GetAsync(agencyId))!;
+        agency.Title = "Agency B";
+        await records.SaveAsync(agency);
+        var policy = BusinessRecordDetails.Read<PolicyCardData>((await records.GetAsync(policyId))!.DetailsJson);
+        Assert.Equal("Insurer B", policy.Insurer);
+        Assert.Equal("Agency B", policy.Agency);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(companyId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(agencyId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(policyId));
+    }
+
+    [Fact]
     public async Task VehiclePeopleClaimsAndTechnicalDataStayLinked()
     {
         await using var environment = new TestEnvironment();

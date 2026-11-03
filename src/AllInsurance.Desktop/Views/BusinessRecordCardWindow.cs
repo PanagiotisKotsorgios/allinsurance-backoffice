@@ -61,6 +61,8 @@ public sealed partial class BusinessRecordCardWindow : Window
     private IReadOnlyList<CustomerListItem> _vehicleCustomers = [];
     private IReadOnlyList<BusinessRecord> _vehiclePolicies = [];
     private IReadOnlyList<BusinessRecord> _vehicleClaims = [];
+    private IReadOnlyList<BusinessRecord> _agencyRecords = [];
+    private WorkspaceRecordCardWindow? _linkedOrganizationCard;
     private ListView? _peopleList;
     private ListView? _policiesList;
     private ListView? _claimsList;
@@ -88,7 +90,8 @@ public sealed partial class BusinessRecordCardWindow : Window
     public event EventHandler? RecordSaved;
 
     public BusinessRecordCardWindow(string section, Guid? customerId = null, Guid? recordId = null,
-        nint ownerHandle = default, Guid? vehicleId = null, bool beginEditing = false)
+        nint ownerHandle = default, Guid? vehicleId = null, bool beginEditing = false,
+        string? insurerName = null, string? agencyName = null)
     {
         if (section is not ("policies" or "vehicles"))
             throw new ArgumentException("Μη υποστηριζόμενη καρτέλα.");
@@ -99,8 +102,9 @@ public sealed partial class BusinessRecordCardWindow : Window
         _ownerHandle = ownerHandle == default ? App.MainWindowHandle() : ownerHandle;
         _record = new BusinessRecord { SectionKey = section, Title = "",
             CustomerId = customerId, DocumentType = section == "policies" ? "Αίτηση" : null,
-            DetailsJson = section == "policies" && vehicleId is Guid linkedVehicle
-                ? BusinessRecordDetails.Write(new PolicyCardData { VehicleId = linkedVehicle }) : null };
+            DetailsJson = section == "policies"
+                ? BusinessRecordDetails.Write(new PolicyCardData { VehicleId = vehicleId,
+                    Insurer = insurerName, Agency = agencyName }) : null };
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
         _root.Background = new SolidColorBrush(IsDarkTheme()
             ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 246, 249, 252));
@@ -149,6 +153,8 @@ public sealed partial class BusinessRecordCardWindow : Window
             var companies = _section == "policies"
                 ? (await _records.SearchAsync("companies")).ToArray()
                 : [];
+            _agencyRecords = _section == "policies"
+                ? (await _records.SearchAsync("agencies")).ToArray() : [];
             var vehicles = _section == "policies"
                 ? (await _records.SearchAsync("vehicles")).ToArray()
                 : [];
@@ -264,6 +270,37 @@ public sealed partial class BusinessRecordCardWindow : Window
         if (_insurerSuggest is not null) _insurerSuggest.IsEnabled = _editing;
         if (_convertButton is not null) _convertButton.IsEnabled = _editing;
         foreach (var button in _editControls) button.IsEnabled = _editing;
+    }
+
+    private Button OrganizationLinkButton(string section, Func<string> name,
+        IReadOnlyList<BusinessRecord> organizations)
+    {
+        var button = new Button { Content = new FontIcon { Glyph = "\uE8A7",
+            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets") },
+            Width = 34, Height = 34, Padding = new Thickness(0),
+            Background = new SolidColorBrush(Color.FromArgb(255, 23, 111, 171)),
+            Foreground = new SolidColorBrush(Colors.White) };
+        ToolTipService.SetToolTip(button, section == "companies" ?
+            "Άνοιγμα ασφαλιστικής εταιρείας" : "Άνοιγμα πρακτορείου");
+        ButtonMotion.Attach(button);
+        button.Click += async (_, _) =>
+        {
+            var record = organizations.FirstOrDefault(item =>
+                string.Equals(item.Title, name().Trim(), StringComparison.CurrentCultureIgnoreCase));
+            if (record is null)
+            {
+                await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+                    "Δεν υπάρχει αντίστοιχη καταχωρημένη καρτέλα. Επιλέξτε εταιρεία ή πρακτορείο από τις καταχωρήσεις.");
+                return;
+            }
+            if (_linkedOrganizationCard is not null) { _linkedOrganizationCard.BringToFront(); return; }
+            _linkedOrganizationCard = new WorkspaceRecordCardWindow(section, record.Id,
+                ownerHandle: WindowNative.GetWindowHandle(this));
+            _linkedOrganizationCard.Closed += (_, _) =>
+            { _linkedOrganizationCard = null; BringToFront(); };
+            _linkedOrganizationCard.BringToFront();
+        };
+        return button;
     }
 
     private readonly List<Button> _editControls = [];
@@ -394,8 +431,23 @@ public sealed partial class BusinessRecordCardWindow : Window
         };
         _insurerSuggest.SuggestionChosen += (_, args) =>
             _insurerSuggest.Text = args.SelectedItem as string ?? _insurerSuggest.Text;
-        left.Children.Add(CardFieldLayout.CreateRow("Ασφαλιστική εταιρεία", _insurerSuggest));
-        Text(left, "agency", "Πρακτορείο", data.Agency);
+        var insurerHost = new Grid { ColumnSpacing = 4,
+            ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto } } };
+        insurerHost.Children.Add(_insurerSuggest);
+        var openInsurer = OrganizationLinkButton("companies", () => _insurerSuggest.Text, companies);
+        Grid.SetColumn(openInsurer, 1); insurerHost.Children.Add(openInsurer);
+        left.Children.Add(CardFieldLayout.CreateRow("Ασφαλιστική εταιρεία", insurerHost));
+        var agencyInput = new TextBox { Text = data.Agency ?? "", Height = 34, MinHeight = 34,
+            FontSize = 13, HorizontalAlignment = HorizontalAlignment.Stretch };
+        _text["agency"] = agencyInput;
+        var agencyHost = new Grid { ColumnSpacing = 4,
+            ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto } } };
+        agencyHost.Children.Add(agencyInput);
+        var openAgency = OrganizationLinkButton("agencies", () => agencyInput.Text, _agencyRecords);
+        Grid.SetColumn(openAgency, 1); agencyHost.Children.Add(openAgency);
+        left.Children.Add(CardFieldLayout.CreateRow("Πρακτορείο", agencyHost));
         Text(left, "branch", "Κλάδος", data.Branch);
         Text(left, "product", "Προϊόν / πακέτο", data.Product);
         CustomerChoice(right, customers);

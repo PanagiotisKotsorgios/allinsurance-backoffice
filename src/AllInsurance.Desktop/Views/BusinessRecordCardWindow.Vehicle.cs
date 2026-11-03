@@ -298,45 +298,27 @@ public sealed partial class BusinessRecordCardWindow
 
     private Guid? SelectedClaimId() => (_claimsList?.SelectedItem as ListViewItem)?.Tag is Guid id ? id : null;
 
+    private WorkspaceRecordCardWindow? _linkedClaimCard;
+
     private async Task EditClaimAsync(Guid? id)
     {
         if (_record.Id == Guid.Empty)
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Αποθηκεύστε πρώτα το όχημα."); return; }
-        var record = id is Guid recordId ? await _records.GetAsync(recordId) :
-            new BusinessRecord { SectionKey = "claims", Title = "", CustomerId = _record.CustomerId,
-                DetailsJson = BusinessRecordDetails.Write(new ClaimCardData { VehicleId = _record.Id }) };
-        if (record is null || record.SectionKey != "claims" ||
-            BusinessRecordDetails.Read<ClaimCardData>(record.DetailsJson).VehicleId != _record.Id)
-        { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Η ζημιά δεν ανήκει σε αυτό το όχημα."); return; }
-        var reference = new TextBox { Header = "Αριθμός ζημιάς *", Text = record.Reference ?? record.Title };
-        var status = new ComboBox { Header = "Κατάσταση", ItemsSource = new[]
-            { "Νέα", "Σε εξέλιξη", "Ολοκληρωμένη", "Κλειστή" },
-            SelectedItem = record.Status ?? "Νέα", HorizontalAlignment = HorizontalAlignment.Stretch };
-        var date = new CalendarDatePicker { Header = "Ημερομηνία συμβάντος",
-            Date = record.EventDate is DateTime eventDate ? new DateTimeOffset(eventDate) : null };
-        var notes = new TextBox { Header = "Σημειώσεις", Text = record.Notes ?? "",
-            AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 100 };
-        var form = new StackPanel { Spacing = 8, Width = 430 };
-        form.Children.Add(reference); form.Children.Add(status); form.Children.Add(date); form.Children.Add(notes);
-        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
-            Title = id is null ? "Προσθήκη ζημιάς" : "Επεξεργασία ζημιάς",
-            Content = form, PrimaryButtonText = "Αποθήκευση", CloseButtonText = "Ακύρωση" };
-        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
-        if (string.IsNullOrWhiteSpace(reference.Text))
-        { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Ο αριθμός ζημιάς είναι υποχρεωτικός."); return; }
-        try
+        if (id is Guid claimId)
         {
-            record.Title = reference.Text.Trim(); record.Reference = record.Title;
-            record.Status = status.SelectedItem as string;
-            record.EventDate = date.Date?.Date;
-            record.Notes = notes.Text.Trim();
-            record.CustomerId = _record.CustomerId;
-            record.DetailsJson = BusinessRecordDetails.Write(new ClaimCardData { VehicleId = _record.Id });
-            await _records.SaveAsync(record);
-            await RefreshVehicleClaimsAsync();
-            RecordSaved?.Invoke(this, EventArgs.Empty);
+            var claim = await _records.GetAsync(claimId);
+            if (claim is null || claim.SectionKey != "claims" ||
+                BusinessRecordDetails.Read<ClaimCardData>(claim.DetailsJson).VehicleId != _record.Id)
+            { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Η ζημιά δεν ανήκει σε αυτό το όχημα."); return; }
         }
-        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
+        if (_linkedClaimCard is not null) { _linkedClaimCard.BringToFront(); return; }
+        _linkedClaimCard = new WorkspaceRecordCardWindow("claims", id,
+            customerId: _record.CustomerId, vehicleId: _record.Id,
+            ownerHandle: WindowNative.GetWindowHandle(this));
+        _linkedClaimCard.RecordSaved += async (_, _) =>
+        { await RefreshVehicleClaimsAsync(); RecordSaved?.Invoke(this, EventArgs.Empty); };
+        _linkedClaimCard.Closed += (_, _) => { _linkedClaimCard = null; BringToFront(); };
+        _linkedClaimCard.BringToFront();
     }
 
     private async Task DeleteClaimAsync(Guid? id)

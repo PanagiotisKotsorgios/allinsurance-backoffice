@@ -21,6 +21,7 @@ public sealed partial class SectionPage : Page
     private readonly IFilterOptionService _filters;
     private CustomerCardWindow? _card;
     private BusinessRecordCardWindow? _businessCard;
+    private WorkspaceRecordCardWindow? _workspaceCard;
     private PartnerCardWindow? _partnerCard;
     private CustomerChoice[] _customerChoices = [];
     private string[] _partnerCategories = [];
@@ -483,67 +484,7 @@ public sealed partial class SectionPage : Page
             OpenBusinessRecordCard(existing?.Id, beginEditing);
             return;
         }
-        var record = existing is null ? new BusinessRecord { SectionKey = _section.Key, Title = "" } :
-            await _records.GetAsync(existing.Id);
-        if (record is null) { await UiAlerts.ShowErrorAsync(XamlRoot, "Η εγγραφή δεν υπάρχει."); return; }
-        var editing = existing is null || beginEditing;
-        var title = new TextBox { Header = RequiredHeader.Create(_section.Columns[0]), Text = record.Title };
-        var reference = new TextBox { Header = "Κωδικός / αριθμός", Text = record.Reference ?? "" };
-        var party = new TextBox { Header = _section.Columns.Length > 1 ? _section.Columns[1] : "Σχετικό πρόσωπο",
-            Text = record.RelatedParty ?? "" };
-        var status = new TextBox { Header = "Κατάσταση", Text = record.Status ?? "" };
-        var date = new CalendarDatePicker { Header = "Ημερομηνία",
-            Date = record.EventDate is DateTime eventDate ? new DateTimeOffset(eventDate) : null };
-        var customer = new ComboBox { Header = "Συνδεδεμένος πελάτης", Width = 320,
-            DisplayMemberPath = nameof(CustomerChoice.Name), ItemsSource = _customerChoices };
-        customer.SelectedItem = _customerChoices.FirstOrDefault(item => item.Id == record.CustomerId) ??
-            _customerChoices.FirstOrDefault();
-        var notes = new TextBox { Header = "Σημειώσεις", Text = record.Notes ?? "",
-            AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 90 };
-        var form = new StackPanel { Spacing = 10, Width = 500 };
-        var editButton = new ActionButton { Kind = "Edit", Label = "Επεξεργασία " + Singular(_section.Title),
-            Visibility = editing ? Visibility.Collapsed : Visibility.Visible,
-            HorizontalAlignment = HorizontalAlignment.Left };
-        form.Children.Add(editButton);
-        foreach (var control in new UIElement[] { title, reference, party, status, date, customer,
-            ResizableNoteField.Wrap(notes) })
-            form.Children.Add(control);
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = existing is null ? "Προσθήκη " + Singular(_section.Title) :
-                "Επεξεργασία " + Singular(_section.Title),
-            Content = new ScrollViewer { Content = form, MaxHeight = 520 },
-            PrimaryButtonText = "Αποθήκευση",
-            IsPrimaryButtonEnabled = editing,
-            CloseButtonText = "Ακύρωση"
-        };
-        void ApplyEditing()
-        {
-            foreach (var field in new[] { title, reference, party, status, notes })
-                field.IsReadOnly = !editing;
-            date.IsEnabled = editing;
-            customer.IsEnabled = editing;
-            dialog.IsPrimaryButtonEnabled = editing;
-            editButton.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
-        }
-        editButton.Click += (_, _) => { editing = true; ApplyEditing(); };
-        ApplyEditing();
-        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
-        try
-        {
-            record.Title = title.Text;
-            record.Reference = reference.Text;
-            record.RelatedParty = party.Text;
-            record.Status = status.Text;
-            record.EventDate = date.Date?.Date;
-            record.CustomerId = (customer.SelectedItem as CustomerChoice)?.Id;
-            record.Notes = notes.Text;
-            await _records.SaveAsync(record);
-            await RefreshAsync();
-            StatusText.Text = "Η εγγραφή αποθηκεύτηκε.";
-        }
-        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+        OpenWorkspaceCard(existing?.Id, beginEditing);
     }
 
     private void OpenPartnerCard(Guid? id, bool beginEditing = false)
@@ -579,6 +520,23 @@ public sealed partial class SectionPage : Page
             _businessCard.BringToFront();
         }
         catch (Exception exception) { _businessCard = null; StatusText.Text = exception.Message; }
+    }
+
+    private void OpenWorkspaceCard(Guid? id, bool beginEditing = false)
+    {
+        if (_workspaceCard is not null) { _workspaceCard.BringToFront(); return; }
+        try
+        {
+            _workspaceCard = new WorkspaceRecordCardWindow(_section.Key, id, beginEditing);
+            _workspaceCard.RecordSaved += async (_, _) => await RefreshAsync();
+            _workspaceCard.Closed += async (_, _) =>
+            {
+                _workspaceCard = null;
+                await RefreshAsync();
+            };
+            _workspaceCard.BringToFront();
+        }
+        catch (Exception exception) { _workspaceCard = null; StatusText.Text = exception.Message; }
     }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)

@@ -18,6 +18,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<CustomerTransaction> CustomerTransactions => Set<CustomerTransaction>();
     public DbSet<CustomerActivity> CustomerActivities => Set<CustomerActivity>();
     public DbSet<BusinessRecord> BusinessRecords => Set<BusinessRecord>();
+    public DbSet<BusinessRecordActivity> BusinessRecordActivities => Set<BusinessRecordActivity>();
     public DbSet<PartnerPayout> PartnerPayouts => Set<PartnerPayout>();
     public DbSet<PartnerActivity> PartnerActivities => Set<PartnerActivity>();
     public DbSet<CommissionRule> CommissionRules => Set<CommissionRule>();
@@ -249,6 +250,18 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.HasIndex(item => new { item.PartnerId, item.OccurredAtUtc });
             entity.HasOne(item => item.Partner).WithMany()
                 .HasForeignKey(item => item.PartnerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BusinessRecordActivity>(entity =>
+        {
+            entity.ToTable("BusinessRecordActivities");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Action).IsRequired().HasMaxLength(80);
+            entity.Property(item => item.Description).IsRequired().HasMaxLength(4000);
+            entity.Property(item => item.ActorName).IsRequired().HasMaxLength(200);
+            entity.HasIndex(item => new { item.RecordId, item.OccurredAtUtc });
+            entity.HasOne(item => item.Record).WithMany()
+                .HasForeignKey(item => item.RecordId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CommissionRule>(entity =>
