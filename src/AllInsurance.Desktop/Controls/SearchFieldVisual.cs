@@ -13,17 +13,16 @@ internal static class SearchFieldVisual
         search.Margin = new Thickness(0);
         search.Height = Math.Max(42, search.Height + 2);
         search.MinHeight = search.Height;
-        search.Padding = new Thickness(42, 0, 12, 0);
+        search.Padding = new Thickness(42, 7, 12, 7);
         search.CornerRadius = new CornerRadius(7);
         search.BorderThickness = new Thickness(0);
         search.HorizontalAlignment = HorizontalAlignment.Stretch;
         search.VerticalContentAlignment = VerticalAlignment.Center;
         var host = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
         host.Children.Add(search);
-        host.Children.Add(new FontIcon
+        host.Children.Add(new SearchGlyph
         {
-            Glyph = "\uE721", FontFamily = new FontFamily("Segoe Fluent Icons"),
-            FontSize = 20, Width = 24, Height = 24,
+            Width = 24, Height = 24,
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(12, 0, 0, 0),

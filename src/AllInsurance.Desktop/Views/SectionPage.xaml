@@ -28,12 +28,11 @@
                             BorderThickness="1.5" Padding="1">
                     <Grid>
                         <TextBox x:Name="SearchInput" Height="42" MinHeight="42" CornerRadius="7"
-                                 BorderThickness="0" Padding="42,0,12,0" VerticalContentAlignment="Center"
+                                 BorderThickness="0" Padding="42,7,12,7" VerticalContentAlignment="Center"
                                  TextChanged="Filter_Changed" />
-                        <FontIcon Glyph="&#xE721;" FontFamily="Segoe Fluent Icons" FontSize="20"
-                                  Width="24" Height="24" Margin="12,0,0,0"
-                                  HorizontalAlignment="Left" VerticalAlignment="Center"
-                                  IsHitTestVisible="False" />
+                        <controls:SearchGlyph Width="24" Height="24" Margin="12,0,0,0"
+                                              HorizontalAlignment="Left" VerticalAlignment="Center"
+                                              IsHitTestVisible="False" />
                     </Grid>
                     </Border>
                     <VariableSizedWrapGrid x:Name="FilterBar" Orientation="Horizontal"
