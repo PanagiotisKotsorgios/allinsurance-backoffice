@@ -3,6 +3,7 @@ using AllInsurance.Desktop.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
 
@@ -22,10 +23,13 @@ public sealed partial class LoginPage : Page
 
     private void PasswordChanged(object sender, RoutedEventArgs e) => ViewModel.Password = PasswordInput.Password;
 
-    private void ShowPasswordChanged(object sender, RoutedEventArgs e) =>
-        PasswordInput.PasswordRevealMode = sender is CheckBox { IsChecked: true }
-            ? PasswordRevealMode.Visible
-            : PasswordRevealMode.Hidden;
+    private void ShowPasswordChanged(object sender, RoutedEventArgs e)
+    {
+        var show = sender is ToggleButton { IsChecked: true };
+        PasswordInput.PasswordRevealMode = show ? PasswordRevealMode.Visible : PasswordRevealMode.Hidden;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ShowPasswordButton,
+            show ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού");
+    }
 
     private void PasswordKeyDown(object sender, KeyRoutedEventArgs e)
     {

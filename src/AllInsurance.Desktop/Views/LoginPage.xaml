@@ -18,10 +18,19 @@
                 <TextBlock Text="Όνομα χρήστη" />
                 <TextBox Text="{Binding Username, Mode=TwoWay}" AutomationProperties.Name="Όνομα χρήστη" />
                 <TextBlock Text="Κωδικός πρόσβασης" />
-                <PasswordBox x:Name="PasswordInput" PasswordChanged="PasswordChanged"
-                             KeyDown="PasswordKeyDown" AutomationProperties.Name="Κωδικός πρόσβασης" />
-                <CheckBox Content="Εμφάνιση κωδικού" Checked="ShowPasswordChanged"
-                          Unchecked="ShowPasswordChanged" />
+                <Grid>
+                    <PasswordBox x:Name="PasswordInput" PasswordChanged="PasswordChanged"
+                                 PasswordRevealMode="Hidden" Padding="12,0,52,0"
+                                 KeyDown="PasswordKeyDown" AutomationProperties.Name="Κωδικός πρόσβασης" />
+                    <ToggleButton x:Name="ShowPasswordButton" Width="40" Height="36" MinHeight="36"
+                                  Padding="0" Margin="0,0,5,0" HorizontalAlignment="Right"
+                                  VerticalAlignment="Center" Background="Transparent" BorderThickness="0"
+                                  Checked="ShowPasswordChanged" Unchecked="ShowPasswordChanged"
+                                  AutomationProperties.Name="Εμφάνιση κωδικού">
+                        <FontIcon Glyph="&#xE890;" FontFamily="Segoe MDL2 Assets"
+                                  Foreground="{ThemeResource BrandAccentBrush}" FontSize="17" />
+                    </ToggleButton>
+                </Grid>
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="{ThemeResource ErrorTextBrush}"
                            TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />
                 <ProgressRing IsActive="{Binding IsBusy}" Width="24" Height="24"
