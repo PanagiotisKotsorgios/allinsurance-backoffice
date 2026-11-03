@@ -37,7 +37,7 @@ public sealed partial class SectionPage : Page
         SectionIcon.Source = new BitmapImage(new Uri(section.Icon));
         SectionTitle.Text = section.Title;
         SectionDescription.Text = section.Description;
-        AddButton.Content = "Προσθήκη " + Singular(section.Title);
+        AddButton.Label = "Προσθήκη " + Singular(section.Title);
         SearchInput.PlaceholderText = section.SearchHint;
         TitleHeader.Text = section.Columns[0];
         PartyHeader.Text = section.Columns.Length > 1 ? section.Columns[1] : "Στοιχεία";

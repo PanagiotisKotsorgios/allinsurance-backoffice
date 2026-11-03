@@ -2,6 +2,7 @@
     x:Class="AllInsurance.Desktop.Views.CustomersPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
     <ScrollViewer x:Name="Scroller" SizeChanged="Scroller_SizeChanged"
                   VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -20,60 +21,61 @@
                         <TextBlock Text="Καρτέλες, στοιχεία επικοινωνίας, συστάσεις και οικονομικό ιστορικό."
                                    Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
                     </StackPanel>
-                    <Button Grid.Row="1" Content="Προσθήκη πελάτη" Click="Add_Click"
-                            HorizontalAlignment="Left" />
+                    <controls:ActionButton Grid.Row="1" Kind="Add" Label="Προσθήκη πελάτη"
+                                           Click="Add_Click" HorizontalAlignment="Left" />
                 </Grid>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
                     <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <TextBox x:Name="SearchInput" Width="330"
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="54">
+                        <TextBox x:Name="SearchInput" Width="210"
                                  PlaceholderText="Όνομα, ΑΦΜ, τηλέφωνο, email"
                                  TextChanged="Filter_Changed" />
-                        <ComboBox x:Name="StatusFilter" Width="160" SelectionChanged="Filter_Changed">
+                        <ComboBox x:Name="StatusFilter" Width="210" SelectionChanged="Filter_Changed">
                             <ComboBoxItem Content="Όλες οι καταστάσεις" />
                             <ComboBoxItem Content="Ενεργοί" />
                             <ComboBoxItem Content="Ανενεργοί" />
                         </ComboBox>
-                        <ComboBox x:Name="BalanceFilter" Width="180" SelectionChanged="Filter_Changed">
+                        <ComboBox x:Name="BalanceFilter" Width="210" SelectionChanged="Filter_Changed">
                             <ComboBoxItem Content="Όλα τα υπόλοιπα" />
                             <ComboBoxItem Content="Χρεωστικό" />
                             <ComboBoxItem Content="Πιστωτικό" />
                             <ComboBoxItem Content="Μηδενικό" />
                         </ComboBox>
-                        <ComboBox x:Name="OwnershipFilter" Width="180" SelectionChanged="Filter_Changed">
+                        <ComboBox x:Name="OwnershipFilter" Width="210" SelectionChanged="Filter_Changed">
                             <ComboBoxItem Content="Όλοι οι πελάτες" />
                             <ComboBoxItem Content="Στο γραφείο" />
                             <ComboBoxItem Content="Σε συνεργάτη" />
                         </ComboBox>
-                        <ComboBox x:Name="KindFilter" Width="190" SelectionChanged="Filter_Changed">
+                        <ComboBox x:Name="KindFilter" Width="210" SelectionChanged="Filter_Changed">
                             <ComboBoxItem Content="Όλοι οι τύποι" />
                             <ComboBoxItem Content="Φυσικό πρόσωπο" />
                             <ComboBoxItem Content="Επιχείρηση" />
                         </ComboBox>
-                        <ComboBox x:Name="CityFilter" Width="200" PlaceholderText="Όλες οι πόλεις"
+                        <ComboBox x:Name="CityFilter" Width="210" PlaceholderText="Όλες οι πόλεις"
                                   SelectionChanged="Filter_Changed" />
-                        <ComboBox x:Name="PartnerFilter" Width="220" PlaceholderText="Όλοι οι συνεργάτες"
+                        <ComboBox x:Name="PartnerFilter" Width="210" PlaceholderText="Όλοι οι συνεργάτες"
                                   SelectionChanged="Filter_Changed" />
-                        <Button Content="Καθαρισμός" Click="ClearFilters_Click" />
-                    </StackPanel>
-                    </ScrollViewer>
-                    <TextBox x:Name="GroupFilter" Width="330" HorizontalAlignment="Left"
-                             PlaceholderText="Φίλτρο ομαδοποίησης" TextChanged="Filter_Changed" />
+                        <TextBox x:Name="GroupFilter" Width="210"
+                                 PlaceholderText="Ομαδοποίηση" TextChanged="Filter_Changed" />
+                        <controls:ActionButton Kind="Filter" Label="Καθαρισμός φίλτρων"
+                                               Width="210" Click="ClearFilters_Click" />
+                    </VariableSizedWrapGrid>
                 </StackPanel>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Επεξεργασία πελάτη" Click="Open_Click" />
-                        <Button Content="Διαγραφή πελάτη" Click="Delete_Click" />
-                        <Button Content="Στατιστικά πελατών" Click="Statistics_Click" />
-                        <Button Content="Ανανέωση" Click="Refresh_Click" />
-                    </StackPanel>
-                    </ScrollViewer>
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="50">
+                        <controls:ActionButton Kind="Edit" Label="Επεξεργασία πελάτη"
+                                               Width="210" Click="Open_Click" />
+                        <controls:ActionButton Kind="Delete" Label="Διαγραφή πελάτη"
+                                               Width="210" Click="Delete_Click" />
+                        <controls:ActionButton Kind="Statistics" Label="Στατιστικά πελατών"
+                                               Width="210" Click="Statistics_Click" />
+                        <controls:ActionButton Kind="Refresh" Label="Ανανέωση"
+                                               Width="210" Click="Refresh_Click" />
+                    </VariableSizedWrapGrid>
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
@@ -125,8 +127,10 @@
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <TextBlock x:Name="PageText" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button Content="Προηγούμενη" Click="Previous_Click" />
-                            <Button Content="Επόμενη" Click="Next_Click" />
+                            <controls:ActionButton Kind="Previous" Label="Προηγούμενη"
+                                                   Click="Previous_Click" />
+                            <controls:ActionButton Kind="Next" Label="Επόμενη"
+                                                   Click="Next_Click" />
                         </StackPanel>
                     </Grid>
                 </StackPanel>

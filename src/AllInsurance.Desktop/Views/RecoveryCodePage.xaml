@@ -2,6 +2,7 @@
     x:Class="AllInsurance.Desktop.Views.RecoveryCodePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <Grid>
@@ -18,13 +19,12 @@
                            Foreground="{ThemeResource SecondaryTextBrush}" FontSize="15" TextWrapping="Wrap" />
                 <TextBox Text="{Binding Code}" IsReadOnly="True" FontFamily="Consolas" FontSize="18"
                          TextAlignment="Center" AutomationProperties.Name="Κωδικός ανάκτησης μίας χρήσης" />
-                <Button Content="Αντιγραφή κωδικού" Command="{Binding CopyCodeCommand}" />
+                <controls:ActionButton Kind="File" Label="Αντιγραφή κωδικού" Command="{Binding CopyCodeCommand}" />
                 <TextBlock Text="{Binding StatusMessage}" Foreground="{ThemeResource SecondaryTextBrush}"
                            TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />
                 <CheckBox Content="Έχω αποθηκεύσει τον κωδικό ανάκτησης"
                           IsChecked="{Binding Acknowledged, Mode=TwoWay}" />
-                <Button Content="{Binding ContinueLabel}" Command="{Binding ContinueCommand}"
-                        Background="{ThemeResource ButtonAccentBrush}" Foreground="White" />
+                <controls:ActionButton Kind="Next" Label="{Binding ContinueLabel}" Command="{Binding ContinueCommand}" />
             </StackPanel>
         </Border>
         </Grid>

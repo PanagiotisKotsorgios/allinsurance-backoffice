@@ -2,6 +2,7 @@
     x:Class="AllInsurance.Desktop.Views.WorkspacePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
     <Grid x:Name="RootGrid" RowDefinitions="Auto,*,Auto">
         <Border Grid.Row="0" Background="{ThemeResource CardBackgroundBrush}" Padding="16,8">
@@ -36,20 +37,8 @@
                         </MenuBarItem>
                         </MenuBar>
                     </ScrollViewer>
-                    <Button Grid.Column="1" Content="Αποσύνδεση" Click="SignOut_Click"
-                            Background="#FFC62828" Foreground="#FFFFFFFF"
-                            VerticalAlignment="Center" UseSystemFocusVisuals="True"
-                            AutomationProperties.Name="Αποσύνδεση">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border Background="#FFC62828" CornerRadius="6" Padding="16,8">
-                                    <ContentPresenter Content="{TemplateBinding Content}"
-                                                      Foreground="#FFFFFFFF"
-                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                    </Button>
+                    <controls:ActionButton Grid.Column="1" Kind="SignOut" Label="Αποσύνδεση"
+                                           Click="SignOut_Click" VerticalAlignment="Center" />
                 </Grid>
             </StackPanel>
         </Border>

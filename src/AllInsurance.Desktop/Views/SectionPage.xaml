@@ -2,6 +2,7 @@
     x:Class="AllInsurance.Desktop.Views.SectionPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
     <ScrollViewer x:Name="PageScroller" SizeChanged="Scroller_SizeChanged"
                   VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -22,41 +23,35 @@
                         <TextBlock x:Name="SectionDescription" FontSize="15" TextWrapping="Wrap"
                                    Foreground="{ThemeResource SecondaryTextBrush}" />
                     </StackPanel>
-                    <Button x:Name="AddButton" Grid.Row="1" Grid.Column="1"
-                            Content="Προσθήκη" Click="Add_Click" HorizontalAlignment="Left" />
+                    <controls:ActionButton x:Name="AddButton" Grid.Row="1" Grid.Column="1"
+                            Kind="Add" Label="Προσθήκη" Click="Add_Click" HorizontalAlignment="Left" />
                 </Grid>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
                     <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Disabled">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <TextBox x:Name="SearchInput" Width="330" TextChanged="Filter_Changed" />
-                            <TextBox x:Name="StatusFilter" Width="180" PlaceholderText="Κατάσταση"
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="54">
+                            <TextBox x:Name="SearchInput" Width="210" TextChanged="Filter_Changed" />
+                            <TextBox x:Name="StatusFilter" Width="210" PlaceholderText="Κατάσταση"
                                      TextChanged="Filter_Changed" />
-                            <ComboBox x:Name="CustomerFilter" Width="250"
+                            <ComboBox x:Name="CustomerFilter" Width="210"
                                       PlaceholderText="Όλοι οι πελάτες"
                                       SelectionChanged="CustomerFilter_Changed" />
-                            <TextBox x:Name="FromFilter" Width="150" PlaceholderText="Από ηη/μμ/εεεε"
+                            <TextBox x:Name="FromFilter" Width="210" PlaceholderText="Από ηη/μμ/εεεε"
                                      TextChanged="Filter_Changed" />
-                            <TextBox x:Name="UntilFilter" Width="150" PlaceholderText="Έως ηη/μμ/εεεε"
+                            <TextBox x:Name="UntilFilter" Width="210" PlaceholderText="Έως ηη/μμ/εεεε"
                                      TextChanged="Filter_Changed" />
-                        </StackPanel>
-                    </ScrollViewer>
+                    </VariableSizedWrapGrid>
                 </StackPanel>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Disabled">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Επεξεργασία" Click="Edit_Click" />
-                            <Button Content="Διαγραφή" Click="Delete_Click" />
-                            <Button Content="Στατιστικά" Click="Statistics_Click" />
-                            <Button Content="Ανανέωση" Click="Refresh_Click" />
-                        </StackPanel>
-                    </ScrollViewer>
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="188" ItemHeight="50">
+                        <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="178" Click="Edit_Click" />
+                        <controls:ActionButton Kind="Delete" Label="Διαγραφή" Width="178" Click="Delete_Click" />
+                        <controls:ActionButton Kind="Statistics" Label="Στατιστικά" Width="178" Click="Statistics_Click" />
+                        <controls:ActionButton Kind="Refresh" Label="Ανανέωση" Width="178" Click="Refresh_Click" />
+                    </VariableSizedWrapGrid>
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
@@ -100,8 +95,8 @@
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <TextBlock x:Name="PageText" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button Content="Προηγούμενη" Click="Previous_Click" />
-                            <Button Content="Επόμενη" Click="Next_Click" />
+                            <controls:ActionButton Kind="Previous" Label="Προηγούμενη" Click="Previous_Click" />
+                            <controls:ActionButton Kind="Next" Label="Επόμενη" Click="Next_Click" />
                         </StackPanel>
                     </Grid>
                 </StackPanel>
@@ -111,7 +106,7 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="Σχετικά στοιχεία από καρτέλες πελατών"
                                FontSize="18" FontWeight="SemiBold" />
-                    <Button Content="Άνοιγμα πελάτη" Click="OpenRelatedCustomer_Click"
+                    <controls:ActionButton Kind="Open" Label="Άνοιγμα πελάτη" Click="OpenRelatedCustomer_Click"
                             HorizontalAlignment="Left" />
                     <ListView x:Name="RelatedRecordsList" Height="180" SelectionMode="Single">
                         <ListView.ItemTemplate>

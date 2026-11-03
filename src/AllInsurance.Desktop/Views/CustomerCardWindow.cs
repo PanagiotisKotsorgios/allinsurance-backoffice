@@ -1,5 +1,6 @@
 ﻿using AllInsurance.Application.Customers;
 using AllInsurance.Desktop.Settings;
+using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI;
@@ -36,8 +37,8 @@ public sealed class CustomerCardWindow : Window
     private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _headerAfm = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
-    private readonly Button _saveButton = new() { Content = "Αποθήκευση" };
-    private readonly Button _editButton = new() { Content = "Επεξεργασία πελάτη" };
+    private readonly ActionButton _saveButton = new() { Kind = "Save", Label = "Αποθήκευση" };
+    private readonly ActionButton _editButton = new() { Kind = "Edit", Label = "Επεξεργασία πελάτη" };
 
     public CustomerCardWindow(Guid? customerId)
     {
@@ -70,17 +71,19 @@ public sealed class CustomerCardWindow : Window
         _root.Children.Add(header);
         Grid.SetRow(_tabs, 1);
         _root.Children.Add(_tabs);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
-            Margin = new Thickness(20, 10, 20, 18) };
+        var actions = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
+            ItemWidth = 190, ItemHeight = 48, Margin = new Thickness(20, 10, 20, 18) };
+        var primaryAction = new Grid { Width = 180 };
         _saveButton.Click += async (_, _) => await SaveAsync();
-        actions.Children.Add(_saveButton);
+        primaryAction.Children.Add(_saveButton);
         _editButton.Click += (_, _) =>
         {
             _editing = true;
             BuildTabs();
             UpdateActionState();
         };
-        actions.Children.Add(_editButton);
+        primaryAction.Children.Add(_editButton);
+        actions.Children.Add(primaryAction);
         AddButton(actions, "Γενική είσπραξη", async () => await AddTransactionAsync("receipt"));
         AddButton(actions, "Γενική πληρωμή", async () => await AddTransactionAsync("payment"));
         AddButton(actions, "Στατιστικά πελάτη", ShowCustomerStatisticsAsync);
@@ -88,11 +91,14 @@ public sealed class CustomerCardWindow : Window
         AddDeferredButton(actions, "Ασφαλιστικός γονέας");
         AddDeferredButton(actions, "Έντυπο GDPR");
         AddButton(actions, "Κλείσιμο", () => { Close(); return Task.CompletedTask; });
-        var actionScroller = new ScrollViewer { Content = actions, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
-        Grid.SetRow(actionScroller, 2);
-        _root.Children.Add(actionScroller);
+        Grid.SetRow(actions, 2);
+        _root.Children.Add(actions);
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
+        var dark = _root.RequestedTheme == ElementTheme.Dark ||
+            (_root.RequestedTheme == ElementTheme.Default &&
+             Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        _root.Background = new SolidColorBrush(dark
+            ? Color.FromArgb(255, 31, 31, 31) : Color.FromArgb(255, 247, 248, 250));
         Content = _root;
 
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
@@ -303,7 +309,8 @@ public sealed class CustomerCardWindow : Window
     {
         var root = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto }, new RowDefinition() },
             Margin = new Thickness(16) };
-        var commands = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var commands = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
+            ItemWidth = 190, ItemHeight = 48 };
         if (category == "files")
         {
             AddButton(commands, "Επισύναψη αρχείου", AddFileAsync);
@@ -596,17 +603,33 @@ public sealed class CustomerCardWindow : Window
 
     private static void AddButton(Panel panel, string label, Func<Task> action)
     {
-        var button = new Button { Content = label, MinHeight = 36 };
+        var button = new ActionButton { Label = label, Kind = ActionKind(label),
+            Width = 180, MinHeight = 38 };
         button.Click += async (_, _) => await action();
         panel.Children.Add(button);
     }
 
     private static void AddDeferredButton(Panel panel, string label)
     {
-        var button = new Button { Content = label, IsEnabled = false };
+        var button = new ActionButton { Label = label, Kind = "File", Width = 180,
+            IsEnabled = false, Opacity = 0.6 };
         ToolTipService.SetToolTip(button, "Διαθέσιμο σε επόμενη φάση με το εγκεκριμένο υπόδειγμα.");
         panel.Children.Add(button);
     }
+
+    private static string ActionKind(string label) => label switch
+    {
+        "Γενική είσπραξη" => "Receipt",
+        "Γενική πληρωμή" => "Payment",
+        "Στατιστικά πελάτη" => "Statistics",
+        "Επισύναψη αρχείου" => "Upload",
+        "Άνοιγμα" => "Open",
+        "Προσθήκη" => "Add",
+        "Επεξεργασία" => "Edit",
+        "Διαγραφή επιλεγμένου" => "Delete",
+        "Κλείσιμο" => "Close",
+        _ => "Open"
+    };
 
     private sealed record DetailRow(CustomerDetail Detail)
     {
