@@ -1,5 +1,6 @@
 using AllInsurance.Application.Business;
 using AllInsurance.Application.Customers;
+using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -7,7 +8,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.UI;
-using System.Globalization;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -20,15 +20,23 @@ public sealed partial class SectionPage : Page
     private CustomerChoice[] _customerChoices = [];
     private int _requestVersion;
     private BusinessRecordRow[] _filtered = [];
+    private bool _showingDemo;
+    private readonly int[] _columnOrder = [0, 1, 2, 3, 4, 5, 6];
+    private readonly double[] _columnWidths = [240, 140, 190, 130, 130, 240, 100];
+    private int _sortColumn = 0;
+    private bool _sortDescending;
     private int _page = 1;
     private const int PageSize = 25;
 
     public SectionPage(WorkspaceSection section)
     {
         _section = section;
+        _columnOrder = SectionColumnOrder.Load(section.Key);
         _records = App.Services.GetRequiredService<IBusinessRecordService>();
         _customers = App.Services.GetRequiredService<ICustomerService>();
         InitializeComponent();
+        InitializeTableActions();
+        ApplyColumnOrder(RecordsHeader);
         var accent = Color.FromArgb(255,
             Convert.ToByte(section.Accent.Substring(1, 2), 16),
             Convert.ToByte(section.Accent.Substring(3, 2), 16),
@@ -41,6 +49,8 @@ public sealed partial class SectionPage : Page
         SearchInput.PlaceholderText = section.SearchHint;
         TitleHeader.Text = section.Columns[0];
         PartyHeader.Text = section.Columns.Length > 1 ? section.Columns[1] : "Στοιχεία";
+        StatusFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
+        CustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         Loaded += async (_, _) =>
         {
             await LoadCustomersAsync();
@@ -56,11 +66,9 @@ public sealed partial class SectionPage : Page
         try
         {
             var customers = await _customers.SearchAsync();
-            _customerChoices = [new CustomerChoice(null, "Όλοι οι πελάτες"),
+            _customerChoices = [new CustomerChoice(null, "Χωρίς πελάτη"),
                 .. customers.Select(item => new CustomerChoice(item.Id, item.FullName))];
-            CustomerFilter.ItemsSource = _customerChoices;
-            CustomerFilter.DisplayMemberPath = nameof(CustomerChoice.Name);
-            CustomerFilter.SelectedIndex = 0;
+            CustomerFilter.SetOptions(_customerChoices.Select(item => item.Name));
         }
         catch (Exception exception) { StatusText.Text = exception.Message; }
     }
@@ -71,23 +79,43 @@ public sealed partial class SectionPage : Page
         var version = ++_requestVersion;
         try
         {
-            var records = await _records.SearchAsync(_section.Key, SearchInput.Text);
+            var storedRecords = await _records.SearchAsync(_section.Key);
             if (version != _requestVersion) return;
+            _showingDemo = storedRecords.Count == 0;
+            var records = _showingDemo ? DemoRows.Section(_section) : storedRecords.ToArray();
+            DemoNotice.Visibility = _showingDemo ? Visibility.Visible : Visibility.Collapsed;
+            RecordsList.IsHitTestVisible = !_showingDemo;
+            StatusFilter.SetOptions(records.Select(item => string.IsNullOrWhiteSpace(item.Status)
+                ? "Χωρίς κατάσταση" : item.Status));
+            CustomerFilter.SetOptions(_customerChoices.Select(item => item.Name));
             IEnumerable<BusinessRecord> filtered = records;
-            var status = StatusFilter.Text.Trim();
-            if (status.Length > 0)
-                filtered = filtered.Where(item => item.Status?.Contains(status,
-                    StringComparison.CurrentCultureIgnoreCase) == true);
-            if (CustomerFilter.SelectedItem is CustomerChoice choice && choice.Id.HasValue)
-                filtered = filtered.Where(item => item.CustomerId == choice.Id.Value);
-            if (ParseFilterDate(FromFilter.Text) is DateTime from)
+            var term = SearchInput.Text.Trim();
+            if (term.Length > 0)
+                filtered = filtered.Where(item => item.Title.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                    item.Reference?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true ||
+                    item.RelatedParty?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true ||
+                    item.Status?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true);
+            filtered = filtered.Where(item => StatusFilter.SelectedValues.Contains(
+                string.IsNullOrWhiteSpace(item.Status) ? "Χωρίς κατάσταση" : item.Status));
+            filtered = filtered.Where(item => CustomerFilter.SelectedValues.Contains(
+                item.Customer is null ? "Χωρίς πελάτη" :
+                    $"{item.Customer.LastName} {item.Customer.FirstName}".Trim()));
+            if (FromFilter.Date is DateTimeOffset fromDate)
+            {
+                var from = fromDate.Date;
                 filtered = filtered.Where(item => item.EventDate >= from);
-            if (ParseFilterDate(UntilFilter.Text) is DateTime until)
+            }
+            if (UntilFilter.Date is DateTimeOffset untilDate)
+            {
+                var until = untilDate.Date;
                 filtered = filtered.Where(item => item.EventDate < until.AddDays(1));
+            }
             _filtered = filtered.Select(item => new BusinessRecordRow(item)).ToArray();
+            SortRecords();
             _page = 1;
             ApplyPage();
-            StatusText.Text = $"{_filtered.Length} από {records.Count} καταχωρίσεις";
+            StatusText.Text = _showingDemo ? "Προεπισκόπηση κενής λίστας" :
+                $"{_filtered.Length} από {records.Length} καταχωρίσεις";
             if (_section.Key is "vehicles" or "policies" or "claims")
             {
                 var related = await _customers.GetRelatedRecordsAsync(_section.Key, SearchInput.Text);
@@ -100,7 +128,16 @@ public sealed partial class SectionPage : Page
     }
 
     private async void Filter_Changed(object sender, TextChangedEventArgs e) => await RefreshAsync();
-    private async void CustomerFilter_Changed(object sender, SelectionChangedEventArgs e) => await RefreshAsync();
+    private async void DateFilter_Changed(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) =>
+        await RefreshAsync();
+    private void ClearFilters_Click(object sender, RoutedEventArgs e)
+    {
+        SearchInput.Text = "";
+        StatusFilter.SelectAll();
+        CustomerFilter.SelectAll();
+        FromFilter.Date = null;
+        UntilFilter.Date = null;
+    }
     private void Previous_Click(object sender, RoutedEventArgs e)
     {
         if (_page > 1) { _page--; ApplyPage(); }
@@ -114,8 +151,123 @@ public sealed partial class SectionPage : Page
         var pages = Math.Max(1, (int)Math.Ceiling(_filtered.Length / (double)PageSize));
         _page = Math.Clamp(_page, 1, pages);
         RecordsList.ItemsSource = _filtered.Skip((_page - 1) * PageSize).Take(PageSize).ToArray();
-        TotalBadge.Text = $"{_filtered.Length} εγγραφές";
-        PageText.Text = $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
+        TotalBadge.Text = _showingDemo ? "Δοκιμαστική προβολή" : $"{_filtered.Length} εγγραφές";
+        PageText.Text = _showingDemo ? "Δοκιμαστικές γραμμές" :
+            $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
+    }
+
+    private void InitializeTableActions()
+    {
+        RecordsList.DoubleTapped += async (_, args) =>
+        {
+            if (_showingDemo) return;
+            Microsoft.UI.Xaml.DependencyObject? source = args.OriginalSource as Microsoft.UI.Xaml.DependencyObject;
+            while (source is not null && source is not ListViewItem)
+                source = VisualTreeHelper.GetParent(source);
+            if (source is ListViewItem { Content: BusinessRecordRow row })
+                await EditRecordAsync(row.Record);
+        };
+        RecordsList.ContainerContentChanging += (_, args) =>
+        {
+            if (args.InRecycleQueue || args.Item is not BusinessRecordRow row || args.ItemContainer is null) return;
+            args.ItemContainer.Padding = new Thickness(0);
+            args.ItemContainer.Margin = new Thickness(0);
+            args.ItemContainer.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+            var menu = new MenuFlyout();
+            var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
+            open.Click += async (_, _) => await EditRecordAsync(row.Record);
+            var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
+            delete.Click += async (_, _) => await DeleteRecordAsync(row);
+            menu.Items.Add(open);
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(delete);
+            args.ItemContainer.ContextFlyout = menu;
+        };
+        for (var index = 0; index < _columnOrder.Length; index++)
+        {
+            var column = index;
+            var header = (FrameworkElement)RecordsHeader.Children[index];
+            header.Tapped += (_, _) => SortBy(column, _sortColumn == column && !_sortDescending);
+            var menu = new MenuFlyout();
+            var ascending = new MenuFlyoutItem { Text = "Ταξινόμηση αύξουσα" };
+            ascending.Click += (_, _) => SortBy(column, false);
+            var descending = new MenuFlyoutItem { Text = "Ταξινόμηση φθίνουσα" };
+            descending.Click += (_, _) => SortBy(column, true);
+            var left = new MenuFlyoutItem { Text = "Μεταφορά αριστερά" };
+            left.Click += (_, _) => MoveColumn(column, -1);
+            var right = new MenuFlyoutItem { Text = "Μεταφορά δεξιά" };
+            right.Click += (_, _) => MoveColumn(column, 1);
+            menu.Items.Add(ascending);
+            menu.Items.Add(descending);
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(left);
+            menu.Items.Add(right);
+            header.ContextFlyout = menu;
+        }
+    }
+
+    private void SortBy(int column, bool descending)
+    {
+        _sortColumn = column;
+        _sortDescending = descending;
+        SortRecords();
+        ApplyPage();
+    }
+
+    private void SortRecords()
+    {
+        if (_sortColumn is 4 or 6)
+        {
+            Func<BusinessRecordRow, DateTime> date = _sortColumn == 4
+                ? row => row.Record.EventDate ?? DateTime.MinValue
+                : row => row.Record.CreatedAtUtc;
+            _filtered = (_sortDescending ? _filtered.OrderByDescending(date) :
+                _filtered.OrderBy(date)).ToArray();
+            return;
+        }
+        Func<BusinessRecordRow, string> key = _sortColumn switch
+        {
+            1 => row => row.Reference ?? "",
+            2 => row => row.RelatedParty ?? "",
+            3 => row => row.Status ?? "",
+            5 => row => row.CustomerName,
+            _ => row => row.Title
+        };
+        _filtered = (_sortDescending ? _filtered.OrderByDescending(key, StringComparer.CurrentCultureIgnoreCase) :
+            _filtered.OrderBy(key, StringComparer.CurrentCultureIgnoreCase)).ToArray();
+    }
+
+    private void MoveColumn(int column, int offset)
+    {
+        var position = Array.IndexOf(_columnOrder, column);
+        var target = position + offset;
+        if (target < 0 || target >= _columnOrder.Length) return;
+        (_columnOrder[position], _columnOrder[target]) = (_columnOrder[target], _columnOrder[position]);
+        try { SectionColumnOrder.Save(_section.Key, _columnOrder); }
+        catch (Exception exception) when (exception is System.IO.IOException or UnauthorizedAccessException)
+        { StatusText.Text = exception.Message; }
+        ApplyColumnOrder(RecordsHeader);
+        RecordsList.ItemsSource = null;
+        ApplyPage();
+    }
+
+    private void RecordRow_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Grid grid) ApplyColumnOrder(grid);
+    }
+
+    private void ApplyColumnOrder(Grid grid)
+    {
+        for (var position = 0; position < _columnOrder.Length; position++)
+        {
+            var original = _columnOrder[position];
+            grid.ColumnDefinitions[position].Width = new GridLength(_columnWidths[original]);
+            var cell = (FrameworkElement)grid.Children[original];
+            Grid.SetColumn(cell, position);
+            if (cell is Border border)
+                border.BorderThickness = position == 0 ? new Thickness(0, 0, 0, 1) :
+                    new Thickness(1, 0, 0, 1);
+        }
     }
     private async void Add_Click(object sender, RoutedEventArgs e) => await EditRecordAsync(null);
     private async void Edit_Click(object sender, RoutedEventArgs e)
@@ -123,11 +275,6 @@ public sealed partial class SectionPage : Page
         if (RecordsList.SelectedItem is BusinessRecordRow row) await EditRecordAsync(row.Record);
         else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
     }
-    private async void Record_ItemClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is BusinessRecordRow row) await EditRecordAsync(row.Record);
-    }
-
     private async Task EditRecordAsync(BusinessRecord? existing)
     {
         var record = existing is null ? new BusinessRecord { SectionKey = _section.Key, Title = "" } :
@@ -138,8 +285,8 @@ public sealed partial class SectionPage : Page
         var party = new TextBox { Header = _section.Columns.Length > 1 ? _section.Columns[1] : "Σχετικό πρόσωπο",
             Text = record.RelatedParty ?? "" };
         var status = new TextBox { Header = "Κατάσταση", Text = record.Status ?? "" };
-        var date = new TextBox { Header = "Ημερομηνία (ηη/μμ/εεεε)",
-            Text = record.EventDate?.ToString("dd/MM/yyyy") ?? "" };
+        var date = new CalendarDatePicker { Header = "Ημερομηνία",
+            Date = record.EventDate is DateTime eventDate ? new DateTimeOffset(eventDate) : null };
         var customer = new ComboBox { Header = "Συνδεδεμένος πελάτης", Width = 320,
             DisplayMemberPath = nameof(CustomerChoice.Name), ItemsSource = _customerChoices };
         customer.SelectedItem = _customerChoices.FirstOrDefault(item => item.Id == record.CustomerId) ??
@@ -165,7 +312,7 @@ public sealed partial class SectionPage : Page
             record.Reference = reference.Text;
             record.RelatedParty = party.Text;
             record.Status = status.Text;
-            record.EventDate = ParseDate(date.Text);
+            record.EventDate = date.Date?.Date;
             record.CustomerId = (customer.SelectedItem as CustomerChoice)?.Id;
             record.Notes = notes.Text;
             await _records.SaveAsync(record);
@@ -182,6 +329,11 @@ public sealed partial class SectionPage : Page
             await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
             return;
         }
+        await DeleteRecordAsync(row);
+    }
+
+    private async Task DeleteRecordAsync(BusinessRecordRow row)
+    {
         var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Διαγραφή εγγραφής",
             Content = $"Να διαγραφεί το «{row.Title}»;", PrimaryButtonText = "Διαγραφή",
             CloseButtonText = "Ακύρωση", DefaultButton = ContentDialogButton.Close };
@@ -224,17 +376,6 @@ public sealed partial class SectionPage : Page
             _card.Activate();
         }
         catch (Exception exception) { _card = null; StatusText.Text = exception.Message; }
-    }
-
-    private static DateTime? ParseFilterDate(string? input) =>
-        DateTime.TryParseExact(input?.Trim(), "dd/MM/yyyy", CultureInfo.GetCultureInfo("el-GR"),
-            DateTimeStyles.None, out var date) ? date : null;
-
-    private static DateTime? ParseDate(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input)) return null;
-        return ParseFilterDate(input) ??
-            throw new ArgumentException("Η ημερομηνία πρέπει να είναι στη μορφή ηη/μμ/εεεε.");
     }
 
     private static string Singular(string title) => title switch

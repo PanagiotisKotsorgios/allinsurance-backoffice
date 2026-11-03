@@ -23,43 +23,48 @@
                         <TextBlock x:Name="SectionDescription" FontSize="15" TextWrapping="Wrap"
                                    Foreground="{ThemeResource SecondaryTextBrush}" />
                     </StackPanel>
-                    <controls:ActionButton x:Name="AddButton" Grid.Row="1" Grid.Column="1"
-                            Kind="Add" Label="Προσθήκη" Click="Add_Click" HorizontalAlignment="Left" />
+                    <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="188" ItemHeight="50">
+                            <controls:ActionButton x:Name="AddButton" Kind="Add" Label="Προσθήκη" Width="178" Click="Add_Click" />
+                            <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="178" Click="Edit_Click" />
+                            <controls:ActionButton Kind="Statistics" Label="Στατιστικά" Width="178" Click="Statistics_Click" />
+                        </VariableSizedWrapGrid>
+                        <controls:ActionButton Grid.Column="1" Kind="Delete" Label="Διαγραφή"
+                                               Click="Delete_Click" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                    </Grid>
                 </Grid>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
                     <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
-                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="54">
-                            <TextBox x:Name="SearchInput" Width="210" TextChanged="Filter_Changed" />
-                            <TextBox x:Name="StatusFilter" Width="210" PlaceholderText="Κατάσταση"
-                                     TextChanged="Filter_Changed" />
-                            <ComboBox x:Name="CustomerFilter" Width="210"
-                                      PlaceholderText="Όλοι οι πελάτες"
-                                      SelectionChanged="CustomerFilter_Changed" />
-                            <TextBox x:Name="FromFilter" Width="210" PlaceholderText="Από ηη/μμ/εεεε"
-                                     TextChanged="Filter_Changed" />
-                            <TextBox x:Name="UntilFilter" Width="210" PlaceholderText="Έως ηη/μμ/εεεε"
-                                     TextChanged="Filter_Changed" />
+                    <TextBox x:Name="SearchInput" Height="42" MinHeight="42" TextChanged="Filter_Changed" />
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="50">
+                            <controls:MultiSelectFilter x:Name="StatusFilter" Title="Κατάσταση" Width="210" Height="42" />
+                            <controls:MultiSelectFilter x:Name="CustomerFilter" Title="Πελάτης" Width="210" Height="42" />
+                            <CalendarDatePicker x:Name="FromFilter" Width="210" Height="42"
+                                                PlaceholderText="Από ημερομηνία" DateChanged="DateFilter_Changed" />
+                            <CalendarDatePicker x:Name="UntilFilter" Width="210" Height="42"
+                                                PlaceholderText="Έως ημερομηνία" DateChanged="DateFilter_Changed" />
+                            <controls:ActionButton Kind="Clear" Label="Καθαρισμός φίλτρων"
+                                                   Width="210" Height="42" Click="ClearFilters_Click" />
                     </VariableSizedWrapGrid>
                 </StackPanel>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
-                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="188" ItemHeight="50">
-                        <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="178" Click="Edit_Click" />
-                        <controls:ActionButton Kind="Delete" Label="Διαγραφή" Width="178" Click="Delete_Click" />
-                        <controls:ActionButton Kind="Statistics" Label="Στατιστικά" Width="178" Click="Statistics_Click" />
-                    </VariableSizedWrapGrid>
+                    <TextBlock x:Name="DemoNotice" Visibility="Collapsed" FontWeight="SemiBold"
+                               Foreground="{ThemeResource BrandAccentBrush}"
+                               Text="Προεπισκόπηση: δοκιμαστικές γραμμές για έλεγχο της διάταξης. Δεν έχουν αποθηκευτεί." />
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Disabled">
-                        <StackPanel Width="1240">
-                            <Border Background="{ThemeResource PageBackgroundBrush}" CornerRadius="8"
+                        <StackPanel Width="1194" HorizontalAlignment="Left">
+                            <Border Background="{ThemeResource TableHeaderBackgroundBrush}" CornerRadius="8"
+                                    BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
                                     Padding="12,10">
-                                <Grid ColumnDefinitions="240,140,190,130,130,240,100"
-                                      ColumnSpacing="12">
+                                <Grid x:Name="RecordsHeader" ColumnDefinitions="240,140,190,130,130,240,100"
+                                      ColumnSpacing="0">
                                     <TextBlock x:Name="TitleHeader" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Κωδικός" FontWeight="SemiBold" />
                                     <TextBlock x:Name="PartyHeader" Grid.Column="2" FontWeight="SemiBold" />
@@ -69,22 +74,34 @@
                                     <TextBlock Grid.Column="6" Text="Εγγραφή" FontWeight="SemiBold" />
                                 </Grid>
                             </Border>
-                            <ListView x:Name="RecordsList" Height="440" IsItemClickEnabled="True"
-                                      ItemClick="Record_ItemClick" SelectionMode="Single">
+                            <ListView x:Name="RecordsList" Height="440" Padding="0"
+                                      BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,1,1"
+                                      SelectionMode="Single">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid ColumnDefinitions="240,140,190,130,130,240,100"
-                                              ColumnSpacing="12" Padding="8,9">
-                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="1" Text="{Binding Reference}" />
-                                            <TextBlock Grid.Column="2" Text="{Binding RelatedParty}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="3" Text="{Binding Status}" />
-                                            <TextBlock Grid.Column="4" Text="{Binding EventDateDisplay}" />
-                                            <TextBlock Grid.Column="5" Text="{Binding CustomerName}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="6" Text="{Binding CreatedDisplay}" />
+                                        <Grid ColumnDefinitions="240,140,190,130,130,240,100" Loaded="RecordRow_Loaded"
+                                              ColumnSpacing="0" Padding="12,9">
+                                            <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1">
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            </Border>
+                                            <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                                <TextBlock Text="{Binding Reference}" />
+                                            </Border>
+                                            <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                                <TextBlock Text="{Binding RelatedParty}" TextTrimming="CharacterEllipsis" />
+                                            </Border>
+                                            <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                                <TextBlock Text="{Binding Status}" />
+                                            </Border>
+                                            <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                                <TextBlock Text="{Binding EventDateDisplay}" />
+                                            </Border>
+                                            <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                                <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" />
+                                            </Border>
+                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                                <TextBlock Text="{Binding CreatedDisplay}" />
+                                            </Border>
                                         </Grid>
                                     </DataTemplate>
                                 </ListView.ItemTemplate>

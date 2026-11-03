@@ -19,6 +19,37 @@ public static class CustomerColumns
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "AllInsurance", "customer-columns.json");
     private static HashSet<string> _visible = Load();
+    private static string[] _order = LoadOrder();
+
+    public static (string Key, string Title, int Width)[] Ordered =>
+        _order.Select(key => All.First(item => item.Key == key)).ToArray();
+
+    public static void Move(string key, int offset)
+    {
+        var index = Array.IndexOf(_order, key);
+        var target = index + offset;
+        if (index < 0 || target < 0 || target >= _order.Length) return;
+        (_order[index], _order[target]) = (_order[target], _order[index]);
+        var path = Path.Combine(Path.GetDirectoryName(PathOnDisk)!, "customer-column-order.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(_order));
+    }
+
+    private static string[] LoadOrder()
+    {
+        var path = Path.Combine(Path.GetDirectoryName(PathOnDisk)!, "customer-column-order.json");
+        try
+        {
+            if (File.Exists(path))
+            {
+                var saved = JsonSerializer.Deserialize<string[]>(File.ReadAllText(path)) ?? [];
+                if (saved.Length == All.Length && saved.Distinct().Count() == All.Length &&
+                    saved.All(key => All.Any(column => column.Key == key))) return saved;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
+        return All.Select(item => item.Key).ToArray();
+    }
 
     public static bool IsVisible(string key) => _visible.Contains(key);
     public static GridLength Width(string key) => new(IsVisible(key)

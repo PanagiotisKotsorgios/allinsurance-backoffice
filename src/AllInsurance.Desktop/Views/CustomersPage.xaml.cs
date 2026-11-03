@@ -17,6 +17,9 @@ public sealed partial class CustomersPage : Page
     private CustomerListItem[] _filtered = [];
     private CustomerListItem[] _allItems = [];
     private bool _loading;
+    private bool _showingDemo;
+    private string _sortKey = "LastName";
+    private bool _sortDescending;
     private int _page = 1;
     private const int PageSize = 25;
 
@@ -25,6 +28,7 @@ public sealed partial class CustomersPage : Page
         _customers = App.Services.GetRequiredService<ICustomerService>();
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         InitializeComponent();
+        InitializeHeaderActions();
         ApplyColumnLayout();
         StatusFilter.SetOptions(["Ενεργοί", "Ανενεργοί"]);
         BalanceFilter.SetOptions(["Χρεωστικό", "Πιστωτικό", "Μηδενικό"]);
@@ -51,12 +55,17 @@ public sealed partial class CustomersPage : Page
             var cities = await _filters.ChoicesAsync("Πόλεις");
             var partners = await _filters.ChoicesAsync("Συνεργάτες");
             if (version != _requestVersion) return;
-            _allItems = items.ToArray();
+            _showingDemo = items.Count == 0;
+            _allItems = _showingDemo ? DemoRows.Customers() : items.ToArray();
+            DemoNotice.Visibility = _showingDemo ? Visibility.Visible : Visibility.Collapsed;
+            CustomersList.IsHitTestVisible = !_showingDemo;
             _loading = true;
             KindFilter.SetOptions(new[] { "Φυσικό πρόσωπο", "Επιχείρηση" }
                 .Concat(items.Select(item => item.CustomerKind)));
-            CityFilter.SetOptions(cities.Concat(["Χωρίς πόλη"]));
-            PartnerFilter.SetOptions(partners.Concat(["Χωρίς συνεργάτη"]));
+            CityFilter.SetOptions(cities.Concat(_allItems.Select(item => item.City ?? "Χωρίς πόλη"))
+                .Concat(["Χωρίς πόλη"]));
+            PartnerFilter.SetOptions(partners.Concat(_allItems.Select(item => item.PartnerName ?? "Χωρίς συνεργάτη"))
+                .Concat(["Χωρίς συνεργάτη"]));
             _loading = false;
             ApplyFilters();
         }
@@ -82,10 +91,31 @@ public sealed partial class CustomersPage : Page
         rows = rows.Where(item => KindFilter.SelectedValues.Contains(item.CustomerKind));
         rows = rows.Where(item => CityFilter.SelectedValues.Contains(item.City ?? "Χωρίς πόλη"));
         rows = rows.Where(item => PartnerFilter.SelectedValues.Contains(item.PartnerName ?? "Χωρίς συνεργάτη"));
+        if (_sortKey == "Balance")
+            rows = _sortDescending ? rows.OrderByDescending(item => item.Balance) :
+                rows.OrderBy(item => item.Balance);
+        else
+        {
+            Func<CustomerListItem, string> key = _sortKey switch
+            {
+                "Code" => item => item.Code,
+                "Kind" => item => item.CustomerKind,
+                "FirstName" => item => item.FirstName,
+                "Company" => item => item.CompanyName ?? "",
+                "Tax" => item => item.TaxNumber ?? "",
+                "Email" => item => item.PrimaryEmail ?? "",
+                "Mobile" => item => item.PrimaryMobile ?? "",
+                "City" => item => item.City ?? "",
+                _ => item => item.LastName
+            };
+            rows = _sortDescending ? rows.OrderByDescending(key, StringComparer.CurrentCultureIgnoreCase) :
+                rows.OrderBy(key, StringComparer.CurrentCultureIgnoreCase);
+        }
         _filtered = rows.ToArray();
         _page = 1;
         ApplyPage();
-        StatusText.Text = $"{_filtered.Length} από {_allItems.Length} πελάτες";
+        StatusText.Text = _showingDemo ? "Προεπισκόπηση κενής λίστας" :
+            $"{_filtered.Length} από {_allItems.Length} πελάτες";
     }
 
     private static bool ContainsGreek(string source, string term) =>
@@ -119,45 +149,119 @@ public sealed partial class CustomersPage : Page
         CustomersList.Items.Clear();
         foreach (var customer in _filtered.Skip((_page - 1) * PageSize).Take(PageSize))
             CustomersList.Items.Add(CustomerRow(customer));
-        TotalBadge.Text = $"{_filtered.Length} εγγραφές";
-        PageText.Text = $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
+        TotalBadge.Text = _showingDemo ? "Δοκιμαστική προβολή" : $"{_filtered.Length} εγγραφές";
+        PageText.Text = _showingDemo ? "Δοκιμαστικές γραμμές" :
+            $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
     }
 
-    private static ListViewItem CustomerRow(CustomerListItem item)
+    private ListViewItem CustomerRow(CustomerListItem item)
     {
-        var row = new Grid { ColumnSpacing = 12, Padding = new Thickness(8, 9, 8, 9) };
+        var row = new Grid { ColumnSpacing = 0, Padding = new Thickness(12, 9, 12, 9) };
         var values = new[] { item.Code, item.CustomerKind, item.LastName,
             item.FirstName, item.CompanyName, item.TaxNumber,
             item.PrimaryEmail, item.PrimaryMobile, item.City, item.BalanceDisplay };
-        for (var index = 0; index < CustomerColumns.All.Length; index++)
+        for (var index = 0; index < CustomerColumns.Ordered.Length; index++)
         {
-            var column = CustomerColumns.All[index];
+            var column = CustomerColumns.Ordered[index];
+            var originalIndex = Array.FindIndex(CustomerColumns.All, item => item.Key == column.Key);
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = CustomerColumns.Width(column.Key) });
             if (!CustomerColumns.IsVisible(column.Key)) continue;
-            var text = new TextBlock { Text = values[index] ?? "—",
+            var text = new TextBlock { Text = values[originalIndex] ?? "—",
                 TextTrimming = TextTrimming.CharacterEllipsis,
-                FontWeight = index == 0 ? Microsoft.UI.Text.FontWeights.SemiBold :
+                FontWeight = originalIndex == 0 ? Microsoft.UI.Text.FontWeights.SemiBold :
                     Microsoft.UI.Text.FontWeights.Normal };
-            Grid.SetColumn(text, index);
-            row.Children.Add(text);
+            var cell = new Border
+            {
+                Child = text,
+                BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Windows.UI.Color.FromArgb(255, 130, 149, 168)),
+                BorderThickness = index == 0 ? new Thickness(0, 0, 0, 1) : new Thickness(1, 0, 0, 1),
+                Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0)
+            };
+            Grid.SetColumn(cell, index);
+            row.Children.Add(cell);
         }
-        return new ListViewItem { Content = row, Tag = item };
+        var result = new ListViewItem { Content = row, Tag = item, Padding = new Thickness(0),
+            Margin = new Thickness(0), Width = TableStack.Width,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        if (!_showingDemo)
+        {
+            result.DoubleTapped += async (_, _) => await OpenCardAsync(item.Id);
+            var menu = new MenuFlyout();
+            var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
+            open.Click += async (_, _) => await OpenCardAsync(item.Id);
+            var edit = new MenuFlyoutItem { Text = "Επεξεργασία" };
+            edit.Click += async (_, _) => await OpenCardAsync(item.Id, true);
+            var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
+            delete.Click += async (_, _) => await DeleteCustomerAsync(item);
+            menu.Items.Add(open);
+            menu.Items.Add(edit);
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(delete);
+            result.ContextFlyout = menu;
+        }
+        return result;
     }
 
     private void ApplyColumnLayout()
     {
-        var columns = CustomerColumns.All;
+        var columns = CustomerColumns.Ordered;
         for (var index = 0; index < columns.Length; index++)
         {
             TableHeader.ColumnDefinitions[index].Width = CustomerColumns.Width(columns[index].Key);
-            TableHeader.Children[index].Visibility = CustomerColumns.IsVisible(columns[index].Key)
+            var originalIndex = Array.FindIndex(CustomerColumns.All, item => item.Key == columns[index].Key);
+            var header = (FrameworkElement)TableHeader.Children[originalIndex];
+            Grid.SetColumn(header, index);
+            header.Visibility = CustomerColumns.IsVisible(columns[index].Key)
                 ? Visibility.Visible : Visibility.Collapsed;
         }
         TableStack.Width = columns.Where(column => CustomerColumns.IsVisible(column.Key))
-            .Sum(column => column.Width) + (columns.Length - 1) * 12 + 24;
+            .Sum(column => column.Width) + 24;
         var page = _page;
         _page = page;
         ApplyPage();
+    }
+
+    private void InitializeHeaderActions()
+    {
+        for (var index = 0; index < CustomerColumns.All.Length; index++)
+        {
+            var key = CustomerColumns.All[index].Key;
+            var header = (FrameworkElement)TableHeader.Children[index];
+            header.Tapped += (_, _) => SortBy(key, _sortKey == key && !_sortDescending);
+            var menu = new MenuFlyout();
+            var ascending = new MenuFlyoutItem { Text = "Ταξινόμηση αύξουσα" };
+            ascending.Click += (_, _) => SortBy(key, false);
+            var descending = new MenuFlyoutItem { Text = "Ταξινόμηση φθίνουσα" };
+            descending.Click += (_, _) => SortBy(key, true);
+            var moveLeft = new MenuFlyoutItem { Text = "Μεταφορά αριστερά" };
+            moveLeft.Click += (_, _) => MoveColumn(key, -1);
+            var moveRight = new MenuFlyoutItem { Text = "Μεταφορά δεξιά" };
+            moveRight.Click += (_, _) => MoveColumn(key, 1);
+            menu.Items.Add(ascending);
+            menu.Items.Add(descending);
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(moveLeft);
+            menu.Items.Add(moveRight);
+            header.ContextFlyout = menu;
+        }
+    }
+
+    private void SortBy(string key, bool descending)
+    {
+        _sortKey = key;
+        _sortDescending = descending;
+        ApplyFilters();
+    }
+
+    private async void MoveColumn(string key, int offset)
+    {
+        try
+        {
+            CustomerColumns.Move(key, offset);
+            ApplyColumnLayout();
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
     private async void Columns_Click(object sender, RoutedEventArgs e)
@@ -183,16 +287,11 @@ public sealed partial class CustomersPage : Page
     private async void Add_Click(object sender, RoutedEventArgs e) => await OpenCardAsync(null);
     private async void Open_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedCustomer() is CustomerListItem item) await OpenCardAsync(item.Id);
+        if (SelectedCustomer() is CustomerListItem item) await OpenCardAsync(item.Id, true);
         else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε πελάτη από τη λίστα.");
     }
-    private async void Customer_ItemClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is ListViewItem { Tag: CustomerListItem item }) await OpenCardAsync(item.Id);
-        else if (e.ClickedItem is CustomerListItem direct) await OpenCardAsync(direct.Id);
-    }
 
-    private async Task OpenCardAsync(Guid? id)
+    private async Task OpenCardAsync(Guid? id, bool edit = false)
     {
         try
         {
@@ -201,7 +300,7 @@ public sealed partial class CustomersPage : Page
                 _card.Activate();
                 return;
             }
-            _card = new CustomerCardWindow(id);
+            _card = new CustomerCardWindow(id, edit);
             _card.Closed += async (_, _) =>
             {
                 _card = null;
@@ -223,6 +322,11 @@ public sealed partial class CustomersPage : Page
             await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε πελάτη από τη λίστα.");
             return;
         }
+        await DeleteCustomerAsync(item);
+    }
+
+    private async Task DeleteCustomerAsync(CustomerListItem item)
+    {
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
@@ -244,25 +348,4 @@ public sealed partial class CustomersPage : Page
         }
     }
 
-    private async void Statistics_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var s = await _customers.GetStatisticsAsync();
-            var dialog = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = "Στατιστικά πελατών",
-                Content = $"Σύνολο: {s.Total}\nΕνεργοί: {s.Active}\nΑνενεργοί: {s.Inactive}\n" +
-                    $"Χρεωστικά υπόλοιπα: {s.Debtors}\nΑπαιτήσεις: {s.TotalReceivable:N2} €\n" +
-                    $"Πιστωτικά υπόλοιπα: {s.TotalPayable:N2} €\nΑπό σύσταση: {s.Referrals}\nΟδηγοί: {s.Drivers}",
-                CloseButtonText = "Κλείσιμο"
-            };
-            await DialogButtonStyles.ShowAsync(dialog);
-        }
-        catch (Exception exception)
-        {
-            await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
-        }
-    }
 }

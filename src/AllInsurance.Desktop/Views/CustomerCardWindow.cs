@@ -49,10 +49,10 @@ public sealed partial class CustomerCardWindow : Window
     private readonly ActionButton _saveButton = new() { Kind = "Save", Label = "Αποθήκευση" };
     private readonly ActionButton _editButton = new() { Kind = "Edit", Label = "Επεξεργασία πελάτη" };
 
-    public CustomerCardWindow(Guid? customerId)
+    public CustomerCardWindow(Guid? customerId, bool beginEditing = false)
     {
         _customerId = customerId;
-        _editing = !customerId.HasValue;
+        _editing = beginEditing || !customerId.HasValue;
         var header = new StackPanel { Spacing = 4, Margin = new Thickness(18, 8, 18, 4) };
         var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
@@ -210,14 +210,15 @@ public sealed partial class CustomerCardWindow : Window
             }, Height = 38, MinHeight = 38, Width = 220 };
         var stateFilter = new ComboBox { Width = 180, Height = 38,
             ItemsSource = new[] { "Όλα", "Ενεργά", "Ιστορικά" }, SelectedIndex = 0 };
-        var fromFilter = new TextBox { Width = 170, Height = 38, MinHeight = 38,
-            PlaceholderText = "Από ηη/μμ/εεεε" };
-        var untilFilter = new TextBox { Width = 170, Height = 38, MinHeight = 38,
-            PlaceholderText = "Έως ηη/μμ/εεεε" };
+        var fromFilter = new CalendarDatePicker { Width = 170, Height = 38,
+            PlaceholderText = "Από ημερομηνία" };
+        var untilFilter = new CalendarDatePicker { Width = 170, Height = 38,
+            PlaceholderText = "Έως ημερομηνία" };
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 235, ItemHeight = 46 };
         foreach (var field in new UIElement[] { search, stateFilter, fromFilter, untilFilter })
             filters.Children.Add(field);
+        Grid.SetRow(filters, 1);
         root.Children.Add(filters);
         var commands = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 190, ItemHeight = 48 };
@@ -226,8 +227,8 @@ public sealed partial class CustomerCardWindow : Window
         {
             search.Text = "";
             stateFilter.SelectedIndex = 0;
-            fromFilter.Text = "";
-            untilFilter.Text = "";
+            fromFilter.Date = null;
+            untilFilter.Date = null;
         };
         commands.Children.Add(clear);
         if (category == "files")
@@ -243,9 +244,9 @@ public sealed partial class CustomerCardWindow : Window
             await EditDetailAsync(category, selected);
         });
         AddButton(commands, "Διαγραφή επιλεγμένου", async () => await DeleteDetailAsync(category));
-        Grid.SetRow(commands, 1);
+        Grid.SetRow(commands, 0);
         root.Children.Add(commands);
-        var headers = new Grid { ColumnSpacing = 8, Padding = new Thickness(8, 10, 8, 10),
+        var headers = new Grid { ColumnSpacing = 0, Padding = new Thickness(8, 10, 8, 10),
             Background = new SolidColorBrush(Color.FromArgb(36, 77, 129, 174)) };
         foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
             headers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
@@ -255,8 +256,12 @@ public sealed partial class CustomerCardWindow : Window
         for (var index = 0; index < names.Length; index++)
         {
             var caption = new TextBlock { Text = names[index], FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-            Grid.SetColumn(caption, index);
-            headers.Children.Add(caption);
+            var cell = new Border { Child = caption,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
+                BorderThickness = index == 0 ? new Thickness(0) : new Thickness(1, 0, 0, 0),
+                Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0) };
+            Grid.SetColumn(cell, index);
+            headers.Children.Add(cell);
         }
         Grid.SetRow(headers, 2);
         root.Children.Add(headers);
@@ -264,12 +269,17 @@ public sealed partial class CustomerCardWindow : Window
             Height = 410,
             Tag = category };
         _detailLists[category] = list;
-        void refresh() => FillDetailList(list, category, search.Text,
-            stateFilter.SelectedIndex, ParseFilterDate(fromFilter.Text), ParseFilterDate(untilFilter.Text));
+        var applyColumnLayout = TableInteractions.Attach(headers, list);
+        void refresh()
+        {
+            FillDetailList(list, category, search.Text,
+                stateFilter.SelectedIndex, fromFilter.Date?.Date, untilFilter.Date?.Date);
+            applyColumnLayout();
+        }
         search.TextChanged += (_, _) => refresh();
         stateFilter.SelectionChanged += (_, _) => refresh();
-        fromFilter.TextChanged += (_, _) => refresh();
-        untilFilter.TextChanged += (_, _) => refresh();
+        fromFilter.DateChanged += (_, _) => refresh();
+        untilFilter.DateChanged += (_, _) => refresh();
         refresh();
         Grid.SetRow(list, 3);
         root.Children.Add(list);
@@ -289,7 +299,7 @@ public sealed partial class CustomerCardWindow : Window
             .Where(item => !until.HasValue || item.EffectiveFrom <= until || item.CreatedAtUtc.Date <= until)
             .OrderByDescending(item => item.CreatedAtUtc);
         foreach (var item in details)
-            list.Items.Add(DetailListItem(item, item.Title, item.Value, item.Notes,
+            list.Items.Add(DetailListItem(category, item, item.Title, item.Value, item.Notes,
                 item.EffectiveFrom?.ToString("dd/MM/yyyy"), item.EffectiveUntil?.ToString("dd/MM/yyyy"),
                 item.IsHistorical ? "Ιστορικό" : "Ενεργό"));
         var linked = _customer.BusinessRecords.Where(item => item.SectionKey == category)
@@ -301,27 +311,64 @@ public sealed partial class CustomerCardWindow : Window
             .Where(item => !until.HasValue || item.EventDate <= until || item.CreatedAtUtc.Date <= until)
             .OrderByDescending(item => item.CreatedAtUtc);
         foreach (var item in linked)
-            list.Items.Add(DetailListItem(item, item.Title, item.Reference,
+            list.Items.Add(DetailListItem(category, item, item.Title, item.Reference,
                 item.RelatedParty ?? item.Notes, item.EventDate?.ToString("dd/MM/yyyy"),
                 null, item.Status));
     }
 
-    private static DateTime? ParseFilterDate(string value) =>
-        DateTime.TryParseExact(value.Trim(), "dd/MM/yyyy", CultureInfo.GetCultureInfo("el-GR"),
-            DateTimeStyles.None, out var date) ? date : null;
-
-    private static ListViewItem DetailListItem(object source, params string?[] cells)
+    private ListViewItem DetailListItem(string category, object source, params string?[] cells)
     {
-        var row = new Grid { ColumnSpacing = 8, Padding = new Thickness(6, 8, 6, 8) };
+        var row = new Grid { ColumnSpacing = 0, Padding = new Thickness(6, 8, 6, 8) };
         foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
         for (var index = 0; index < cells.Length; index++)
         {
             var text = new TextBlock { Text = cells[index] ?? "—", TextTrimming = TextTrimming.CharacterEllipsis };
-            Grid.SetColumn(text, index);
-            row.Children.Add(text);
+            var cell = new Border { Child = text,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
+                BorderThickness = index == 0 ? new Thickness(0, 0, 0, 1) : new Thickness(1, 0, 0, 1),
+                Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0) };
+            Grid.SetColumn(cell, index);
+            row.Children.Add(cell);
         }
-        return new ListViewItem { Content = row, Tag = source };
+        var result = new ListViewItem { Content = row, Tag = source };
+        result.DoubleTapped += async (_, _) => await OpenDetailRowAsync(category, result, source);
+        var menu = new MenuFlyout();
+        var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
+        open.Click += async (_, _) => await OpenDetailRowAsync(category, result, source);
+        menu.Items.Add(open);
+        if (source is CustomerDetail)
+        {
+            var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
+            delete.Click += async (_, _) =>
+            {
+                _detailLists[category].SelectedItem = result;
+                await DeleteDetailAsync(category);
+            };
+            menu.Items.Add(new MenuFlyoutSeparator());
+            menu.Items.Add(delete);
+        }
+        result.ContextFlyout = menu;
+        return result;
+    }
+
+    private async Task OpenDetailRowAsync(string category, ListViewItem row, object source)
+    {
+        _detailLists[category].SelectedItem = row;
+        if (source is CustomerDetail detail)
+        {
+            if (category == "files") await OpenSelectedFileAsync();
+            else await EditDetailAsync(category, detail);
+            return;
+        }
+        if (source is BusinessRecord record)
+        {
+            var dialog = new ContentDialog { XamlRoot = _root.XamlRoot, Title = record.Title,
+                Content = $"Κωδικός: {record.Reference ?? "—"}\nΚατάσταση: {record.Status ?? "—"}\n" +
+                    $"Ημερομηνία: {record.EventDate?.ToString("dd/MM/yyyy") ?? "—"}\n" +
+                    $"{record.RelatedParty ?? record.Notes ?? ""}", CloseButtonText = "Κλείσιμο" };
+            await DialogButtonStyles.ShowAsync(dialog);
+        }
     }
 
     private async Task EditDetailAsync(string category, CustomerDetail? existing)
@@ -332,10 +379,10 @@ public sealed partial class CustomerCardWindow : Window
         var value = new TextBox { Header = "Τιμή / αριθμός / στοιχεία", Text = existing?.Value ?? "" };
         var notes = new TextBox { Header = "Σημειώσεις", AcceptsReturn = true, Height = 90,
             Text = existing?.Notes ?? "" };
-        var from = new TextBox { Header = "Από (ηη/μμ/εεεε)",
-            Text = existing?.EffectiveFrom?.ToString("dd/MM/yyyy") ?? "" };
-        var until = new TextBox { Header = "Έως (ηη/μμ/εεεε)",
-            Text = existing?.EffectiveUntil?.ToString("dd/MM/yyyy") ?? "" };
+        var from = new CalendarDatePicker { Header = "Από",
+            Date = existing?.EffectiveFrom is DateTime start ? new DateTimeOffset(start) : null };
+        var until = new CalendarDatePicker { Header = "Έως",
+            Date = existing?.EffectiveUntil is DateTime end ? new DateTimeOffset(end) : null };
         var historical = new CheckBox { Content = "Ιστορική καταχώριση", IsChecked = existing?.IsHistorical ?? false };
         var form = new StackPanel { Spacing = 10, Width = 460 };
         foreach (var field in new UIElement[] { title, value, notes, from, until, historical }) form.Children.Add(field);
@@ -348,10 +395,10 @@ public sealed partial class CustomerCardWindow : Window
         {
             if (existing is null)
                 await _service.AddDetailAsync(_customer.Id, category, title.Text, value.Text, notes.Text,
-                    ParseDate(from.Text), ParseDate(until.Text), historical.IsChecked == true);
+                    from.Date?.Date, until.Date?.Date, historical.IsChecked == true);
             else
                 await _service.UpdateDetailAsync(_customer.Id, existing.Id, title.Text, value.Text, notes.Text,
-                    ParseDate(from.Text), ParseDate(until.Text), historical.IsChecked == true);
+                    from.Date?.Date, until.Date?.Date, historical.IsChecked == true);
             _customer = await _service.GetAsync(_customer.Id) ?? _customer;
             BuildTabs();
             SelectTab(category);
@@ -560,12 +607,13 @@ public sealed partial class CustomerCardWindow : Window
 
     private void AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)
     {
-        var input = new TextBox { PlaceholderText = "ηη/μμ/εεεε", MinHeight = 28, Height = 28,
-            Text = getter()?.ToString("dd/MM/yyyy") ?? "",
-            IsReadOnly = !_editing };
+        var input = new CalendarDatePicker { PlaceholderText = "Επιλέξτε ημερομηνία",
+            MinHeight = 32, Height = 32,
+            Date = getter() is DateTime value ? new DateTimeOffset(value) : null,
+            IsEnabled = _editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
-        _readFields.Add(() => setter(ParseDate(input.Text)));
+        _readFields.Add(() => setter(input.Date?.Date));
     }
 
     private static Grid CreateFieldRow(string label, FrameworkElement input)
@@ -585,14 +633,6 @@ public sealed partial class CustomerCardWindow : Window
         Grid.SetColumn(input, 1);
         row.Children.Add(input);
         return row;
-    }
-
-    private static DateTime? ParseDate(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input)) return null;
-        if (DateTime.TryParseExact(input.Trim(), "dd/MM/yyyy", CultureInfo.GetCultureInfo("el-GR"),
-            DateTimeStyles.None, out var date)) return date;
-        throw new ArgumentException("Η ημερομηνία πρέπει να είναι στη μορφή ηη/μμ/εεεε.");
     }
 
     private static decimal ParseAmount(string? input, bool allowNegative)

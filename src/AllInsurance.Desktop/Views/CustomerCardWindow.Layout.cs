@@ -1,4 +1,6 @@
 using AllInsurance.Application.Customers;
+using AllInsurance.Desktop.Controls;
+using AllInsurance.Domain.Entities;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -228,15 +230,15 @@ public sealed partial class CustomerCardWindow
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         var search = new TextBox { Width = 240, Height = 38, MinHeight = 38,
             PlaceholderText = "Αναζήτηση κίνησης..." };
-        var from = new TextBox { Width = 170, Height = 38, MinHeight = 38,
-            PlaceholderText = "Από ηη/μμ/εεεε" };
-        var until = new TextBox { Width = 170, Height = 38, MinHeight = 38,
-            PlaceholderText = "Έως ηη/μμ/εεεε" };
+        var from = new CalendarDatePicker { Width = 170, Height = 38,
+            PlaceholderText = "Από ημερομηνία" };
+        var until = new CalendarDatePicker { Width = 170, Height = 38,
+            PlaceholderText = "Έως ημερομηνία" };
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 250, ItemHeight = 46 };
         foreach (var field in new UIElement[] { search, from, until }) filters.Children.Add(field);
         root.Children.Add(filters);
-        var header = new Grid { ColumnSpacing = 12, Padding = new Thickness(8),
+        var header = new Grid { ColumnSpacing = 0, Padding = new Thickness(8),
             Background = new SolidColorBrush(Color.FromArgb(36, 77, 129, 174)) };
         foreach (var width in new[] { 180, 150, 130, 480 })
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
@@ -245,18 +247,23 @@ public sealed partial class CustomerCardWindow
         {
             var caption = new TextBlock { Text = captions[index],
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-            Grid.SetColumn(caption, index);
-            header.Children.Add(caption);
+            var cell = new Border { Child = caption,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
+                BorderThickness = index == 0 ? new Thickness(0) : new Thickness(1, 0, 0, 0),
+                Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0) };
+            Grid.SetColumn(cell, index);
+            header.Children.Add(cell);
         }
         root.Children.Add(header);
         var list = new ListView { Height = 300 };
         root.Children.Add(list);
+        var applyColumnLayout = TableInteractions.Attach(header, list);
         void refresh()
         {
             list.Items.Clear();
             var term = search.Text.Trim();
-            var start = ParseFilterDate(from.Text);
-            var end = ParseFilterDate(until.Text);
+            var start = from.Date?.Date;
+            var end = until.Date?.Date;
             foreach (var item in _customer.Transactions.OrderByDescending(item => item.OccurredAtUtc)
                 .Where(item => !start.HasValue || item.OccurredAtUtc.ToLocalTime().Date >= start)
                 .Where(item => !end.HasValue || item.OccurredAtUtc.ToLocalTime().Date <= end)
@@ -264,7 +271,7 @@ public sealed partial class CustomerCardWindow
                     StringComparison.CurrentCultureIgnoreCase) == true ||
                     item.Amount.ToString("N2").Contains(term, StringComparison.CurrentCultureIgnoreCase)))
             {
-                var row = new Grid { ColumnSpacing = 12, Padding = new Thickness(8) };
+                var row = new Grid { ColumnSpacing = 0, Padding = new Thickness(8) };
                 foreach (var width in new[] { 180, 150, 130, 480 })
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 var values = new[] { item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
@@ -273,17 +280,39 @@ public sealed partial class CustomerCardWindow
                 for (var index = 0; index < values.Length; index++)
                 {
                     var text = new TextBlock { Text = values[index], TextTrimming = TextTrimming.CharacterEllipsis };
-                    Grid.SetColumn(text, index);
-                    row.Children.Add(text);
+                    var cell = new Border { Child = text,
+                        BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
+                        BorderThickness = index == 0 ? new Thickness(0, 0, 0, 1) : new Thickness(1, 0, 0, 1),
+                        Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0) };
+                    Grid.SetColumn(cell, index);
+                    row.Children.Add(cell);
                 }
-                list.Items.Add(new ListViewItem { Content = row });
+                var listItem = new ListViewItem { Content = row };
+                listItem.DoubleTapped += async (_, _) => await ShowTransactionAsync(item);
+                var menu = new MenuFlyout();
+                var open = new MenuFlyoutItem { Text = "Προβολή κίνησης" };
+                open.Click += async (_, _) => await ShowTransactionAsync(item);
+                menu.Items.Add(open);
+                listItem.ContextFlyout = menu;
+                list.Items.Add(listItem);
             }
+            applyColumnLayout();
         }
         search.TextChanged += (_, _) => refresh();
-        from.TextChanged += (_, _) => refresh();
-        until.TextChanged += (_, _) => refresh();
+        from.DateChanged += (_, _) => refresh();
+        until.DateChanged += (_, _) => refresh();
         refresh();
         AddTab("Οικονομικά", root);
+    }
+
+    private async Task ShowTransactionAsync(CustomerTransaction transaction)
+    {
+        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
+            Title = transaction.Type == "receipt" ? "Γενική είσπραξη" : "Γενική πληρωμή",
+            Content = $"Ημερομηνία: {transaction.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
+                $"Ποσό: {transaction.Amount:N2} €\nΑιτιολογία: {transaction.Description ?? "—"}",
+            CloseButtonText = "Κλείσιμο" };
+        await DialogButtonStyles.ShowAsync(dialog);
     }
 
     private void BuildHistoryTab()

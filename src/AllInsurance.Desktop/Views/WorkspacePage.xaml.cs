@@ -18,6 +18,7 @@ public sealed partial class WorkspacePage : Page
     private readonly ISessionService _session;
     private readonly WorkspacePreferences _preferences;
     private readonly DispatcherTimer _databaseTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+    private readonly List<TextBlock> _sidebarLabels = [];
 
     public WorkspacePage()
     {
@@ -35,6 +36,13 @@ public sealed partial class WorkspacePage : Page
 
         foreach (var section in WorkspaceSections.All)
         {
+            var label = new TextBlock
+            {
+                Text = section.Title,
+                FontSize = 18,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _sidebarLabels.Add(label);
             var item = new NavigationViewItem
             {
                 Content = new StackPanel
@@ -51,12 +59,7 @@ public sealed partial class WorkspacePage : Page
                             Height = 38,
                             VerticalAlignment = VerticalAlignment.Center
                         },
-                        new TextBlock
-                        {
-                            Text = section.Title,
-                            FontSize = 18,
-                            VerticalAlignment = VerticalAlignment.Center
-                        }
+                        label
                     }
                 },
                 Tag = section.Key,
@@ -66,16 +69,25 @@ public sealed partial class WorkspacePage : Page
         }
 
         MainNavigation.SelectedItem = MainNavigation.MenuItems[0];
+        MainNavigation.PaneClosing += (_, _) => SetSidebarLabelsVisible(false);
+        MainNavigation.PaneOpened += (_, _) => SetSidebarLabelsVisible(true);
         SectionHost.Content = new CustomersPage();
         RegisterShortcuts();
         _databaseTimer.Tick += async (_, _) => await RefreshDatabaseStatusAsync();
         Loaded += async (_, _) =>
         {
+            SetSidebarLabelsVisible(MainNavigation.IsPaneOpen);
             App.MaximizeWorkspace();
             await RefreshDatabaseStatusAsync();
             _databaseTimer.Start();
         };
         Unloaded += (_, _) => _databaseTimer.Stop();
+    }
+
+    private void SetSidebarLabelsVisible(bool visible)
+    {
+        foreach (var label in _sidebarLabels)
+            label.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async Task RefreshDatabaseStatusAsync()

@@ -12,6 +12,7 @@ public sealed class MultiSelectFilter : ActionButton
     private readonly HashSet<string> _selected = new(StringComparer.CurrentCultureIgnoreCase);
     private bool _updating;
     private bool _initialized;
+    private bool _selectNewOptions = true;
     private string _title = "Φίλτρο";
 
     public event EventHandler? SelectionChanged;
@@ -29,14 +30,15 @@ public sealed class MultiSelectFilter : ActionButton
         UpdateLabel();
         var all = new ActionButton { Kind = "Add", Label = "Επιλογή όλων", MinWidth = 170 };
         var none = new ActionButton { Kind = "Filter", Label = "Αποεπιλογή όλων", MinWidth = 170 };
-        all.Click += (_, _) => SetSelection(_options);
-        none.Click += (_, _) => SetSelection([]);
+        all.Click += (_, _) => SelectAll();
+        none.Click += (_, _) => DeselectAll();
         _search.TextChanged += (_, _) => Render();
         _list.SelectionChanged += (_, args) =>
         {
             if (_updating) return;
             foreach (var item in args.AddedItems.OfType<string>()) _selected.Add(item);
             foreach (var item in args.RemovedItems.OfType<string>()) _selected.Remove(item);
+            _selectNewOptions = _options.Length > 0 && _selected.Count == _options.Length;
             UpdateLabel();
             SelectionChanged?.Invoke(this, EventArgs.Empty);
         };
@@ -56,7 +58,7 @@ public sealed class MultiSelectFilter : ActionButton
             .Select(value => value.Trim()).Distinct(StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase).ToArray();
         if (_options.SequenceEqual(values)) return;
-        var wasAll = !_initialized || _selected.Count == _options.Length;
+        var wasAll = !_initialized || _selectNewOptions;
         _options = values;
         _selected.IntersectWith(values);
         if (wasAll) _selected.UnionWith(values);
@@ -65,10 +67,12 @@ public sealed class MultiSelectFilter : ActionButton
         UpdateLabel();
     }
 
-    public void SelectAll() => SetSelection(_options);
+    public void SelectAll() => SetSelection(_options, true);
+    public void DeselectAll() => SetSelection([], false);
 
-    private void SetSelection(IEnumerable<string> values)
+    private void SetSelection(IEnumerable<string> values, bool selectNewOptions)
     {
+        _selectNewOptions = selectNewOptions;
         _selected.Clear();
         _selected.UnionWith(values);
         Render();
@@ -85,8 +89,8 @@ public sealed class MultiSelectFilter : ActionButton
             var visible = term.Length == 0 ? _options : _options.Where(value =>
                 value.Contains(term, StringComparison.CurrentCultureIgnoreCase)).ToArray();
             _list.ItemsSource = visible;
-            if (visible.Length > 0 && visible.All(value => _selected.Contains(value))) _list.SelectAll();
-            else foreach (var value in visible.Where(value => _selected.Contains(value)))
+            _list.SelectedItems.Clear();
+            foreach (var value in visible.Where(value => _selected.Contains(value)))
                 _list.SelectedItems.Add(value);
         }
         finally { _updating = false; }
