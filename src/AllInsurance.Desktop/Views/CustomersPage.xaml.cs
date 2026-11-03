@@ -183,7 +183,7 @@ public sealed partial class CustomersPage : Page
             CloseButtonText = "Ακύρωση",
             DefaultButton = ContentDialogButton.Close
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await DialogButtonStyles.ShowAsync(dialog, destructive: true) != ContentDialogResult.Primary) return;
         try
         {
             await _customers.DeleteAsync(item.Id);
@@ -209,7 +209,7 @@ public sealed partial class CustomersPage : Page
                     $"Πιστωτικά υπόλοιπα: {s.TotalPayable:N2} €\nΑπό σύσταση: {s.Referrals}\nΟδηγοί: {s.Drivers}",
                 CloseButtonText = "Κλείσιμο"
             };
-            await dialog.ShowAsync();
+            await DialogButtonStyles.ShowAsync(dialog);
         }
         catch (Exception exception)
         {

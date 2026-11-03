@@ -359,7 +359,7 @@ public sealed class CustomerCardWindow : Window
             Title = existing is null ? "Προσθήκη στοιχείου" : "Επεξεργασία στοιχείου",
             Content = new ScrollViewer { Content = form, MaxHeight = 460 },
             PrimaryButtonText = "Αποθήκευση", CloseButtonText = "Ακύρωση" };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
         try
         {
             if (existing is null)
@@ -387,7 +387,7 @@ public sealed class CustomerCardWindow : Window
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot, Title = "Διαγραφή στοιχείου",
             Content = $"Να διαγραφεί το «{detail.Title}»;", PrimaryButtonText = "Διαγραφή",
             CloseButtonText = "Ακύρωση" };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await DialogButtonStyles.ShowAsync(dialog, destructive: true) != ContentDialogResult.Primary) return;
         try
         {
             await _service.DeleteDetailAsync(_customer.Id, detail.Id);
@@ -459,7 +459,7 @@ public sealed class CustomerCardWindow : Window
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
             Title = type == "receipt" ? "Γενική είσπραξη" : "Γενική πληρωμή",
             Content = form, PrimaryButtonText = "Καταχώριση", CloseButtonText = "Ακύρωση" };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
         try
         {
             await _service.AddTransactionAsync(_customer.Id, type, ParseAmount(amount.Text, false), description.Text);
@@ -482,7 +482,7 @@ public sealed class CustomerCardWindow : Window
                 $"Εισπράξεις: {receipts:N2} €\nΠληρωμές: {payments:N2} €\n" +
                 $"Τρέχον υπόλοιπο: {CustomerService.Balance(_customer):N2} €",
             CloseButtonText = "Κλείσιμο" };
-        await dialog.ShowAsync();
+        await DialogButtonStyles.ShowAsync(dialog);
     }
 
     private async Task<bool> EnsureSavedAsync()

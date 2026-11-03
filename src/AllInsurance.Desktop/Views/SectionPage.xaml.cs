@@ -159,7 +159,7 @@ public sealed partial class SectionPage : Page
             PrimaryButtonText = "Αποθήκευση",
             CloseButtonText = "Ακύρωση"
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
         try
         {
             record.Title = title.Text;
@@ -186,7 +186,7 @@ public sealed partial class SectionPage : Page
         var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Διαγραφή εγγραφής",
             Content = $"Να διαγραφεί το «{row.Title}»;", PrimaryButtonText = "Διαγραφή",
             CloseButtonText = "Ακύρωση", DefaultButton = ContentDialogButton.Close };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await DialogButtonStyles.ShowAsync(dialog, destructive: true) != ContentDialogResult.Primary) return;
         try
         {
             await _records.DeleteAsync(row.Record.Id);
@@ -209,7 +209,7 @@ public sealed partial class SectionPage : Page
                 Title = "Στατιστικά — " + _section.Title,
                 Content = $"Σύνολο: {records.Count}\nΣυνδεδεμένα με πελάτη: {linked}\n" +
                     string.Join("\n", statuses), CloseButtonText = "Κλείσιμο" };
-            await dialog.ShowAsync();
+            await DialogButtonStyles.ShowAsync(dialog);
         }
         catch (Exception exception) { StatusText.Text = exception.Message; }
     }

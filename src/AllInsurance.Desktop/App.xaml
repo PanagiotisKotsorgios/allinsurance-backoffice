@@ -51,6 +51,57 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="DialogConfirmButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FF16803D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-save.svg" Width="16" Height="16" />
+                                <ContentPresenter Content="{TemplateBinding Content}" Foreground="White" />
+                            </StackPanel>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="DialogDangerButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FFC62828" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-trash.svg" Width="16" Height="16" />
+                                <ContentPresenter Content="{TemplateBinding Content}" Foreground="White" />
+                            </StackPanel>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="DialogCloseButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FF52657D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-x.svg" Width="16" Height="16" />
+                                <ContentPresenter Content="{TemplateBinding Content}" Foreground="White" />
+                            </StackPanel>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="TextBox">
             <Setter Property="MinHeight" Value="42" />
             <Setter Property="FontSize" Value="15" />

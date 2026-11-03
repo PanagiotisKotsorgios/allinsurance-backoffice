@@ -79,7 +79,7 @@ public sealed partial class UserManagementPage : Page
             CloseButtonText = "Ακύρωση",
             DefaultButton = ContentDialogButton.Primary
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary)
         {
             return;
         }
@@ -114,7 +114,7 @@ public sealed partial class UserManagementPage : Page
             PrimaryButtonText = "Επαναφορά",
             CloseButtonText = "Ακύρωση"
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary)
         {
             return;
         }
@@ -152,7 +152,7 @@ public sealed partial class UserManagementPage : Page
             SecondaryButtonText = "Αφαίρεση",
             CloseButtonText = "Ακύρωση"
         };
-        var result = await dialog.ShowAsync();
+        var result = await DialogButtonStyles.ShowAsync(dialog);
         if (result == ContentDialogResult.None)
         {
             return;
@@ -194,7 +194,7 @@ public sealed partial class UserManagementPage : Page
             PrimaryButtonText = "Απενεργοποίηση",
             CloseButtonText = "Ακύρωση"
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await DialogButtonStyles.ShowAsync(dialog, destructive: true) != ContentDialogResult.Primary)
         {
             return;
         }

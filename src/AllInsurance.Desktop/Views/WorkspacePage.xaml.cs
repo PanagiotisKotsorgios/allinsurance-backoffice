@@ -210,7 +210,7 @@ public sealed partial class WorkspacePage : Page
             Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
             CloseButtonText = "Κλείσιμο"
         };
-        await dialog.ShowAsync();
+        await DialogButtonStyles.ShowAsync(dialog);
     }
 
     private void SignOut_Click(object sender, RoutedEventArgs e)
