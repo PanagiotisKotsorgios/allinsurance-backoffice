@@ -39,6 +39,8 @@ All shared dashboards now use the customer screen's action layout and per-sectio
 
 The customer, partner, vehicle and policy cards share the same form layout, tab style and red required-field markers. The navigation menu mirrors every sidebar section and its shortcut. Administrator tools now include SQLite backups with integrity checks and a searchable local error log. The customer table no longer displays the mobile column. See [navigation and maintenance](Software%20Analysis/10%20-%20Navigation%20and%20Maintenance/README.md).
 
+The partner card now places cooperation details and multiple bank accounts in the main card, with extra identity and contact fields in an expandable section. Production is shown with financial movements; general receipts and payments update the partner balance. The vehicle card stores technical and equipment details, an optional local KTEO image, multiple owners and drivers with ownership shares, linked policy cards, and linked claims with add/edit/delete actions. See [partner and vehicle card expansion](Software%20Analysis/11%20-%20Partner%20and%20Vehicle%20Cards/README.md).
+
 ## Build and tests
 
 ```powershell

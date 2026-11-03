@@ -52,7 +52,7 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         record.Status = Normalize(record.Status, 100);
         record.Notes = Normalize(record.Notes, 2000);
         record.DocumentType = Normalize(record.DocumentType, 40);
-        record.DetailsJson = Normalize(record.DetailsJson, 12000);
+        record.DetailsJson = Normalize(record.DetailsJson, 50000);
         if (record.SectionKey == "policies" && record.DocumentType is not null &&
             record.DocumentType is not ("Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο"))
             throw new ArgumentException("Μη έγκυρος τύπος εγγράφου ασφάλισης.");
@@ -72,6 +72,34 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         if (record.CustomerId is Guid customerId &&
             !await db.Customers.AnyAsync(customer => customer.Id == customerId, cancellationToken))
             throw new ArgumentException("Ο συνδεδεμένος πελάτης δεν υπάρχει.");
+        if (record.SectionKey == "vehicles" && record.DetailsJson is not null)
+        {
+            var vehicle = BusinessRecordDetails.Read<VehicleCardData>(record.DetailsJson);
+            var people = vehicle.People ?? [];
+            if (people.Count > 0)
+            {
+                if (people.Select(item => item.CustomerId).Distinct().Count() != people.Count ||
+                    people.Count(item => item.IsPrimaryOwner) != 1 ||
+                    people.Single(item => item.IsPrimaryOwner).CustomerId != record.CustomerId ||
+                    people.Any(item => item.OwnershipPercent is < 0 or > 100 ||
+                        item.Role is not ("Ιδιοκτήτης" or "Συνιδιοκτήτης" or "Οδηγός" or "Ιδιοκτήτης και οδηγός") ||
+                        item.Role == "Οδηγός" && item.OwnershipPercent != 0) ||
+                    people.Sum(item => item.OwnershipPercent) > 100)
+                    throw new ArgumentException("Τα πρόσωπα και τα ποσοστά ιδιοκτησίας του οχήματος δεν είναι έγκυρα.");
+                var personIds = people.Select(item => item.CustomerId).ToArray();
+                var found = await db.Customers.CountAsync(item => personIds.Contains(item.Id), cancellationToken);
+                if (found != personIds.Length)
+                    throw new ArgumentException("Κάποιο πρόσωπο του οχήματος δεν υπάρχει στους πελάτες.");
+            }
+        }
+        if (record.SectionKey == "claims" && record.DetailsJson is not null)
+        {
+            var vehicleId = BusinessRecordDetails.Read<ClaimCardData>(record.DetailsJson).VehicleId;
+            if (vehicleId is Guid linkedVehicle && !await db.BusinessRecords.AnyAsync(item =>
+                item.Id == linkedVehicle && item.SectionKey == "vehicles" &&
+                item.CustomerId == record.CustomerId, cancellationToken))
+                throw new ArgumentException("Η ζημιά πρέπει να συνδέεται με όχημα του ίδιου πελάτη.");
+        }
         if (record.SectionKey == "policies")
         {
             var details = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson);
@@ -245,6 +273,11 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
             throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένες οικονομικές κινήσεις και δεν μπορεί να διαγραφεί.");
         if (record.SectionKey == "vehicles")
         {
+            var claims = await db.BusinessRecords.AsNoTracking()
+                .Where(item => item.SectionKey == "claims" && item.DetailsJson != null)
+                .Select(item => item.DetailsJson).ToListAsync(cancellationToken);
+            if (claims.Any(json => BusinessRecordDetails.Read<ClaimCardData>(json).VehicleId == id))
+                throw new InvalidOperationException("Το όχημα έχει συνδεδεμένες ζημιές και δεν μπορεί να διαγραφεί.");
             var policies = await db.BusinessRecords.AsNoTracking()
                 .Where(item => item.SectionKey == "policies" && item.DetailsJson != null)
                 .Select(item => item.DetailsJson).ToListAsync(cancellationToken);

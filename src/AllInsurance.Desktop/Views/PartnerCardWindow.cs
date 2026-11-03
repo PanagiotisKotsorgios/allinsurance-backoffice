@@ -68,6 +68,8 @@ public sealed partial class PartnerCardWindow : Window
     private string[] _paymentMethods = [];
     private string[] _genders = [];
     private string[] _taxOffices = [];
+    private readonly List<PartnerBankAccount> _bankAccounts = [];
+    private ListView? _bankList;
     private int _selectedTab;
 
     public event EventHandler? RecordSaved;
@@ -118,6 +120,9 @@ public sealed partial class PartnerCardWindow : Window
                 _record = await _records.GetAsync(id) ?? throw new InvalidOperationException("Ο συνεργάτης δεν υπάρχει.");
             if (_record.SectionKey != "partners") throw new InvalidOperationException("Η εγγραφή δεν είναι συνεργάτης.");
             _profile = PartnerProfileData.Read(_record.DetailsJson);
+            _bankAccounts.Clear();
+            _bankAccounts.AddRange(_profile.BankAccounts.Select(item => new PartnerBankAccount
+            { BankName = item.BankName, Iban = item.Iban, Bic = item.Bic }));
             var categories = await _filters.ChoicesAsync("Κατηγορίες συνεργατών");
             var cities = await _filters.ChoicesAsync("Πόλεις");
             var businesses = await _filters.ChoicesAsync("Τύποι επιχειρήσεων");
@@ -172,7 +177,19 @@ public sealed partial class PartnerCardWindow : Window
         Grid.SetRow(_tabContent, 2); _root.Children.Add(_tabContent);
         var footer = new Grid { ColumnDefinitions = { new ColumnDefinition(),
             new ColumnDefinition { Width = GridLength.Auto } }, Margin = new Thickness(18, 9, 18, 14) };
-        footer.Children.Add(_status);
+        var leftFooter = new StackPanel { Spacing = 5 };
+        leftFooter.Children.Add(_status);
+        var moneyActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center };
+        var receipt = new ActionButton { Kind = "Receipt", Label = "Γενική είσπραξη",
+            IsEnabled = _record.Id != Guid.Empty };
+        receipt.Click += async (_, _) => await AddPayoutAsync("receipt");
+        var payment = new ActionButton { Kind = "Payment", Label = "Γενική πληρωμή",
+            IsEnabled = _record.Id != Guid.Empty };
+        payment.Click += async (_, _) => await AddPayoutAsync("payment");
+        moneyActions.Children.Add(receipt); moneyActions.Children.Add(payment);
+        leftFooter.Children.Add(moneyActions);
+        footer.Children.Add(leftFooter);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9 };
         var save = new ActionButton { Kind = "Save", Label = "Αποθήκευση" };
         save.Click += async (_, _) => await SaveAsync();
@@ -344,13 +361,16 @@ public sealed partial class PartnerCardWindow : Window
         TaxNumber = Optional("tax"), TaxOffice = Selected("taxoffice"),
         PersonType = Selected("person"), BusinessType = Selected("business"),
         ProfessionalCapacity = Selected("capacity"), IdentityNumber = Optional("identity"),
+        GemiNumber = Optional("gemi"),
         CooperationManager = Optional("manager"), Category = Selected("category"),
         IsPotential = Selected("status") == "Πιθανός", IsSuspended = Selected("status") == "Αναστολή",
         HasEnded = Selected("status") == "Λήξη συνεργασίας", HasActiveContract = Checked("contractactive"),
         Email = Optional("email"), Phone = Optional("phone"), Address = Optional("address"),
         City = Suggested("city"), PostalCode = Optional("postal"),
         FatherName = Optional("father"), MotherName = Optional("mother"), Gender = Selected("gender"),
-        BirthDate = Day("birth"), PassportNumber = Optional("passport"), Education = Optional("education"),
+        BirthDate = Day("birth"), BirthPlace = Optional("birthplace"),
+        Nationality = Optional("nationality"), PassportNumber = Optional("passport"),
+        Education = Optional("education"),
         RegistryNumber = Optional("registry"), RegistryExpiry = Day("registryexpiry"),
         Chamber = Optional("chamber"), SecondaryEmail = Optional("email2"),
         SecondaryPhone = Optional("phone2"), Mobile = Optional("mobile"), Website = Optional("website"),
@@ -360,7 +380,11 @@ public sealed partial class PartnerCardWindow : Window
         StartDate = Day("start"), EndDate = Day("end"),
         CreditLimit = Money(Val("credit"), "Πιστωτικό όριο", 999_999_999m),
         DefaultCommissionPercent = Money(Val("rate"), "Ποσοστό προμήθειας", 100m),
-        BankName = Optional("bank"), Iban = Optional("iban"), PaymentMethod = Selected("paymentmethod"),
+        BankName = _bankAccounts.FirstOrDefault()?.BankName,
+        Iban = _bankAccounts.FirstOrDefault()?.Iban,
+        BankAccounts = _bankAccounts.Select(item => new PartnerBankAccount
+        { BankName = item.BankName, Iban = item.Iban, Bic = item.Bic }).ToList(),
+        PaymentMethod = Selected("paymentmethod"),
         Notes = Optional("notes")
     };
 }

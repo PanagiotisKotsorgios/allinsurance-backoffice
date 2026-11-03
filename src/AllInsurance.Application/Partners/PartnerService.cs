@@ -20,6 +20,8 @@ public interface IPartnerService
     Task<PartnerSnapshot> GetSnapshotAsync(Guid partnerId, CancellationToken cancellationToken = default);
     Task<Guid> AddPayoutAsync(Guid partnerId, decimal amount, string method,
         string? reference, string? description, CancellationToken cancellationToken = default);
+    Task<Guid> AddMovementAsync(Guid partnerId, string kind, decimal amount, string method,
+        string? reference, string? description, CancellationToken cancellationToken = default);
 }
 
 public sealed class PartnerService(IApplicationDbContextFactory factory, ISessionService session)
@@ -58,14 +60,20 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
         var activities = await db.PartnerActivities.AsNoTracking().Where(item => item.PartnerId == partnerId)
             .OrderByDescending(item => item.OccurredAtUtc).ToListAsync(cancellationToken);
         return new PartnerSnapshot(production, payouts, production.Sum(item => item.Commission),
-            payouts.Sum(item => item.Amount), activities);
+            payouts.Sum(item => item.Kind == "receipt" ? -item.Amount : item.Amount), activities);
     }
 
     public async Task<Guid> AddPayoutAsync(Guid partnerId, decimal amount, string method,
         string? reference, string? description, CancellationToken cancellationToken = default)
+        => await AddMovementAsync(partnerId, "payment", amount, method, reference,
+            description, cancellationToken);
+
+    public async Task<Guid> AddMovementAsync(Guid partnerId, string kind, decimal amount, string method,
+        string? reference, string? description, CancellationToken cancellationToken = default)
     {
         RequireSession();
-        if (amount <= 0 || amount > 999_999_999m) throw new ArgumentException("Συμπληρώστε θετικό ποσό πληρωμής.");
+        if (kind is not ("payment" or "receipt")) throw new ArgumentException("Μη έγκυρος τύπος κίνησης.");
+        if (amount <= 0 || amount > 999_999_999m) throw new ArgumentException("Συμπληρώστε θετικό ποσό κίνησης.");
         method = method.Trim();
         if (method.Length is < 1 or > 80) throw new ArgumentException("Επιλέξτε τρόπο πληρωμής.");
         reference = Clean(reference, 100);
@@ -76,13 +84,13 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
             throw new InvalidOperationException("Ο συνεργάτης δεν υπάρχει.");
         var payout = new PartnerPayout
         {
-            Id = Guid.NewGuid(), PartnerId = partnerId, Amount = amount,
+            Id = Guid.NewGuid(), PartnerId = partnerId, Amount = amount, Kind = kind,
             PaymentMethod = method, Reference = reference, Description = description,
             OccurredAtUtc = DateTime.UtcNow, CreatedByUserId = session.Current!.UserId
         };
         db.PartnerPayouts.Add(payout);
-        PartnerActivityLog.Add(db, partnerId, "Πληρωμή προμήθειας",
-            $"Καταχωρίστηκε πληρωμή {amount:N2} € με {method}" +
+        PartnerActivityLog.Add(db, partnerId, kind == "payment" ? "Γενική πληρωμή" : "Γενική είσπραξη",
+            $"Καταχωρίστηκε {(kind == "payment" ? "πληρωμή" : "είσπραξη")} {amount:N2} € με {method}" +
             (reference is null ? "." : $" (αναφορά {reference})."), session.Current!.DisplayName);
         await db.SaveChangesAsync(cancellationToken);
         return payout.Id;
@@ -114,6 +122,7 @@ public static class PartnerActivityLog
         nameof(PartnerProfileData.BusinessType) => "Τύπος επιχείρησης",
         nameof(PartnerProfileData.ProfessionalCapacity) => "Επαγγελματική ιδιότητα",
         nameof(PartnerProfileData.IdentityNumber) => "Αριθμός ταυτότητας",
+        nameof(PartnerProfileData.GemiNumber) => "Αριθμός ΓΕΜΗ",
         nameof(PartnerProfileData.CooperationManager) => "Υπεύθυνος συνεργασίας",
         nameof(PartnerProfileData.IsPotential) => "Πιθανός συνεργάτης",
         nameof(PartnerProfileData.IsSuspended) => "Αναστολή",
@@ -129,6 +138,8 @@ public static class PartnerActivityLog
         nameof(PartnerProfileData.MotherName) => "Μητρώνυμο",
         nameof(PartnerProfileData.Gender) => "Φύλο",
         nameof(PartnerProfileData.BirthDate) => "Ημερομηνία γέννησης",
+        nameof(PartnerProfileData.BirthPlace) => "Τόπος γέννησης",
+        nameof(PartnerProfileData.Nationality) => "Εθνικότητα",
         nameof(PartnerProfileData.PassportNumber) => "Διαβατήριο",
         nameof(PartnerProfileData.Education) => "Εκπαίδευση",
         nameof(PartnerProfileData.RegistryNumber) => "Αριθμός μητρώου",
@@ -150,6 +161,7 @@ public static class PartnerActivityLog
         nameof(PartnerProfileData.DefaultCommissionPercent) => "Ποσοστό προμήθειας",
         nameof(PartnerProfileData.BankName) => "Τράπεζα",
         nameof(PartnerProfileData.Iban) => "IBAN",
+        nameof(PartnerProfileData.BankAccounts) => "Τραπεζικοί λογαριασμοί",
         nameof(PartnerProfileData.PaymentMethod) => "Τρόπος πληρωμής",
         nameof(PartnerProfileData.Notes) => "Σημειώσεις",
         _ => "Στοιχείο συνεργάτη"
@@ -158,6 +170,7 @@ public static class PartnerActivityLog
     public static string Value(object? value) => value switch
     {
         null => "—", string text when string.IsNullOrWhiteSpace(text) => "—",
+        IEnumerable<PartnerBankAccount> accounts => $"{accounts.Count()} λογαριασμοί",
         bool flag => flag ? "Ναι" : "Όχι", DateTime date => date.ToString("dd/MM/yyyy"),
         decimal amount => amount.ToString("N2"),
         _ => value.ToString()?.Length > 120 ? value.ToString()![..120] + "…" : value.ToString() ?? "—"

@@ -559,6 +559,13 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(12)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("payment");
+
                     b.Property<DateTime>("OccurredAtUtc")
                         .HasColumnType("TEXT");
 

@@ -13,6 +13,7 @@ public sealed class PartnerProfileData
     public string? BusinessType { get; set; }
     public string? ProfessionalCapacity { get; set; }
     public string? IdentityNumber { get; set; }
+    public string? GemiNumber { get; set; }
     public string? CooperationManager { get; set; }
     public bool IsPotential { get; set; }
     public bool IsSuspended { get; set; }
@@ -28,6 +29,8 @@ public sealed class PartnerProfileData
     public string? MotherName { get; set; }
     public string? Gender { get; set; }
     public DateTime? BirthDate { get; set; }
+    public string? BirthPlace { get; set; }
+    public string? Nationality { get; set; }
     public string? PassportNumber { get; set; }
     public string? Education { get; set; }
     public string? RegistryNumber { get; set; }
@@ -49,15 +52,32 @@ public sealed class PartnerProfileData
     public decimal? DefaultCommissionPercent { get; set; }
     public string? BankName { get; set; }
     public string? Iban { get; set; }
+    public List<PartnerBankAccount> BankAccounts { get; set; } = [];
     public string? PaymentMethod { get; set; }
     public string? Notes { get; set; }
 
     public static PartnerProfileData Read(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return new PartnerProfileData();
-        try { return JsonSerializer.Deserialize<PartnerProfileData>(json) ?? new PartnerProfileData(); }
+        try
+        {
+            var profile = JsonSerializer.Deserialize<PartnerProfileData>(json) ?? new PartnerProfileData();
+            profile.BankAccounts ??= [];
+            if (profile.BankAccounts.Count == 0 &&
+                (!string.IsNullOrWhiteSpace(profile.BankName) || !string.IsNullOrWhiteSpace(profile.Iban)))
+                profile.BankAccounts.Add(new PartnerBankAccount
+                { BankName = profile.BankName ?? "", Iban = profile.Iban ?? "" });
+            return profile;
+        }
         catch (JsonException) { return new PartnerProfileData(); }
     }
 
     public string Write() => JsonSerializer.Serialize(this);
+}
+
+public sealed class PartnerBankAccount
+{
+    public string BankName { get; set; } = "";
+    public string Iban { get; set; } = "";
+    public string? Bic { get; set; }
 }

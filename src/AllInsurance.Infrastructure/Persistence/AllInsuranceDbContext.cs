@@ -229,6 +229,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(item => item.Amount).HasPrecision(18, 2);
             entity.Property(item => item.Currency).IsRequired().HasMaxLength(3);
             entity.Property(item => item.PaymentMethod).IsRequired().HasMaxLength(80);
+            entity.Property(item => item.Kind).IsRequired().HasMaxLength(12).HasDefaultValue("payment");
             entity.Property(item => item.Reference).HasMaxLength(100);
             entity.Property(item => item.Description).HasMaxLength(500);
             entity.HasIndex(item => new { item.PartnerId, item.OccurredAtUtc });

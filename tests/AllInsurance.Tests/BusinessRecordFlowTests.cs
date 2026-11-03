@@ -7,6 +7,58 @@ namespace AllInsurance.Tests;
 public sealed class BusinessRecordFlowTests
 {
     [Fact]
+    public async Task VehiclePeopleClaimsAndTechnicalDataStayLinked()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var owner = await customers.SaveAsync(new Customer
+        { LastName = "Owner", FirstName = "One", TaxNumber = "100000061" });
+        var coOwner = await customers.SaveAsync(new Customer
+        { LastName = "Owner", FirstName = "Two", TaxNumber = "100000062" });
+        var driver = await customers.SaveAsync(new Customer
+        { LastName = "Driver", FirstName = "Three", TaxNumber = "100000063" });
+        var vehicleId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "vehicles", Title = "TEST-123", CustomerId = owner,
+            DetailsJson = BusinessRecordDetails.Write(new VehicleCardData
+            {
+                Registration = "TEST-123", DisplacementCc = 1600, PowerKw = 85,
+                HasAlarm = true, Co2GramsPerKm = 123, NextKteoDate = new DateTime(2027, 5, 1),
+                People =
+                [
+                    new VehiclePerson { CustomerId = owner, Role = "Ιδιοκτήτης",
+                        OwnershipPercent = 60, IsPrimaryOwner = true },
+                    new VehiclePerson { CustomerId = coOwner, Role = "Συνιδιοκτήτης",
+                        OwnershipPercent = 40 },
+                    new VehiclePerson { CustomerId = driver, Role = "Οδηγός" }
+                ]
+            })
+        });
+        var vehicle = BusinessRecordDetails.Read<VehicleCardData>((await records.GetAsync(vehicleId))!.DetailsJson);
+        Assert.Equal(3, vehicle.People.Count);
+        Assert.Equal(1600, vehicle.DisplacementCc);
+        Assert.True(vehicle.HasAlarm);
+        Assert.Equal(123m, vehicle.Co2GramsPerKm);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => customers.DeleteAsync(coOwner));
+        await Assert.ThrowsAsync<ArgumentException>(() => records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "claims", Title = "BAD-CLAIM", CustomerId = coOwner,
+            DetailsJson = BusinessRecordDetails.Write(new ClaimCardData { VehicleId = vehicleId })
+        }));
+        var claimId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "claims", Title = "CLM-1", CustomerId = owner,
+            DetailsJson = BusinessRecordDetails.Write(new ClaimCardData { VehicleId = vehicleId })
+        });
+        await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(vehicleId));
+        await records.DeleteAsync(claimId);
+        await records.DeleteAsync(vehicleId);
+    }
+
+    [Fact]
     public async Task SharedDashboardRecordsPersistAndLinkToCustomer()
     {
         await using var environment = new TestEnvironment();

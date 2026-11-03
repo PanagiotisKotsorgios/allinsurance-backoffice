@@ -19,7 +19,7 @@ using System.Runtime.InteropServices;
 
 namespace AllInsurance.Desktop.Views;
 
-public sealed class BusinessRecordCardWindow : Window
+public sealed partial class BusinessRecordCardWindow : Window
 {
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     private static extern nint SetWindowOwner(nint window, int index, nint owner);
@@ -56,6 +56,16 @@ public sealed class BusinessRecordCardWindow : Window
     private readonly Dictionary<string, TextBox> _text = [];
     private readonly Dictionary<string, CalendarDatePicker> _dates = [];
     private readonly List<Grid> _formGrids = [];
+    private readonly Dictionary<string, CheckBox> _vehicleChecks = [];
+    private readonly List<VehiclePerson> _vehiclePeople = [];
+    private IReadOnlyList<CustomerListItem> _vehicleCustomers = [];
+    private IReadOnlyList<BusinessRecord> _vehiclePolicies = [];
+    private IReadOnlyList<BusinessRecord> _vehicleClaims = [];
+    private ListView? _peopleList;
+    private ListView? _policiesList;
+    private ListView? _claimsList;
+    private string? _kteoImagePath;
+    private BusinessRecordCardWindow? _linkedPolicyCard;
     private double _contentWidth = 1100;
     private ComboBox? _customerChoice;
     private ComboBox? _vehicleChoice;
@@ -132,10 +142,18 @@ public sealed class BusinessRecordCardWindow : Window
                     .Where(item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).VehicleId == _record.Id)
                     .ToArray()
                 : [];
+            var claims = _section == "vehicles" && _record.Id != Guid.Empty
+                ? (await _records.SearchAsync("claims"))
+                    .Where(item => BusinessRecordDetails.Read<ClaimCardData>(item.DetailsJson).VehicleId == _record.Id)
+                    .ToArray()
+                : [];
             var transactions = _section == "policies" && _record.CustomerId is Guid ownerId
                 ? (await _customers.GetAsync(ownerId))?.Transactions
                     .Where(item => item.BusinessRecordId == _record.Id).ToArray() ?? []
                 : [];
+            _vehicleCustomers = customers;
+            _vehiclePolicies = policies;
+            _vehicleClaims = claims;
             BuildUi(customers, vehicles, policies, transactions);
         }
         catch (Exception exception)
@@ -218,7 +236,9 @@ public sealed class BusinessRecordCardWindow : Window
         var icon = title switch
         {
             "Καρτέλα οχήματος" or "Όχημα" => "car-front",
-            "Ιδιοκτήτης" => "user-round",
+            "Ιδιοκτήτης" or "Πρόσωπα" => "user-round",
+            "Συμβόλαια" => "file-text",
+            "Ζημιές" => "car-front",
             "Πρόσθετα στοιχεία" => "settings-2",
             "Οικονομικά" => "chart-no-axes-combined",
             "Ιστορικό" => "clock-3",
@@ -385,6 +405,11 @@ public sealed class BusinessRecordCardWindow : Window
         IReadOnlyList<BusinessRecord> policies)
     {
         var data = BusinessRecordDetails.Read<VehicleCardData>(_record.DetailsJson);
+        _vehiclePeople.Clear();
+        _vehiclePeople.AddRange(data.People ?? []);
+        if (_vehiclePeople.Count == 0 && _record.CustomerId is Guid ownerId)
+            _vehiclePeople.Add(new VehiclePerson { CustomerId = ownerId, Role = "Ιδιοκτήτης",
+                OwnershipPercent = 100, IsPrimaryOwner = true });
         if (_record.Id != Guid.Empty)
         {
             data.Registration ??= _record.Title;
@@ -398,33 +423,53 @@ public sealed class BusinessRecordCardWindow : Window
         Text(left, "vin", "Αριθμός πλαισίου (VIN)", data.Vin);
         Text(left, "year", "Έτος κατασκευής", data.ManufactureYear?.ToString());
         Date(left, "first", "Πρώτη άδεια κυκλοφορίας", data.FirstRegistrationDate);
+        Date(left, "transfer", "Ημερομηνία μεταβίβασης", data.TransferDate);
+        Text(left, "taxclass", "Κατηγορία φορολόγησης", data.TaxClass);
+        Text(left, "hp", "Ισχύς (ίπποι)", data.HorsePower?.ToString("N2"));
+        Text(left, "seats", "Θέσεις", data.Seats?.ToString());
+        Text(left, "doors", "Πόρτες", data.Doors?.ToString());
+        Text(left, "fuelcolor", "Χρώμα καυσίμου", data.FuelColor);
+        Text(left, "permit", "Άδεια κυκλοφορίας", data.RegistrationPermit);
+        Text(left, "licence", "Ειδικό δίπλωμα", data.SpecialLicence);
+        Text(left, "discount", "Δικαιολογητικά έκπτωσης", data.DiscountDocuments);
+        Text(left, "roadtax", "Τέλη κυκλοφορίας (€)", data.RoadTax?.ToString("N2"));
+        Text(left, "reports", "Έντυπα αναγγελίας", data.ReportForms);
+        VehicleCheck(left, "convertible", "Κάμπριο", data.IsConvertible);
+        VehicleCheck(left, "sunroof", "Ηλιοροφή", data.HasSunroof);
+        VehicleCheck(left, "heavy", "Βάρος άνω των 3,5 τόνων", data.OverThreeAndHalfTons);
+        VehicleCheck(left, "dual", "Διπλοί πίσω τροχοί", data.HasRearDualWheels);
         Text(right, "use", "Χρήση", data.Use);
         Text(right, "fuel", "Καύσιμο", data.Fuel);
         Text(right, "cc", "Κυβισμός (cc)", data.DisplacementCc?.ToString());
         Text(right, "kw", "Ισχύς (kW)", data.PowerKw?.ToString("N2"));
         Date(right, "acquired", "Ημερομηνία απόκτησης", data.AcquisitionDate);
         Text(right, "color", "Χρώμα", data.Color);
+        Text(right, "tonnage", "Τονάζ (τόνοι)", data.Tonnage?.ToString("N2"));
+        Text(right, "wheelbase", "Μεταξόνιο (cm)", data.WheelbaseCm?.ToString("N2"));
+        Text(right, "height", "Ύψος (cm)", data.HeightCm?.ToString("N2"));
+        Text(right, "track", "Μετατρόχιο (cm)", data.TrackWidthCm?.ToString("N2"));
+        Text(right, "market", "Εκτιμώμενη αξία (€)", data.EstimatedMarketValue?.ToString("N2"));
+        Text(right, "co2", "Εκπομπές CO₂ (g/km)", data.Co2GramsPerKm?.ToString("N2"));
+        Date(right, "nextkteo", "Επόμενο ΚΤΕΟ", data.NextKteoDate);
+        VehicleCheck(right, "alarm", "Συναγερμός", data.HasAlarm);
+        VehicleCheck(right, "immobilizer", "Immobilizer", data.HasImmobilizer);
+        VehicleCheck(right, "guarded", "Χώρος φύλαξης", data.IsGuarded);
+        VehicleCheck(right, "emissions", "Κάρτα καυσαερίων", data.HasEmissionsCard);
         _statusChoice = Choices(right, "Κατάσταση", ["Ενεργό", "Ανενεργό"],
             _record.Status ?? "Ενεργό");
-        AddTab("Καρτέλα οχήματος", main);
-        var extra = TwoColumns(out var extraLeft, out _);
-        var notes = Text(extraLeft, "notes", "Πρόσθετες πληροφορίες", data.Notes ?? _record.Notes);
+        right.Children.Add(CardFieldLayout.CreateRow("Καταχώριση",
+            new TextBox { IsReadOnly = true, Text = _record.Id == Guid.Empty ? "—" :
+                _record.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") }));
+        right.Children.Add(CardFieldLayout.CreateRow("Τελευταία ενημέρωση",
+            new TextBox { IsReadOnly = true, Text = _record.Id == Guid.Empty ? "—" :
+                _record.UpdatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") }));
+        AddKteoImageRow(right, data.KteoImagePath);
+        var notes = Text(right, "notes", "Πρόσθετα στοιχεία", data.Notes ?? _record.Notes);
         notes.AcceptsReturn = true; notes.TextWrapping = TextWrapping.Wrap; notes.Height = 190;
-        AddTab("Πρόσθετα στοιχεία", extra);
-        AddTab("Ιδιοκτήτης", new TextBlock { Text = customers.FirstOrDefault(item =>
-            item.Id == _record.CustomerId)?.FullName ?? "Επιλέξτε ιδιοκτήτη στην καρτέλα οχήματος.",
-            Margin = new Thickness(22), FontSize = 16 });
-        var policyPanel = new StackPanel { Margin = new Thickness(22), Spacing = 8 };
-        policyPanel.Children.Add(new TextBlock { Text = "Αιτήσεις και ασφαλιστήρια του οχήματος",
-            FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        var linked = policies.Select(item => $"{item.DocumentType ?? "Ασφαλιστήριο"} · " +
-            $"{item.Title} · {item.Status ?? "Χωρίς κατάσταση"}").ToArray();
-        policyPanel.Children.Add(new ListView { ItemsSource = linked.Length > 0 ? linked :
-            ["Δεν υπάρχουν συνδεδεμένες εγγραφές."], Height = 240 });
-        AddTab("Συμβόλαια", policyPanel);
-        AddTab("Ζημιές", new TextBlock { Text =
-            "Οι σχετικές ζημιές καταχωρίζονται στην ενότητα Ζημιές.",
-            Margin = new Thickness(22), TextWrapping = TextWrapping.Wrap });
+        AddTab("Καρτέλα οχήματος", main);
+        BuildPeopleTab();
+        BuildVehiclePoliciesTab();
+        BuildVehicleClaimsTab();
     }
 
     private string Value(string key) => _text[key].Text.Trim();
@@ -492,6 +537,8 @@ public sealed class BusinessRecordCardWindow : Window
             {
                 var plate = Value("registration");
                 if (plate.Length == 0) throw new ArgumentException("Συμπληρώστε αριθμό κυκλοφορίας.");
+                EnsurePrimaryOwner(customerId);
+                ValidateVehiclePeople();
                 var data = new VehicleCardData
                 {
                     Registration = plate, Make = Value("make"), Model = Value("model"),
@@ -500,6 +547,28 @@ public sealed class BusinessRecordCardWindow : Window
                     Fuel = Value("fuel"), DisplacementCc = IntValue(Value("cc"), "Κυβισμός"),
                     PowerKw = DecimalValue(Value("kw"), "Ισχύς"),
                     AcquisitionDate = DateValue("acquired"), Color = Value("color"),
+                    TaxClass = Value("taxclass"), HorsePower = DecimalValue(Value("hp"), "Ισχύς"),
+                    TransferDate = DateValue("transfer"), Seats = IntValue(Value("seats"), "Θέσεις"),
+                    Doors = IntValue(Value("doors"), "Πόρτες"), FuelColor = Value("fuelcolor"),
+                    RegistrationPermit = Value("permit"), SpecialLicence = Value("licence"),
+                    DiscountDocuments = Value("discount"), RoadTax = DecimalValue(Value("roadtax"), "Τέλη"),
+                    ReportForms = Value("reports"), IsConvertible = VehicleChecked("convertible"),
+                    HasSunroof = VehicleChecked("sunroof"),
+                    OverThreeAndHalfTons = VehicleChecked("heavy"),
+                    HasRearDualWheels = VehicleChecked("dual"),
+                    Tonnage = DecimalValue(Value("tonnage"), "Τονάζ"),
+                    WheelbaseCm = DecimalValue(Value("wheelbase"), "Μεταξόνιο"),
+                    HeightCm = DecimalValue(Value("height"), "Ύψος"),
+                    TrackWidthCm = DecimalValue(Value("track"), "Μετατρόχιο"),
+                    EstimatedMarketValue = DecimalValue(Value("market"), "Εκτιμώμενη αξία"),
+                    Co2GramsPerKm = DecimalValue(Value("co2"), "Εκπομπές CO₂"),
+                    NextKteoDate = DateValue("nextkteo"), HasAlarm = VehicleChecked("alarm"),
+                    HasImmobilizer = VehicleChecked("immobilizer"), IsGuarded = VehicleChecked("guarded"),
+                    HasEmissionsCard = VehicleChecked("emissions"), KteoImagePath = _kteoImagePath,
+                    People = _vehiclePeople.Select(person => new VehiclePerson
+                    { CustomerId = person.CustomerId, Role = person.Role,
+                        OwnershipPercent = person.OwnershipPercent,
+                        IsPrimaryOwner = person.IsPrimaryOwner }).ToList(),
                     Notes = Value("notes")
                 };
                 _record.Title = plate;

@@ -25,9 +25,19 @@ public sealed class PartnerFlowTests
             DetailsJson = new PartnerProfileData
             {
                 FirstName = "Συνεργάτης", LastName = "Δοκιμή", TaxNumber = "123456789",
-                DefaultCommissionPercent = 12m
+                DefaultCommissionPercent = 12m, GemiNumber = "123456789012",
+                BirthPlace = "Πάτρα", Nationality = "Ελληνική",
+                BankAccounts =
+                [
+                    new PartnerBankAccount { BankName = "Πρώτη", Iban = "GR1601101250000000012300695" },
+                    new PartnerBankAccount { BankName = "Δεύτερη", Iban = "GR9608100010000001234567890" }
+                ]
             }.Write()
         });
+        var persistedProfile = PartnerProfileData.Read((await records.GetAsync(partnerId))!.DetailsJson);
+        Assert.Equal(2, persistedProfile.BankAccounts.Count);
+        Assert.Equal("123456789012", persistedProfile.GemiNumber);
+        Assert.Equal("Πάτρα", persistedProfile.BirthPlace);
         await Assert.ThrowsAsync<InvalidOperationException>(() => records.SaveAsync(new BusinessRecord
         {
             SectionKey = "partners", Title = "ΔΕΥΤΕΡΟΣ",
@@ -60,7 +70,13 @@ public sealed class PartnerFlowTests
         snapshot = await partners.GetSnapshotAsync(partnerId);
         Assert.Equal(50m, snapshot.Paid);
         Assert.Equal(70m, snapshot.Due);
-        Assert.Contains(snapshot.Activities, item => item.Action == "Πληρωμή προμήθειας");
+        Assert.Contains(snapshot.Activities, item => item.Action == "Γενική πληρωμή");
+        await partners.AddMovementAsync(partnerId, "receipt", 20m, "Μετρητά", "RC-1", "Γενική είσπραξη");
+        snapshot = await partners.GetSnapshotAsync(partnerId);
+        Assert.Equal(30m, snapshot.Paid);
+        Assert.Equal(90m, snapshot.Due);
+        Assert.Contains(snapshot.Payouts, item => item.Kind == "receipt");
+        Assert.Contains(snapshot.Activities, item => item.Action == "Γενική είσπραξη");
         var partner = (await records.GetAsync(partnerId))!;
         partner.Title = "ΝΕΟ ΟΝΟΜΑ";
         partner.Status = "Αναστολή";

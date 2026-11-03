@@ -167,6 +167,12 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         {
             throw new InvalidOperationException("Ο πελάτης έχει ενεργές συστάσεις. Αφαιρέστε πρώτα τις συσχετίσεις.");
         }
+        var vehiclePeople = await db.BusinessRecords.AsNoTracking()
+            .Where(item => item.SectionKey == "vehicles" && item.DetailsJson != null)
+            .Select(item => item.DetailsJson).ToListAsync(cancellationToken);
+        if (vehiclePeople.Any(json => (BusinessRecordDetails.Read<VehicleCardData>(json).People ?? [])
+            .Any(person => person.CustomerId == id)))
+            throw new InvalidOperationException("Ο πελάτης συνδέεται με όχημα ως ιδιοκτήτης ή οδηγός.");
         db.Customers.Remove(customer);
         await db.SaveChangesAsync(cancellationToken);
         var folder = Path.Combine(_fileRoot, id.ToString("N"));
