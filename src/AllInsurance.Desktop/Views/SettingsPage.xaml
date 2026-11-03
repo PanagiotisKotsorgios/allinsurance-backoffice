@@ -14,6 +14,23 @@
                 </StackPanel>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Νόμισμα οικονομικών κινήσεων" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="Η εφαρμογή χρησιμοποιεί ευρώ. Μόνο ο διαχειριστής μπορεί να αλλάξει το βασικό νόμισμα από εδώ, πριν καταχωριστούν ποσά. Δεν γίνεται αυτόματη μετατροπή παλαιών ποσών."
+                               TextWrapping="Wrap" Foreground="{ThemeResource SecondaryTextBrush}" />
+                    <ComboBox x:Name="CurrencyChoice" Header="Βασικό νόμισμα" MinWidth="240">
+                        <ComboBoxItem Content="EUR — Ευρώ (€)" Tag="EUR" />
+                        <ComboBoxItem Content="USD — Δολάριο ($)" Tag="USD" />
+                        <ComboBoxItem Content="GBP — Λίρα (£)" Tag="GBP" />
+                        <ComboBoxItem Content="CHF — Ελβετικό φράγκο" Tag="CHF" />
+                    </ComboBox>
+                    <controls:ActionButton x:Name="SaveCurrencyButton" Kind="Save" Label="Αποθήκευση νομίσματος"
+                                           Click="SaveCurrency_Click" HorizontalAlignment="Left" />
+                    <TextBlock x:Name="CurrencyStatusText" TextWrapping="Wrap"
+                               AutomationProperties.LiveSetting="Assertive" />
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
                 <StackPanel Spacing="14">
                     <TextBlock Text="Εμφάνιση" FontSize="18" FontWeight="SemiBold" />
                     <ComboBox x:Name="ThemeChoice" Header="Θέμα εφαρμογής" MinWidth="220">

@@ -16,7 +16,8 @@ public sealed class FilterOptionService(IApplicationDbContextFactory factory, IS
             .Distinct().ToListAsync(cancellationToken);
         return new[] { "Πόλεις", "Κλάδοι", "Καλύψεις", "Επαγγέλματα", "Καταστάσεις",
             "Φύλα", "Νομικές μορφές", "Οικογενειακές καταστάσεις", "Πηγές πελατών",
-            "Τύποι ταυτότητας", "Κατηγορίες διπλώματος", "Ιθαγένειες", "ΔΟΥ" }
+            "Τύποι ταυτότητας", "Κατηγορίες διπλώματος", "Ιθαγένειες", "ΔΟΥ",
+            "Τρόποι πληρωμής" }
             .Concat(saved).Distinct(StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase).ToArray();
     }

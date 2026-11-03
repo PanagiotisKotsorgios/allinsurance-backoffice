@@ -1,5 +1,6 @@
 ﻿using AllInsurance.Application.Customers;
 using AllInsurance.Application.Filters;
+using AllInsurance.Application.Settings;
 using AllInsurance.Desktop.Settings;
 using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
@@ -51,6 +52,10 @@ public sealed partial class CustomerCardWindow : Window
     }
     private readonly ICustomerService _service = App.Services.GetRequiredService<ICustomerService>();
     private readonly IFilterOptionService _filterService = App.Services.GetRequiredService<IFilterOptionService>();
+    private readonly ITransactionSettingsService _transactionSettings =
+        App.Services.GetRequiredService<ITransactionSettingsService>();
+    private string _currency = "EUR";
+    private string CurrencySymbol => TransactionSettingsService.Symbol(_currency);
     private readonly Guid? _customerId;
     private readonly Grid _root = new() { RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
         new RowDefinition(), new RowDefinition { Height = GridLength.Auto } } };
@@ -71,9 +76,8 @@ public sealed partial class CustomerCardWindow : Window
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _headerAfm = new() { Foreground = new SolidColorBrush(Colors.White) };
-    private readonly TextBlock _headerBalance = new() { Foreground = new SolidColorBrush(Colors.White) };
-    private readonly Border _headerBalanceBadge = new() { CornerRadius = new CornerRadius(5),
-        Padding = new Thickness(7, 3, 7, 3) };
+    private TextBlock? _mainBalanceText;
+    private Border? _mainBalanceBadge;
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly ActionButton _saveButton = new() { Kind = "Save", Label = "Αποθήκευση" };
     private readonly ActionButton _saveCloseButton = new() { Kind = "Save", Label = "Αποθήκευση και κλείσιμο", Width = 220 };
@@ -101,8 +105,6 @@ public sealed partial class CustomerCardWindow : Window
             Margin = new Thickness(68, 2, 0, 0) };
         metadata.Children.Add(_headerCode);
         metadata.Children.Add(_headerAfm);
-        _headerBalanceBadge.Child = _headerBalance;
-        metadata.Children.Add(_headerBalanceBadge);
         var bannerContent = new StackPanel { Spacing = 8 };
         bannerContent.Children.Add(identity);
         bannerContent.Children.Add(metadata);
@@ -179,6 +181,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         try
         {
+            _currency = await _transactionSettings.GetCurrencyAsync();
             if (_customerId is Guid id)
             {
                 _customer = await _service.GetAsync(id) ??
@@ -194,8 +197,11 @@ public sealed partial class CustomerCardWindow : Window
         }
     }
 
-    private void BuildTabs()
+    public event EventHandler? CustomerChanged;
+
+    private void BuildTabs(bool preserveSelectedTab = false)
     {
+        var selectedTab = preserveSelectedTab ? _tabs.SelectedIndex : 0;
         _readFields.Clear();
         _detailLists.Clear();
         _historyPanels.Clear();
@@ -206,7 +212,7 @@ public sealed partial class CustomerCardWindow : Window
         AddDetailTab("Οχήματα", "vehicles");
         BuildFinanceTab();
         BuildHistoryTab();
-        _tabs.SelectedIndex = 0;
+        _tabs.SelectedIndex = Math.Clamp(selectedTab, 0, _tabs.TabItems.Count - 1);
     }
 
     private void UpdateHeader()
@@ -216,12 +222,20 @@ public sealed partial class CustomerCardWindow : Window
         _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_customer.Id == Guid.Empty ? "Νέος" :
             "C-" + _customer.Id.ToString("N")[..8].ToUpperInvariant());
         _headerAfm.Text = "ΑΦΜ  " + (_customer.TaxNumber ?? "—");
-        var balance = CustomerService.Balance(_customer);
-        _headerBalance.Text = balance > 0 ? $"Οφειλή: {balance:N2} €" :
-            balance < 0 ? $"Πιστωτικό: {Math.Abs(balance):N2} €" : "Υπόλοιπο: 0,00 €";
-        _headerBalanceBadge.Background = balance == 0 ? null :
-            new SolidColorBrush(Color.FromArgb(255, 198, 40, 40));
         _headerState.Text = _customer.IsActive ? "● Ενεργός πελάτης" : "● Ανενεργός πελάτης";
+    }
+
+    private void UpdateMainBalance()
+    {
+        if (_mainBalanceText is null || _mainBalanceBadge is null) return;
+        var balance = CustomerService.Balance(_customer);
+        _mainBalanceText.Text = balance > 0 ? $"Οφειλή προς το γραφείο: {balance:N2} {CurrencySymbol}" :
+            balance < 0 ? $"Πιστωτικό υπόλοιπο: {Math.Abs(balance):N2} {CurrencySymbol}" :
+            $"Μηδενικό υπόλοιπο: 0,00 {CurrencySymbol}";
+        _mainBalanceBadge.Background = balance == 0 ? null :
+            new SolidColorBrush(Color.FromArgb(255, 198, 40, 40));
+        _mainBalanceText.Foreground = balance == 0 ? null : new SolidColorBrush(Colors.White);
+        _mainBalanceBadge.Padding = balance == 0 ? new Thickness(0) : new Thickness(8, 5, 8, 5);
     }
 
     private void UpdateActionState()
@@ -567,22 +581,53 @@ public sealed partial class CustomerCardWindow : Window
     private async Task AddTransactionAsync(string type)
     {
         if (!await EnsureSavedAsync()) return;
-        var amount = new TextBox { Header = RequiredHeader.Create("Ποσό (€)") };
-        var description = new TextBox { Header = "Αιτιολογία" };
-        var form = new StackPanel { Spacing = 12, Width = 360 };
+        IReadOnlyList<string> methods;
+        try
+        {
+            _currency = await _transactionSettings.GetCurrencyAsync();
+            methods = await _filterService.ChoicesAsync("Τρόποι πληρωμής");
+        }
+        catch (Exception exception)
+        {
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message);
+            return;
+        }
+        var amount = new TextBox { Header = RequiredHeader.Create($"Ποσό ({CurrencySymbol})"),
+            PlaceholderText = "π.χ. 125,50" };
+        var method = new ComboBox { Header = RequiredHeader.Create("Τρόπος πληρωμής"),
+            ItemsSource = methods, HorizontalAlignment = HorizontalAlignment.Stretch,
+            PlaceholderText = "Επιλέξτε τρόπο πληρωμής" };
+        method.SelectedItem = methods.FirstOrDefault(value => value == "Μετρητά") ?? methods.FirstOrDefault();
+        var currency = new TextBox { Header = "Νόμισμα", Text = $"{_currency} ({CurrencySymbol})",
+            IsReadOnly = true, IsTabStop = false };
+        var reference = new TextBox { Header = "Αριθμός συναλλαγής / αναφορά",
+            PlaceholderText = "π.χ. αριθμός τραπεζικής κίνησης" };
+        var description = new TextBox { Header = "Αιτιολογία / σημειώσεις", AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap, Height = 74 };
+        var form = new StackPanel { Spacing = 10, Width = 420 };
         form.Children.Add(amount);
+        form.Children.Add(method);
+        form.Children.Add(currency);
+        form.Children.Add(reference);
         form.Children.Add(description);
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
             Title = type == "receipt" ? "Γενική είσπραξη" : "Γενική πληρωμή",
-            Content = form, PrimaryButtonText = "Καταχώριση", CloseButtonText = "Ακύρωση" };
+            Content = new ScrollViewer { Content = form, MaxHeight = 500 },
+            PrimaryButtonText = "Καταχώριση", CloseButtonText = "Ακύρωση" };
         if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
         try
         {
-            await _service.AddTransactionAsync(_customer.Id, type, ParseAmount(amount.Text, false), description.Text);
+            if (method.SelectedItem is not string paymentMethod)
+                throw new ArgumentException("Επιλέξτε τρόπο πληρωμής.");
+            if (await _transactionSettings.GetCurrencyAsync() != _currency)
+                throw new InvalidOperationException("Το νόμισμα άλλαξε. Ανοίξτε ξανά την καταχώριση.");
+            await _service.AddTransactionAsync(_customer.Id, type, ParseAmount(amount.Text, false),
+                description.Text, paymentMethod, reference.Text);
             _customer = await _service.GetAsync(_customer.Id) ?? _customer;
-            BuildTabs();
+            BuildTabs(preserveSelectedTab: true);
             UpdateHeader();
-            _status.Text = $"Η κίνηση καταχωρίστηκε. Νέο υπόλοιπο: {CustomerService.Balance(_customer):N2} €";
+            CustomerChanged?.Invoke(this, EventArgs.Empty);
+            _status.Text = $"Η κίνηση καταχωρίστηκε. Νέο υπόλοιπο: {CustomerService.Balance(_customer):N2} {CurrencySymbol}";
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
@@ -606,6 +651,7 @@ public sealed partial class CustomerCardWindow : Window
             BuildTabs();
             UpdateHeader();
             UpdateActionState();
+            CustomerChanged?.Invoke(this, EventArgs.Empty);
             _status.Text = "Η καρτέλα πελάτη αποθηκεύτηκε.";
             return true;
         }
@@ -627,11 +673,20 @@ public sealed partial class CustomerCardWindow : Window
             "Οικονομικά" => "chart-no-axes-combined",
             _ => "clock-3"
         };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
+        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9 };
         label.Children.Add(new Image { Source = new SvgImageSource(new Uri(
-            $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 17, Height = 17 });
-        label.Children.Add(new TextBlock { Text = header, VerticalAlignment = VerticalAlignment.Center });
+            $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 25, Height = 25 });
+        label.Children.Add(new TextBlock { Text = header, FontSize = 15,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center });
+        var dark = _root.RequestedTheme == ElementTheme.Dark ||
+            (_root.RequestedTheme == ElementTheme.Default &&
+             Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
+        var tabBackground = new SolidColorBrush(dark
+            ? Color.FromArgb(255, 54, 59, 66) : Color.FromArgb(255, 229, 234, 239));
         _tabs.TabItems.Add(new TabViewItem { Header = label, IsClosable = false,
+            MinHeight = 52, MinWidth = 162, Padding = new Thickness(13, 8, 13, 8),
+            Background = tabBackground, CornerRadius = new CornerRadius(7),
             Content = new ScrollViewer { Content = content,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto } });

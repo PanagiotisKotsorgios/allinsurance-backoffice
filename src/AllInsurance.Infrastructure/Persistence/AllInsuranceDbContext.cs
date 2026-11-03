@@ -176,6 +176,11 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.HasKey(transaction => transaction.Id);
             entity.Property(transaction => transaction.Type).IsRequired().HasMaxLength(20);
             entity.Property(transaction => transaction.Amount).HasPrecision(18, 2);
+            entity.Property(transaction => transaction.PaymentMethod).IsRequired().HasMaxLength(80)
+                .HasDefaultValue("Μετρητά");
+            entity.Property(transaction => transaction.Currency).IsRequired().HasMaxLength(3)
+                .HasDefaultValue("EUR");
+            entity.Property(transaction => transaction.Reference).HasMaxLength(100);
             entity.Property(transaction => transaction.Description).HasMaxLength(500);
             entity.HasIndex(transaction => new { transaction.CustomerId, transaction.OccurredAtUtc });
             entity.HasOne(transaction => transaction.Customer).WithMany(customer => customer.Transactions)

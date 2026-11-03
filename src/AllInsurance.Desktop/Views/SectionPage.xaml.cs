@@ -463,6 +463,7 @@ public sealed partial class SectionPage : Page
         {
             if (_card is not null) { _card.BringToFront(); return; }
             _card = new CustomerCardWindow(row.CustomerId);
+            _card.CustomerChanged += async (_, _) => await RefreshAsync();
             _card.Closed += async (_, _) => { _card = null; await RefreshAsync(); };
             _card.BringToFront();
             DispatcherQueue.TryEnqueue(() => _card?.BringToFront());

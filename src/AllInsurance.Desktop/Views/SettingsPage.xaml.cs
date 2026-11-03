@@ -1,4 +1,6 @@
 using AllInsurance.Application.Authentication;
+using AllInsurance.Application.Authorization;
+using AllInsurance.Application.Settings;
 using AllInsurance.Desktop.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -10,11 +12,27 @@ namespace AllInsurance.Desktop.Views;
 public sealed partial class SettingsPage : Page
 {
     private readonly WorkspacePreferences _preferences;
+    private readonly ITransactionSettingsService _transactionSettings;
 
     public SettingsPage()
     {
         InitializeComponent();
         _preferences = App.Services.GetRequiredService<WorkspacePreferences>();
+        _transactionSettings = App.Services.GetRequiredService<ITransactionSettingsService>();
+        var session = App.Services.GetRequiredService<ISessionService>();
+        var administrator = session.Current?.Permissions.Contains(Permission.ManageUsers) == true;
+        CurrencyChoice.IsEnabled = administrator;
+        SaveCurrencyButton.IsEnabled = administrator;
+        Loaded += async (_, _) =>
+        {
+            try
+            {
+                var currency = await _transactionSettings.GetCurrencyAsync();
+                CurrencyChoice.SelectedItem = CurrencyChoice.Items.OfType<ComboBoxItem>()
+                    .FirstOrDefault(item => item.Tag as string == currency);
+            }
+            catch (Exception exception) { CurrencyStatusText.Text = exception.Message; }
+        };
         ThemeChoice.SelectedIndex = _preferences.Theme switch
         {
             ElementTheme.Light => 1,
@@ -48,6 +66,21 @@ public sealed partial class SettingsPage : Page
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             StatusText.Text = "Δεν ήταν δυνατή η αποθήκευση του θέματος. Ελέγξτε την πρόσβαση στον τοπικό φάκελο δεδομένων.";
+        }
+    }
+
+    private async void SaveCurrency_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (CurrencyChoice.SelectedItem is not ComboBoxItem { Tag: string currency })
+                throw new ArgumentException("Επιλέξτε νόμισμα.");
+            await _transactionSettings.SetCurrencyAsync(currency);
+            CurrencyStatusText.Text = $"Το βασικό νόμισμα ορίστηκε σε {currency}.";
+        }
+        catch (Exception exception)
+        {
+            await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
         }
     }
 }

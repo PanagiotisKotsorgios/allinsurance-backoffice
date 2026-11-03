@@ -1,4 +1,5 @@
 using AllInsurance.Application.Customers;
+using AllInsurance.Application.Settings;
 using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
 using Microsoft.UI.Xaml;
@@ -52,6 +53,12 @@ public sealed partial class CustomerCardWindow
         AddText(left, "Κύριο email", () => _customer.PrimaryEmail, value => _customer.PrimaryEmail = value);
         AddText(left, "Διεύθυνση", () => _customer.PrimaryAddress, value => _customer.PrimaryAddress = value);
         AddCitySuggest(left);
+        _mainBalanceText = new TextBlock { FontSize = 14,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+        _mainBalanceBadge = new Border { Child = _mainBalanceText,
+            CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left };
+        left.Children.Add(CreateFieldRow("Υπόλοιπο πελάτη", _mainBalanceBadge));
+        UpdateMainBalance();
 
         AddHeading(right, "Έγγραφα και οδήγηση");
         AddText(right, "Αρ. ταυτότητας", () => _customer.IdentityNumber, value => _customer.IdentityNumber = value);
@@ -247,16 +254,16 @@ public sealed partial class CustomerCardWindow
         var balance = CustomerService.Balance(_customer);
         var balanceTitle = balance > 0 ? "Οφειλή πελάτη προς το γραφείο" :
             balance < 0 ? "Πιστωτικό υπόλοιπο πελάτη" : "Μηδενικό υπόλοιπο";
-        root.Children.Add(BalanceVisual.Create(balance, $"{balanceTitle}: {Math.Abs(balance):N2} €", 20));
+        root.Children.Add(BalanceVisual.Create(balance, $"{balanceTitle}: {Math.Abs(balance):N2} {CurrencySymbol}", 20));
         var receipts = _customer.Transactions.Where(item => item.Type == "receipt").Sum(item => item.Amount);
         var payments = _customer.Transactions.Where(item => item.Type == "payment").Sum(item => item.Amount);
         root.Children.Add(new TextBlock { Text =
-            $"Υπόλοιπο έναρξης: {_customer.OpeningBalance:N2} €  ·  Εισπράξεις: {receipts:N2} €  ·  Πληρωμές: {payments:N2} €",
+            $"Υπόλοιπο έναρξης: {_customer.OpeningBalance:N2} {CurrencySymbol}  ·  Εισπράξεις: {receipts:N2} {CurrencySymbol}  ·  Πληρωμές: {payments:N2} {CurrencySymbol}",
             TextWrapping = TextWrapping.Wrap });
         root.Children.Add(new TextBlock { Text =
             "Το υπόλοιπο έναρξης χρησιμοποιείται μόνο για μεταφορά παλαιού υπολοίπου. Οι νέες κινήσεις καταχωρίζονται από τα κουμπιά είσπραξης και πληρωμής.",
             FontSize = 12, TextWrapping = TextWrapping.Wrap });
-        var openingBalance = AddText(root, "Υπόλοιπο έναρξης (€)", () => _customer.OpeningBalance.ToString("N2"),
+        var openingBalance = AddText(root, $"Υπόλοιπο έναρξης ({CurrencySymbol})", () => _customer.OpeningBalance.ToString("N2"),
             value => _customer.OpeningBalance = ParseAmount(value, allowNegative: true));
         var normalBackground = openingBalance.Background;
         var normalForeground = openingBalance.Foreground;
@@ -340,7 +347,7 @@ public sealed partial class CustomerCardWindow
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 var values = new[] { item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
                     item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή",
-                    $"{item.Amount:N2} €", item.Description ?? "—" };
+                    $"{item.Amount:N2} {TransactionSettingsService.Symbol(item.Currency)}", item.Description ?? "—" };
                 for (var index = 0; index < values.Length; index++)
                 {
                     var text = new TextBlock { Text = values[index], TextTrimming = TextTrimming.CharacterEllipsis };
@@ -371,7 +378,10 @@ public sealed partial class CustomerCardWindow
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
             Title = transaction.Type == "receipt" ? "Γενική είσπραξη" : "Γενική πληρωμή",
             Content = $"Ημερομηνία: {transaction.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
-                $"Ποσό: {transaction.Amount:N2} €\nΑιτιολογία: {transaction.Description ?? "—"}",
+                $"Ποσό: {transaction.Amount:N2} {TransactionSettingsService.Symbol(transaction.Currency)}\n" +
+                $"Τρόπος πληρωμής: {transaction.PaymentMethod}\n" +
+                $"Αριθμός αναφοράς: {transaction.Reference ?? "—"}\n" +
+                $"Αιτιολογία: {transaction.Description ?? "—"}",
             CloseButtonText = "Κλείσιμο" };
         await DialogButtonStyles.ShowAsync(dialog);
     }
@@ -393,7 +403,7 @@ public sealed partial class CustomerCardWindow
         timeline.AddRange(_customer.Details.Select(item => (item.CreatedAtUtc,
             $"Στοιχείο: {item.Title}")));
         timeline.AddRange(_customer.Transactions.Select(item => (item.OccurredAtUtc,
-            $"{(item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή")}: {item.Amount:N2} €")));
+            $"{(item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή")}: {item.Amount:N2} {TransactionSettingsService.Symbol(item.Currency)}")));
         timeline.AddRange(_customer.BusinessRecords.Select(item => (item.CreatedAtUtc,
             $"Συνδεδεμένη εγγραφή: {item.Title}")));
         if (timeline.Count > 0)
@@ -420,6 +430,6 @@ public sealed partial class CustomerCardWindow
                 _historyHost.Content = _historyPanels[key];
         };
         _historyChoice.SelectedIndex = 0;
-        AddTab("Ιστορικό", root);
+        AddTab("Ιστορικό ενεργειών", root);
     }
 }

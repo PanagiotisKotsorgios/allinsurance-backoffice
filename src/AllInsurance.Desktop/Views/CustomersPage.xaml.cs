@@ -382,6 +382,7 @@ public sealed partial class CustomersPage : Page
                 return;
             }
             _card = new CustomerCardWindow(id, edit);
+            _card.CustomerChanged += async (_, _) => await RefreshAsync();
             _card.Closed += async (_, _) =>
             {
                 _card = null;

@@ -29,6 +29,8 @@ The login flow supports local authentication, five-attempt/15-minute lockout, te
 
 The authentication lockout values can be changed in `src\AllInsurance.Desktop\appsettings.json`. Application services enforce authorization on user and role management. The customer screen supports persisted profiles, linked records, financial movements, file attachments, and statistics. Other dashboards have a common persisted record workflow with customer links, ready for specialized fields in later phases. See [Phase 02 analysis](Software%20Analysis/02%20-%20Workspace%20UI/README.md) and [Phase 03 analysis](Software%20Analysis/03%20-%20Customers%20and%20Shared%20Dashboards/README.md).
 
+Receipts and payments now record a payment method, currency, reference number, and notes. The balance refreshes immediately in the open customer card and customer list. EUR is the default currency; an administrator can change it in system settings before any monetary records exist. See [customer payments](Software%20Analysis/06%20-%20Customer%20Payments/README.md).
+
 ## Build and tests
 
 ```powershell

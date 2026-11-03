@@ -1,4 +1,5 @@
 using AllInsurance.Domain.Entities;
+using AllInsurance.Application.Settings;
 
 namespace AllInsurance.Application.Customers;
 
@@ -11,7 +12,8 @@ public sealed record CustomerListItem(
 {
     public string Code => "C-" + Id.ToString("N")[..8].ToUpperInvariant();
     public string StatusLabel => IsActive ? "Ενεργός" : "Ανενεργός";
-    public string BalanceDisplay => $"{Balance:N2} €";
+    public string Currency { get; init; } = "EUR";
+    public string BalanceDisplay => $"{Balance:N2} {TransactionSettingsService.Symbol(Currency)}";
     public string CreatedDisplay => CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy");
     public string SearchText { get; init; } = "";
 }
@@ -40,6 +42,7 @@ public interface ICustomerService
     Task<CustomerDetail> AddFileAsync(Guid customerId, string sourcePath, CancellationToken cancellationToken = default);
     string GetFilePath(CustomerDetail file);
     Task<CustomerTransaction> AddTransactionAsync(Guid customerId, string type, decimal amount, string? description,
+        string? paymentMethod = null, string? reference = null,
         CancellationToken cancellationToken = default);
     Task<CustomerStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CustomerRelatedRecord>> GetRelatedRecordsAsync(string category,

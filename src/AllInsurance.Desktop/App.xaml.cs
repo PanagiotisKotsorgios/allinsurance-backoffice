@@ -3,6 +3,7 @@ using AllInsurance.Application.Authentication;
 using AllInsurance.Application.Authorization;
 using AllInsurance.Application.Users;
 using AllInsurance.Application.Customers;
+using AllInsurance.Application.Settings;
 using AllInsurance.Application.Business;
 using AllInsurance.Application.Filters;
 using AllInsurance.Desktop.Navigation;
@@ -79,6 +80,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                 services.AddTransient<IRecoveryService, RecoveryService>();
                 services.AddTransient<IUserAdministrationService, UserAdministrationService>();
                 services.AddTransient<ICustomerService, CustomerService>();
+                services.AddTransient<ITransactionSettingsService, TransactionSettingsService>();
                 services.AddTransient<IBusinessRecordService, BusinessRecordService>();
                 services.AddTransient<IFilterOptionService, FilterOptionService>();
                 services.AddTransient<AdministratorSetupViewModel>();

@@ -159,7 +159,7 @@ public sealed class DatabaseInitializer(
 
     private static void EnsureCustomerCatalogSeeds(AllInsuranceDbContext db)
     {
-        const string marker = "customer_catalog_defaults_v2";
+        const string marker = "customer_catalog_defaults_v3";
         if (db.AppMetadata.Any(item => item.Key == marker)) return;
         var defaults = new Dictionary<string, string[]>
         {
@@ -178,6 +178,9 @@ public sealed class DatabaseInitializer(
                 "Ρουμανική", "Άλλη"],
             ["ΔΟΥ"] = ["Α' Αθηνών", "ΙΓ' Αθηνών", "Α' Θεσσαλονίκης", "Πατρών",
                 "Μεσολογγίου", "Αγρινίου", "Ηρακλείου", "Λάρισας", "Ιωαννίνων"],
+            ["Τρόποι πληρωμής"] = ["Μετρητά", "Τραπεζική μεταφορά", "Κατάθεση σε τράπεζα",
+                "Χρεωστική κάρτα (POS)", "Πιστωτική κάρτα (POS)", "Ηλεκτρονική πληρωμή",
+                "IRIS", "Πάγια εντολή", "Επιταγή", "Άλλο"],
             ["Επαγγέλματα"] = ["Ελεύθερος επαγγελματίας", "Ιδιωτικός υπάλληλος",
                 "Δημόσιος υπάλληλος", "Συνταξιούχος", "Αγρότης", "Επιχειρηματίας",
                 "Άνεργος/η", "Φοιτητής/τρια", "Άλλο"],

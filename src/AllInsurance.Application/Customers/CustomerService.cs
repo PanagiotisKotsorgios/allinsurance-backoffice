@@ -4,6 +4,7 @@ using AllInsurance.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Mail;
 using System.IO;
+using AllInsurance.Application.Settings;
 
 namespace AllInsurance.Application.Customers;
 
@@ -44,6 +45,9 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         }
         var records = await customers.OrderBy(customer => customer.LastName)
             .ThenBy(customer => customer.FirstName).ToListAsync(cancellationToken);
+        var currency = await db.AppMetadata.AsNoTracking()
+            .Where(item => item.Key == TransactionSettingsService.CurrencyKey)
+            .Select(item => item.Value).SingleOrDefaultAsync(cancellationToken) ?? "EUR";
         var results = records.Select(customer => new CustomerListItem(
             customer.Id, $"{customer.LastName} {customer.FirstName}", customer.TaxNumber,
             customer.PrimaryMobile, customer.PrimaryEmail, customer.IsActive,
@@ -52,6 +56,7 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             customer.LastName, customer.FirstName, customer.CompanyName,
             customer.CustomerKind, customer.City)
         {
+            Currency = currency,
             SearchText = string.Join(' ', new[] { customer.LastName, customer.FirstName,
                 customer.CompanyName, customer.TaxNumber, customer.PrimaryMobile,
                 customer.HomePhone, customer.SecondMobile, customer.SecondPhone,
@@ -262,7 +267,8 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
     }
 
     public async Task<CustomerTransaction> AddTransactionAsync(Guid customerId, string type, decimal amount,
-        string? description, CancellationToken cancellationToken = default)
+        string? description, string? paymentMethod = null, string? reference = null,
+        CancellationToken cancellationToken = default)
     {
         RequireSession();
         if (type is not ("receipt" or "payment") || amount <= 0 || amount > 999999999999m)
@@ -274,9 +280,14 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         {
             throw new InvalidOperationException("Ο πελάτης δεν υπάρχει.");
         }
+        var method = Normalize(paymentMethod, 80) ?? "Μετρητά";
+        var currency = await db.AppMetadata.AsNoTracking()
+            .Where(item => item.Key == TransactionSettingsService.CurrencyKey)
+            .Select(item => item.Value).SingleOrDefaultAsync(cancellationToken) ?? "EUR";
         var transaction = new CustomerTransaction
         {
             Id = Guid.NewGuid(), CustomerId = customerId, Type = type, Amount = amount,
+            PaymentMethod = method, Currency = currency, Reference = Normalize(reference, 100),
             Description = Normalize(description, 500), OccurredAtUtc = DateTime.UtcNow,
             CreatedByUserId = session.Current!.UserId
         };

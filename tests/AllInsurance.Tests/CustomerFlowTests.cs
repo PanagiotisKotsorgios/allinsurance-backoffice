@@ -1,4 +1,5 @@
 using AllInsurance.Application.Customers;
+using AllInsurance.Application.Settings;
 using AllInsurance.Domain.Entities;
 
 namespace AllInsurance.Tests;
@@ -71,7 +72,8 @@ public sealed class CustomerFlowTests
             null, null, null, false);
         await service.UpdateDetailAsync(customerId, detail.Id, "ΙΧ 1234", "Νέα περιγραφή",
             null, null, null, true);
-        await service.AddTransactionAsync(customerId, "receipt", 20m, "Είσπραξη");
+        await service.AddTransactionAsync(customerId, "receipt", 20m, "Είσπραξη",
+            "Τραπεζική μεταφορά", "BANK-123");
         await service.AddTransactionAsync(customerId, "payment", 5m, "Πληρωμή");
 
         var loaded = await service.GetAsync(customerId);
@@ -81,12 +83,39 @@ public sealed class CustomerFlowTests
         Assert.True(loaded.Details.Single().IsHistorical);
         Assert.Equal(35m, CustomerService.Balance(loaded));
         Assert.Equal(2, loaded.Transactions.Count);
+        var receipt = Assert.Single(loaded.Transactions, item => item.Type == "receipt");
+        Assert.Equal("Τραπεζική μεταφορά", receipt.PaymentMethod);
+        Assert.Equal("BANK-123", receipt.Reference);
+        Assert.Equal("EUR", receipt.Currency);
         Assert.Equal(2, (await service.GetStatisticsAsync()).Total);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.DeleteAsync(referrerId));
         await service.DeleteDetailAsync(customerId, detail.Id);
         await service.DeleteAsync(customerId);
         Assert.Null(await service.GetAsync(customerId));
         Assert.Empty((await service.GetAsync(referrerId))!.Details);
+    }
+
+    [Fact]
+    public async Task CurrencyCanBeChangedOnlyBeforeMoneyIsRecorded()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var settings = new TransactionSettingsService(environment.ContextFactory, environment.Session);
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+
+        Assert.Equal("EUR", await settings.GetCurrencyAsync());
+        await settings.SetCurrencyAsync("USD");
+        Assert.Equal("USD", await settings.GetCurrencyAsync());
+
+        var id = await customers.SaveAsync(new Customer
+        {
+            LastName = "Currency", FirstName = "Test", TaxNumber = "100000005"
+        });
+        await customers.AddTransactionAsync(id, "receipt", 10m, "Payment", "Cash", "TX-1");
+        var customer = await customers.GetAsync(id);
+        Assert.Equal("USD", Assert.Single(customer!.Transactions).Currency);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => settings.SetCurrencyAsync("EUR"));
     }
 
     [Fact]
