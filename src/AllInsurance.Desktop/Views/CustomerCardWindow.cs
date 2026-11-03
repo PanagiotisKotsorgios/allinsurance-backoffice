@@ -165,7 +165,7 @@ public sealed partial class CustomerCardWindow : Window
             (_root.RequestedTheme == ElementTheme.Default &&
              Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
         _root.Background = new SolidColorBrush(dark
-            ? Color.FromArgb(255, 31, 31, 31) : Color.FromArgb(255, 247, 248, 250));
+            ? Color.FromArgb(255, 31, 31, 31) : Color.FromArgb(255, 221, 228, 235));
         Content = _root;
 
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));

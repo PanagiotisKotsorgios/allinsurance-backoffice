@@ -110,7 +110,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                     PreviousPolicyId = previousPolicyId }) : null };
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
         _root.Background = new SolidColorBrush(IsDarkTheme()
-            ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 246, 249, 252));
+            ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 221, 228, 235));
         Content = _root;
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);

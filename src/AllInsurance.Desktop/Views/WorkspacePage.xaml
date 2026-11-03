@@ -5,7 +5,7 @@
     xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
     <Grid x:Name="RootGrid" RowDefinitions="Auto,*,Auto">
-        <Border Grid.Row="0" Background="{ThemeResource CardBackgroundBrush}" Padding="16,8">
+        <Border Grid.Row="0" Background="{ThemeResource ChromeBackgroundBrush}" Padding="16,8">
             <StackPanel Spacing="4">
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <Image Source="ms-appx:///Assets/logo-99.jpg" Width="34" Height="34"
@@ -46,12 +46,13 @@
             </StackPanel>
         </Border>
         <NavigationView x:Name="MainNavigation" Grid.Row="1" PaneDisplayMode="Auto"
+                        Background="{ThemeResource PageBackgroundBrush}"
                         IsBackButtonVisible="Collapsed" IsSettingsVisible="False" AlwaysShowHeader="False"
                         OpenPaneLength="310" CompactPaneLength="68" SelectionChanged="Navigation_SelectionChanged">
             <ContentControl x:Name="SectionHost" HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
         </NavigationView>
-        <Border Grid.Row="2" Background="{ThemeResource CardBackgroundBrush}" Padding="16,8"
+        <Border Grid.Row="2" Background="{ThemeResource ChromeBackgroundBrush}" Padding="16,8"
                 BorderThickness="0,1,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <StackPanel Orientation="Horizontal" Spacing="8">

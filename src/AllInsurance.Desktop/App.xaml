@@ -9,18 +9,48 @@
             </ResourceDictionary.MergedDictionaries>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FFF7F8FA" />
-                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FFDDE4EB" />
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FFD3DEE9" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#FFCBD8E5" />
                     <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF5B6472" />
                     <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB42318" />
                     <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF1769AA" />
                     <SolidColorBrush x:Key="ButtonAccentBrush" Color="#FF1769AA" />
-                    <SolidColorBrush x:Key="TableHeaderBackgroundBrush" Color="#FFE6EFF8" />
-                    <SolidColorBrush x:Key="TableBorderBrush" Color="#FF8295A8" />
+                    <SolidColorBrush x:Key="TableHeaderBackgroundBrush" Color="#FFD0DEEB" />
+                    <SolidColorBrush x:Key="TableBorderBrush" Color="#FF8499AE" />
+                    <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#FFD5E2ED" />
+                    <SolidColorBrush x:Key="ControlFillColorInputActiveBrush" Color="#FFE8EFF6" />
+                    <SolidColorBrush x:Key="TextControlBackground" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FFD5E2ED" />
+                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FFE8EFF6" />
+                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#FF8BA2B8" />
+                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#FF6785A1" />
+                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FF1769AA" />
+                    <SolidColorBrush x:Key="ComboBoxBackground" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#FFD5E2ED" />
+                    <SolidColorBrush x:Key="ComboBoxBackgroundUnfocused" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#FF8BA2B8" />
+                    <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#FF6785A1" />
+                    <SolidColorBrush x:Key="CalendarDatePickerBackground" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="CalendarDatePickerBackgroundPointerOver" Color="#FFD5E2ED" />
+                    <SolidColorBrush x:Key="CalendarDatePickerBorderBrush" Color="#FF8BA2B8" />
+                    <SolidColorBrush x:Key="CalendarViewBackground" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="DatePickerButtonBackground" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#FFCBD8E5" />
+                    <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#FFCBD8E5" />
+                    <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#FFDDE4EB" />
+                    <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="ContentDialogBackground" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="ComboBoxPopupBackgroundThemeBrush" Color="#FFEBF0F5" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FF1F1F1F" />
                     <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FF2C2C2C" />
+                    <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FF2C2C2C" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#FF202730" />
                     <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFBBBBBB" />
                     <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFFF8A80" />
                     <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF66B8FF" />
@@ -29,14 +59,42 @@
                     <SolidColorBrush x:Key="TableBorderBrush" Color="#FF71869B" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
-                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FFF7F8FA" />
-                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFFFF" />
+                    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FFDDE4EB" />
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FFD3DEE9" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#FFCBD8E5" />
                     <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF5B6472" />
                     <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB42318" />
                     <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF1769AA" />
                     <SolidColorBrush x:Key="ButtonAccentBrush" Color="#FF1769AA" />
-                    <SolidColorBrush x:Key="TableHeaderBackgroundBrush" Color="#FFE6EFF8" />
-                    <SolidColorBrush x:Key="TableBorderBrush" Color="#FF8295A8" />
+                    <SolidColorBrush x:Key="TableHeaderBackgroundBrush" Color="#FFD0DEEB" />
+                    <SolidColorBrush x:Key="TableBorderBrush" Color="#FF8499AE" />
+                    <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="#FFD5E2ED" />
+                    <SolidColorBrush x:Key="ControlFillColorInputActiveBrush" Color="#FFE8EFF6" />
+                    <SolidColorBrush x:Key="TextControlBackground" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FFD5E2ED" />
+                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FFE8EFF6" />
+                    <SolidColorBrush x:Key="TextControlBorderBrush" Color="#FF8BA2B8" />
+                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#FF6785A1" />
+                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FF1769AA" />
+                    <SolidColorBrush x:Key="ComboBoxBackground" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#FFD5E2ED" />
+                    <SolidColorBrush x:Key="ComboBoxBackgroundUnfocused" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#FF8BA2B8" />
+                    <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#FF6785A1" />
+                    <SolidColorBrush x:Key="CalendarDatePickerBackground" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="CalendarDatePickerBackgroundPointerOver" Color="#FFD5E2ED" />
+                    <SolidColorBrush x:Key="CalendarDatePickerBorderBrush" Color="#FF8BA2B8" />
+                    <SolidColorBrush x:Key="CalendarViewBackground" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="DatePickerButtonBackground" Color="#FFDFE8F1" />
+                    <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#FFCBD8E5" />
+                    <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#FFCBD8E5" />
+                    <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#FFDDE4EB" />
+                    <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="ContentDialogBackground" Color="#FFEBF0F5" />
+                    <SolidColorBrush x:Key="ComboBoxPopupBackgroundThemeBrush" Color="#FFEBF0F5" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         <Style x:Key="ActionButtonStyle" TargetType="Button">

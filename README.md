@@ -47,6 +47,8 @@ The policy card now has linked holder, partner, insurer and agency; renewal numb
 
 The latest workspace adds a customer and partner name-day calendar, renewal outreach with Brevo email and Bulker SMS configuration, filtered CSV reports, and alphabetical insurer/agency bridge folders with a standard CSV import for insurance documents. The email and SMS API keys are saved in Windows Credential Manager. Sending requires an explicit confirmation in the app; no provider credentials are included in the repository. Insurer-specific import formats, invoice mapping and live SMS credit balances require provider file samples and API configuration. See [communications, reports and bridges](Software%20Analysis/15%20-%20Communications%20Reports%20and%20Bridges/README.md).
 
+The light theme uses soft gray surfaces throughout the workspace, card windows, filters, tables, inputs, menus, sidebar, and footer; dark theme and action colors retain their existing palette.
+
 ## Build and tests
 
 ```powershell
