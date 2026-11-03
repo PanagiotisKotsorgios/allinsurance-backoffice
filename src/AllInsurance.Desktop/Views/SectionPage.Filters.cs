@@ -6,6 +6,8 @@ namespace AllInsurance.Desktop.Views;
 
 public sealed partial class SectionPage
 {
+    private int _visibleFilterCount;
+
     private void ConfigureFilterBar()
     {
         CustomerFilter.Title = _section.Key switch
@@ -36,16 +38,14 @@ public sealed partial class SectionPage
             PersonTypeFilter, DateRangeFilter })
             element.Visibility = visible.Contains(element) ? Visibility.Visible : Visibility.Collapsed;
         DateBasisFilter.Visibility = _section.Key == "policies" ? Visibility.Visible : Visibility.Collapsed;
-        FilterBar.ColumnDefinitions.Clear();
+        _visibleFilterCount = visible.Length + 1;
         foreach (var element in visible)
         {
-            FilterBar.ColumnDefinitions.Add(new ColumnDefinition());
             element.Width = double.NaN;
             element.HorizontalAlignment = HorizontalAlignment.Stretch;
-            Grid.SetColumn(element, FilterBar.ColumnDefinitions.Count - 1);
+            element.Margin = new Thickness(0, 0, 14, 0);
         }
-        FilterBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(184) });
-        Grid.SetColumn(ClearFiltersButton, FilterBar.ColumnDefinitions.Count - 1);
+        ClearFiltersButton.Margin = new Thickness(0, 0, 14, 0);
         ClearFiltersButton.HorizontalAlignment = HorizontalAlignment.Stretch;
         if (_section.Key is "vehicles")
         {
@@ -67,6 +67,12 @@ public sealed partial class SectionPage
             UntilFilter.PlaceholderText = "Έως ημερομηνία";
         }
         UpdateDateRangeLabel();
+    }
+
+    private void FilterBar_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_visibleFilterCount == 0 || e.NewSize.Width <= 0) return;
+        FilterBar.ItemWidth = Math.Max(170, Math.Floor(e.NewSize.Width / _visibleFilterCount));
     }
 
     private void UpdateDateRangeLabel()

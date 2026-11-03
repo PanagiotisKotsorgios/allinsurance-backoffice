@@ -24,6 +24,7 @@ public sealed partial class CustomersPage : Page
     private string _sortKey = "LastName";
     private bool _sortDescending;
     private int _page = 1;
+    private double _lastTableViewportWidth;
     private const int PageSize = 25;
 
     public CustomersPage()
@@ -59,8 +60,22 @@ public sealed partial class CustomersPage : Page
         Loaded += async (_, _) => await RefreshAsync();
     }
 
-    private void Scroller_SizeChanged(object sender, SizeChangedEventArgs e) =>
-        PageContent.Width = Math.Max(180, Math.Min(1380, e.NewSize.Width - 48));
+    private void TableViewport_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        CustomersList.Height = Math.Max(120, e.NewSize.Height - TableHeader.ActualHeight - 2);
+        if (Math.Abs(_lastTableViewportWidth - e.NewSize.Width) < 1) return;
+        _lastTableViewportWidth = e.NewSize.Width;
+        ApplyDisplayedColumnWidths();
+    }
+
+    private void ActionsGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var narrow = e.NewSize.Width < 830;
+        Grid.SetColumnSpan((FrameworkElement)ActionsGrid.Children[0], narrow ? 2 : 1);
+        var delete = (FrameworkElement)ActionsGrid.Children[1];
+        Grid.SetRow(delete, narrow ? 1 : 0);
+        Grid.SetColumn(delete, 1);
+    }
 
     private async Task RefreshAsync()
     {
@@ -239,7 +254,7 @@ public sealed partial class CustomersPage : Page
         {
             var column = ordered[index];
             var originalIndex = Array.FindIndex(CustomerColumns.All, item => item.Key == column.Key);
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = CustomerColumns.Width(column.Key) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = DisplayedColumnWidth(column.Key) });
             if (!CustomerColumns.IsVisible(column.Key)) continue;
             var text = new TextBlock { Text = values[originalIndex] ?? "—",
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -289,17 +304,18 @@ public sealed partial class CustomersPage : Page
     private void ApplyColumnLayout()
     {
         var columns = CustomerColumns.Ordered;
+        TableStack.Width = Math.Max(columns.Where(column => CustomerColumns.IsVisible(column.Key))
+            .Sum(column => CustomerColumns.WidthValue(column.Key)) + 42,
+            TableViewport.ActualWidth);
         for (var index = 0; index < columns.Length; index++)
         {
-            TableHeader.ColumnDefinitions[index].Width = CustomerColumns.Width(columns[index].Key);
+            TableHeader.ColumnDefinitions[index].Width = DisplayedColumnWidth(columns[index].Key);
             var originalIndex = Array.FindIndex(CustomerColumns.All, item => item.Key == columns[index].Key);
             var header = (FrameworkElement)TableHeader.Children[originalIndex];
             Grid.SetColumn(header, index);
             header.Visibility = CustomerColumns.IsVisible(columns[index].Key)
                 ? Visibility.Visible : Visibility.Collapsed;
         }
-        TableStack.Width = columns.Where(column => CustomerColumns.IsVisible(column.Key))
-            .Sum(column => CustomerColumns.WidthValue(column.Key)) + 42;
         var page = _page;
         _page = page;
         ApplyPage();
@@ -309,15 +325,31 @@ public sealed partial class CustomersPage : Page
     {
         var key = CustomerColumns.All[original].Key;
         CustomerColumns.SetWidth(key, width);
+        ApplyDisplayedColumnWidths();
+    }
+
+    private GridLength DisplayedColumnWidth(string key)
+    {
+        if (!CustomerColumns.IsVisible(key)) return new GridLength(0);
+        var total = CustomerColumns.Ordered.Where(column => CustomerColumns.IsVisible(column.Key))
+            .Sum(column => CustomerColumns.WidthValue(column.Key));
+        var scale = total <= 0 ? 1 : Math.Max(1, (TableStack.Width - 42) / total);
+        return new GridLength(CustomerColumns.WidthValue(key) * scale);
+    }
+
+    private void ApplyDisplayedColumnWidths()
+    {
         var ordered = CustomerColumns.Ordered;
-        var position = Array.FindIndex(ordered, column => column.Key == key);
-        TableHeader.ColumnDefinitions[position].Width = CustomerColumns.Width(key);
-        TableStack.Width = ordered.Where(column => CustomerColumns.IsVisible(column.Key))
-            .Sum(column => CustomerColumns.WidthValue(column.Key)) + 42;
+        TableStack.Width = Math.Max(ordered.Where(column => CustomerColumns.IsVisible(column.Key))
+            .Sum(column => CustomerColumns.WidthValue(column.Key)) + 42,
+            TableViewport.ActualWidth);
+        for (var index = 0; index < ordered.Length; index++)
+            TableHeader.ColumnDefinitions[index].Width = DisplayedColumnWidth(ordered[index].Key);
         foreach (var item in CustomersList.Items.OfType<ListViewItem>())
         {
             if (item.Content is not Grid row) continue;
-            row.ColumnDefinitions[position + 1].Width = CustomerColumns.Width(key);
+            for (var index = 0; index < ordered.Length; index++)
+                row.ColumnDefinitions[index + 1].Width = DisplayedColumnWidth(ordered[index].Key);
             row.Width = TableStack.Width - 2;
             item.Width = row.Width;
         }

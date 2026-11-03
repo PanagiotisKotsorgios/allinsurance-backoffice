@@ -15,6 +15,8 @@ public sealed partial class CustomerCardWindow
     private Grid CompactColumns(out StackPanel left, out StackPanel right)
     {
         var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
+        left.Spacing = 5;
+        right.Spacing = 5;
         _compactMain = grid;
         return grid;
     }
@@ -164,7 +166,7 @@ public sealed partial class CustomerCardWindow
     {
         var root = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 350, ItemHeight = 510, Margin = new Thickness(18, 10, 18, 16) };
-        var family = new StackPanel { Spacing = 3, Width = 330 };
+        var family = new StackPanel { Spacing = 5, Width = 330 };
         AddText(family, "Διαβατήριο", () => _customer.PassportNumber,
             value => _customer.PassportNumber = value);
         AddCatalogChoice(family, "Οικ. κατάσταση", "Οικογενειακές καταστάσεις",
@@ -181,7 +183,7 @@ public sealed partial class CustomerCardWindow
         AddText(family, "Σημειώσεις", () => _customer.Notes, value => _customer.Notes = value, multiline: true);
         root.Children.Add(family);
 
-        var business = new StackPanel { Spacing = 3, Width = 330 };
+        var business = new StackPanel { Spacing = 5, Width = 330 };
         AddCatalogChoice(business, "ΔΟΥ", "ΔΟΥ", () => _customer.TaxOffice,
             value => _customer.TaxOffice = value);
         AddText(business, "Ταχ. κώδικας", () => _customer.PostalCode,
@@ -223,7 +225,7 @@ public sealed partial class CustomerCardWindow
         AddText(business, "Ετικέτες", () => _customer.Tags, value => _customer.Tags = value);
         root.Children.Add(business);
 
-        var status = new StackPanel { Spacing = 3, Width = 330 };
+        var status = new StackPanel { Spacing = 5, Width = 330 };
         AddBool(status, "Δικαιολογητικό έκπτωσης", () => _customer.HasDiscountDocument,
             value => _customer.HasDiscountDocument = value);
         AddText(status, "Περιγραφή έκπτωσης", () => _customer.DiscountDocumentDescription,
@@ -338,7 +340,7 @@ public sealed partial class CustomerCardWindow
             menu.ShowAt(row);
             args.Handled = true;
         }), true);
-        var applyColumnLayout = TableInteractions.Attach(header, list);
+        var applyColumnLayout = TableInteractions.Attach(header, list, _tabContent);
         void refresh()
         {
             list.Items.Clear();

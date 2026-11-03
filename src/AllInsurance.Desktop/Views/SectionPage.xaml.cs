@@ -38,6 +38,7 @@ public sealed partial class SectionPage : Page
     private bool _syncingChecks;
     private readonly HashSet<Guid> _checkedRecordIds = [];
     private int _page = 1;
+    private double _lastTableViewportWidth;
     private const int PageSize = 25;
 
     public SectionPage(WorkspaceSection section)
@@ -82,14 +83,24 @@ public sealed partial class SectionPage : Page
         };
     }
 
-    private void Scroller_SizeChanged(object sender, SizeChangedEventArgs e) =>
-        PageContent.Width = Math.Max(180, Math.Min(1380, e.NewSize.Width - 48));
+    private void TableViewport_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        RecordsList.Height = Math.Max(120, e.NewSize.Height - RecordsHeader.ActualHeight - 2);
+        if (Math.Abs(_lastTableViewportWidth - e.NewSize.Width) < 1) return;
+        _lastTableViewportWidth = e.NewSize.Width;
+        ApplyColumnOrder(RecordsHeader);
+        foreach (var grid in _recordGrids.ToArray()) ApplyColumnOrder(grid);
+        foreach (var item in RecordsList.Items)
+            if (RecordsList.ContainerFromItem(item) is ListViewItem container)
+                container.Width = DisplayTableWidth;
+    }
 
     private void ActionsGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var narrow = e.NewSize.Width < 1020;
+        var narrow = e.NewSize.Width < 930;
+        Grid.SetColumnSpan((FrameworkElement)ActionsGrid.Children[0], narrow ? 2 : 1);
         Grid.SetRow(DeleteButton, narrow ? 1 : 0);
-        Grid.SetColumn(DeleteButton, narrow ? 0 : 1);
+        Grid.SetColumn(DeleteButton, 1);
     }
 
     private async Task LoadCustomersAsync()
@@ -256,7 +267,7 @@ public sealed partial class SectionPage : Page
             if (args.InRecycleQueue || args.Item is not BusinessRecordRow row || args.ItemContainer is null) return;
             args.ItemContainer.Padding = new Thickness(0);
             args.ItemContainer.Margin = new Thickness(0);
-            args.ItemContainer.Width = TableWidth;
+            args.ItemContainer.Width = DisplayTableWidth;
             args.ItemContainer.Height = TableRowResizer.HeightFor(_section.Key, row.Record.Id);
             args.ItemContainer.HorizontalContentAlignment = HorizontalAlignment.Stretch;
         };
@@ -390,29 +401,37 @@ public sealed partial class SectionPage : Page
     }
 
     private double TableWidth => 40 + _columnWidths.Where((_, index) => _columnVisible[index]).Sum();
+    private double DisplayTableWidth => Math.Max(TableWidth, TableViewport.ActualWidth - 2);
+
+    private double DisplayColumnWidth(int original)
+    {
+        if (!_columnVisible[original]) return 0;
+        var baseWidth = TableWidth - 40;
+        var scale = baseWidth <= 0 ? 1 : Math.Max(1, (DisplayTableWidth - 40) / baseWidth);
+        return _columnWidths[original] * scale;
+    }
 
     private void ResizeColumn(int original, double width)
     {
         _columnWidths[original] = Math.Clamp(width, 70, 520);
         ApplyColumnOrder(RecordsHeader);
         foreach (var grid in _recordGrids.ToArray()) ApplyColumnOrder(grid);
-        RecordsTableStack.Width = TableWidth + 2;
+        RecordsTableStack.Width = DisplayTableWidth + 2;
         foreach (var item in RecordsList.Items)
             if (RecordsList.ContainerFromItem(item) is ListViewItem container)
-                container.Width = TableWidth;
+                container.Width = DisplayTableWidth;
     }
 
     private void ApplyColumnOrder(Grid grid)
     {
         var isHeader = ReferenceEquals(grid, RecordsHeader);
-        if (isHeader) RecordsTableStack.Width = TableWidth + 2;
-        else grid.Width = TableWidth;
+        if (isHeader) RecordsTableStack.Width = DisplayTableWidth + 2;
+        else grid.Width = DisplayTableWidth;
         for (var position = 0; position < _columnOrder.Length; position++)
         {
             var original = _columnOrder[position];
             var offset = isHeader ? 0 : 1;
-            grid.ColumnDefinitions[position + offset].Width = new GridLength(
-                _columnVisible[original] ? _columnWidths[original] : 0);
+            grid.ColumnDefinitions[position + offset].Width = new GridLength(DisplayColumnWidth(original));
             var cell = (FrameworkElement)grid.Children[original + offset];
             cell.Visibility = _columnVisible[original] ? Visibility.Visible : Visibility.Collapsed;
             Grid.SetColumn(cell, position + offset);

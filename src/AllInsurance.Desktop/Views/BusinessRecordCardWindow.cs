@@ -392,6 +392,11 @@ public sealed partial class BusinessRecordCardWindow : Window
     private Grid TwoColumns(out StackPanel left, out StackPanel right)
     {
         var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
+        if (_section == "policies")
+        {
+            left.Spacing = 5;
+            right.Spacing = 5;
+        }
         _formGrids.Add(grid);
         return grid;
     }

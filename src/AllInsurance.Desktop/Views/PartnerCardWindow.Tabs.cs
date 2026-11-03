@@ -360,7 +360,7 @@ public sealed partial class PartnerCardWindow
         pager.Children.Add(previous); pager.Children.Add(count); pager.Children.Add(next);
         panel.Children.Add(pager);
         var page = 1;
-        var applyColumns = TableInteractions.Attach(header, list);
+        var applyColumns = TableInteractions.Attach(header, list, _tabContent);
         void Refresh()
         {
             list.Items.Clear();

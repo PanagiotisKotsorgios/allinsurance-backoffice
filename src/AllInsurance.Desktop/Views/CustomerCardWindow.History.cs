@@ -57,7 +57,7 @@ public sealed partial class CustomerCardWindow
         root.Children.Add(list);
         var pager = new TablePagination(list);
         root.Children.Add(pager.Bar);
-        var applyColumns = TableInteractions.Attach(header, list);
+        var applyColumns = TableInteractions.Attach(header, list, _tabContent);
         IReadOnlyList<CustomerActivity> activities = [];
         void Refresh()
         {

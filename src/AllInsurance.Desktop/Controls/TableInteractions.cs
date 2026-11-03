@@ -6,22 +6,27 @@ namespace AllInsurance.Desktop.Controls;
 
 internal static class TableInteractions
 {
-    public static Action Attach(Grid header, ListView list)
+    public static Action Attach(Grid header, ListView list, FrameworkElement? widthHost = null,
+        double horizontalInset = 48)
     {
         var count = header.ColumnDefinitions.Count;
         var order = Enumerable.Range(0, count).ToArray();
         var widths = header.ColumnDefinitions.Select(column => column.Width).ToArray();
         var descending = false;
         var sortedColumn = -1;
+        double DisplayWidth() => Math.Max(widths.Sum(width => width.Value),
+            (widthHost?.ActualWidth ?? 0) - horizontalInset - 2);
 
         void Apply(Grid grid)
         {
             if (grid.ColumnDefinitions.Count != count || grid.Children.Count < count) return;
-            grid.Width = widths.Sum(width => width.Value);
+            var baseWidth = widths.Sum(width => width.Value);
+            var scale = baseWidth <= 0 ? 1 : DisplayWidth() / baseWidth;
+            grid.Width = DisplayWidth();
             for (var position = 0; position < count; position++)
             {
                 var original = order[position];
-                grid.ColumnDefinitions[position].Width = widths[original];
+                grid.ColumnDefinitions[position].Width = new GridLength(widths[original].Value * scale);
                 var cell = (FrameworkElement)grid.Children[original];
                 Grid.SetColumn(cell, position);
                 if (cell is Border border)
@@ -93,6 +98,16 @@ internal static class TableInteractions
             widths[original] = new GridLength(width);
             ApplyAll();
         });
+        if (widthHost is not null)
+        {
+            void OnHostSizeChanged(object sender, SizeChangedEventArgs args) => ApplyAll();
+            header.Loaded += (_, _) =>
+            {
+                widthHost.SizeChanged += OnHostSizeChanged;
+                ApplyAll();
+            };
+            header.Unloaded += (_, _) => widthHost.SizeChanged -= OnHostSizeChanged;
+        }
         return ApplyAll;
     }
 

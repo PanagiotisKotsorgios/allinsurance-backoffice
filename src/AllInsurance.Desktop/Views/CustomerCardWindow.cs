@@ -379,7 +379,7 @@ public sealed partial class CustomerCardWindow : Window
             CreateDetailMenu(category, row, row.Tag).ShowAt(row);
             args.Handled = true;
         }), true);
-        var applyColumnLayout = TableInteractions.Attach(headers, list);
+        var applyColumnLayout = TableInteractions.Attach(headers, list, _tabContent);
         void refresh()
         {
             FillDetailList(list, category, search.Text,
