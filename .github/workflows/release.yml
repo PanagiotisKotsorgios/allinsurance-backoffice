@@ -1,0 +1,43 @@
+name: Desktop release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build complete Windows application
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          dotnet build src/AllInsurance.Desktop/AllInsurance.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=$version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $output = 'src\AllInsurance.Desktop\bin\Release\net10.0-windows10.0.19041.0\win-x64'
+          if (-not (Test-Path "$output\AllInsurance.Desktop.pri") -or -not (Test-Path "$output\App.xbf")) {
+            throw 'Required WinUI resources are missing.'
+          }
+          Compress-Archive -Path "$output\*" -DestinationPath "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip" -CompressionLevel Optimal
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $asset = "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip"
+          gh release view $tag --repo '${{ github.repository }}' *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $asset --repo '${{ github.repository }}' --clobber
+          } else {
+            gh release create $tag $asset --repo '${{ github.repository }}' --verify-tag --generate-notes --latest
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

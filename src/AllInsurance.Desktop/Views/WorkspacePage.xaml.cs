@@ -2,6 +2,7 @@ using AllInsurance.Application.Abstractions;
 using AllInsurance.Application.Authorization;
 using AllInsurance.Desktop.Navigation;
 using AllInsurance.Desktop.Settings;
+using AllInsurance.Desktop.Updates;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -262,6 +263,53 @@ public sealed partial class WorkspacePage : Page
     private void Audit_Click(object sender, RoutedEventArgs e) => ShowAudit();
     private void Backups_Click(object sender, RoutedEventArgs e) => ShowBackups();
     private void ErrorLog_Click(object sender, RoutedEventArgs e) => ShowErrorLog();
+    private async void UpdateApplication_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var update = await ApplicationUpdater.CheckAsync();
+            if (update is null)
+            {
+                await ShowInformationAsync("Αναβάθμιση εφαρμογής",
+                    $"Χρησιμοποιείτε ήδη την πιο πρόσφατη δημοσιευμένη έκδοση ({ApplicationUpdater.CurrentVersion}).");
+                return;
+            }
+            var confirmation = new ContentDialog { XamlRoot = XamlRoot, Title = "Νέα έκδοση διαθέσιμη",
+                Content = $"Έκδοση {update.Version}. Να γίνει λήψη και επανεκκίνηση; Η τοπική βάση δεδομένων παραμένει στη θέση της.",
+                PrimaryButtonText = "Λήψη και αναβάθμιση", CloseButtonText = "Ακύρωση" };
+            if (await DialogButtonStyles.ShowAsync(confirmation) != ContentDialogResult.Primary) return;
+            var progress = new ContentDialog { XamlRoot = XamlRoot, Title = "Αναβάθμιση εφαρμογής",
+                Content = new StackPanel { Spacing = 12, Children =
+                {
+                    new TextBlock { Text = "Γίνεται λήψη και έλεγχος του πακέτου..." },
+                    new ProgressRing { IsActive = true, Width = 36, Height = 36 }
+                } } };
+            var progressTask = progress.ShowAsync();
+            try
+            {
+                var executable = await ApplicationUpdater.DownloadAndInstallAsync(update);
+                progress.Hide();
+                await progressTask;
+                ApplicationUpdater.SwitchShortcutAndRestart(executable, ApplicationUpdater.CurrentVersion);
+                Microsoft.UI.Xaml.Application.Current.Exit();
+            }
+            catch
+            {
+                progress.Hide();
+                await progressTask;
+                throw;
+            }
+        }
+        catch (System.Net.Http.HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            await ShowInformationAsync("Αναβάθμιση εφαρμογής",
+                "Δεν υπάρχει ακόμη δημοσιευμένη έκδοση στο GitHub Releases.");
+        }
+        catch (Exception exception)
+        {
+            await UiAlerts.ShowErrorAsync(XamlRoot, "Η αναβάθμιση δεν ολοκληρώθηκε: " + exception.Message);
+        }
+    }
     private void Settings_Click(object sender, RoutedEventArgs e) => ShowSettings();
     private void FilterOptions_Click(object sender, RoutedEventArgs e) => ShowFilterOptions();
     private void Commissions_Click(object sender, RoutedEventArgs e) => ShowCommissions();

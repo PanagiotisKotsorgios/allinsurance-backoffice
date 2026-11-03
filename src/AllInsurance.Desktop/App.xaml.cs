@@ -120,6 +120,24 @@ public partial class App : Microsoft.UI.Xaml.Application
                 _ => throw new InvalidOperationException("The database returned an unknown startup state.")
             });
             _mainWindow.HideStartupProgress();
+            var updatedFrom = Environment.GetCommandLineArgs()
+                .FirstOrDefault(value => value.StartsWith("--updated-from=", StringComparison.Ordinal));
+            if (updatedFrom is not null)
+            {
+                var oldVersion = updatedFrom["--updated-from=".Length..];
+                _mainWindow.DispatcherQueue.TryEnqueue(async () =>
+                {
+                    await Task.Delay(450);
+                    var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
+                    {
+                        XamlRoot = _mainWindow.NavigationRoot,
+                        Title = "Η αναβάθμιση ολοκληρώθηκε",
+                        Content = $"Η εφαρμογή ενημερώθηκε από την έκδοση {oldVersion} στην έκδοση {Updates.ApplicationUpdater.CurrentVersion}. Τα τοπικά δεδομένα σας διατηρήθηκαν.",
+                        CloseButtonText = "Εντάξει"
+                    };
+                    await Views.DialogButtonStyles.ShowAsync(dialog);
+                });
+            }
         }
         catch (Exception exception) when (
             exception is SqliteException or DbUpdateException or IOException or UnauthorizedAccessException or

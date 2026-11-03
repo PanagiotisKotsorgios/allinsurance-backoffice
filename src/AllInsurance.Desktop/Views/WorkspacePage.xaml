@@ -23,6 +23,8 @@
                             <MenuFlyoutSeparator />
                             <MenuFlyoutItem x:Name="BackupMenuItem" Text="Αντίγραφα ασφαλείας" Click="Backups_Click" />
                             <MenuFlyoutItem x:Name="ErrorLogMenuItem" Text="Ημερολόγιο σφαλμάτων" Click="ErrorLog_Click" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Text="Αναβάθμιση εφαρμογής" Click="UpdateApplication_Click" />
                         </MenuBarItem>
                         <MenuBarItem Title="Ρυθμίσεις">
                             <MenuFlyoutItem Text="Ρυθμίσεις συστήματος" Click="Settings_Click" />

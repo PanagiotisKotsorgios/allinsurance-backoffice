@@ -65,6 +65,7 @@ public sealed partial class SectionPage : Page
         SectionTitle.Text = section.Title;
         SectionDescription.Text = section.Description;
         AddButton.Label = "Προσθήκη " + Singular(section.Title);
+        RenewalsButton.Visibility = section.Key == "policies" ? Visibility.Visible : Visibility.Collapsed;
         SearchInput.PlaceholderText = section.SearchHint;
         IconBackground.Visibility = Visibility.Collapsed;
         Grid.SetColumn(HeadingPanel, 0);
@@ -97,7 +98,7 @@ public sealed partial class SectionPage : Page
 
     private void ActionsGrid_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var narrow = e.NewSize.Width < 930;
+        var narrow = e.NewSize.Width < (_section.Key == "policies" ? 1160 : 930);
         Grid.SetColumnSpan((FrameworkElement)ActionsGrid.Children[0], narrow ? 2 : 1);
         Grid.SetRow(DeleteButton, narrow ? 1 : 0);
         Grid.SetColumn(DeleteButton, 1);

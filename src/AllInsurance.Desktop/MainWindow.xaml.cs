@@ -9,6 +9,7 @@ namespace AllInsurance.Desktop;
 
 public sealed partial class MainWindow : Window
 {
+    public Microsoft.UI.Xaml.XamlRoot NavigationRoot => NavigationFrame.XamlRoot;
     public MainWindow()
     {
         InitializeComponent();

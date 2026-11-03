@@ -45,6 +45,7 @@ public class ActionButton : Button
             "Receipt" => ("#047857", "receipt"),
             "Edit" => ("#1D64B3", "pencil"),
             "Columns" => ("#1D64B3", "columns-3"),
+            "Renewals" => ("#1D64B3", "refresh-cw"),
             "Delete" => ("#C62828", "trash"),
             "Deactivate" => ("#C62828", "x"),
             "Close" => ("#B42332", "x"),

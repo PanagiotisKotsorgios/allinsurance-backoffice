@@ -69,6 +69,7 @@
                         <controls:ActionButton x:Name="AddButton" Kind="Add" Label="Προσθήκη" Width="230" Height="36" Click="Add_Click" />
                         <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="195" Height="36" Click="Edit_Click" />
                         <controls:ActionButton Kind="Columns" Label="Διαχείριση στηλών" Width="180" Height="36" Click="Columns_Click" />
+                        <controls:ActionButton x:Name="RenewalsButton" Kind="Renewals" Label="Ανανεώσεις" Width="180" Height="36" Click="Renewals_Click" Visibility="Collapsed" />
                     </VariableSizedWrapGrid>
                     <controls:ActionButton x:Name="DeleteButton" Grid.Column="1" Kind="Delete" Label="Διαγραφή"
                                            Width="175" Height="36" Click="Delete_Click"
