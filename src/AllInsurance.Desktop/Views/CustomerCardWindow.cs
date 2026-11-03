@@ -71,8 +71,12 @@ public sealed partial class CustomerCardWindow : Window
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _headerAfm = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private readonly TextBlock _headerBalance = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private readonly Border _headerBalanceBadge = new() { CornerRadius = new CornerRadius(5),
+        Padding = new Thickness(7, 3, 7, 3) };
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly ActionButton _saveButton = new() { Kind = "Save", Label = "Αποθήκευση" };
+    private readonly ActionButton _saveCloseButton = new() { Kind = "Save", Label = "Αποθήκευση και κλείσιμο", Width = 220 };
     private readonly ActionButton _editButton = new() { Kind = "Edit", Label = "Επεξεργασία πελάτη" };
 
     public CustomerCardWindow(Guid? customerId, bool beginEditing = false)
@@ -97,6 +101,8 @@ public sealed partial class CustomerCardWindow : Window
             Margin = new Thickness(68, 2, 0, 0) };
         metadata.Children.Add(_headerCode);
         metadata.Children.Add(_headerAfm);
+        _headerBalanceBadge.Child = _headerBalance;
+        metadata.Children.Add(_headerBalanceBadge);
         var bannerContent = new StackPanel { Spacing = 8 };
         bannerContent.Children.Add(identity);
         bannerContent.Children.Add(metadata);
@@ -106,8 +112,18 @@ public sealed partial class CustomerCardWindow : Window
         _root.Children.Add(header);
         Grid.SetRow(_tabs, 1);
         _root.Children.Add(_tabs);
-        var actions = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
-            ItemWidth = 190, ItemHeight = 48, Margin = new Thickness(20, 10, 20, 18) };
+        var actions = new Grid { ColumnDefinitions = { new ColumnDefinition(),
+            new ColumnDefinition { Width = GridLength.Auto } },
+            RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Auto } }, RowSpacing = 6,
+            Margin = new Thickness(20, 10, 20, 18) };
+        var leftActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        AddButton(leftActions, "Γενική είσπραξη", async () => await AddTransactionAsync("receipt"));
+        AddButton(leftActions, "Γενική πληρωμή", async () => await AddTransactionAsync("payment"));
+        actions.Children.Add(leftActions);
+        var rightActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        Grid.SetColumn(rightActions, 1);
+        actions.Children.Add(rightActions);
         var primaryAction = new Grid { Width = 180 };
         _saveButton.Click += async (_, _) => await SaveAsync();
         primaryAction.Children.Add(_saveButton);
@@ -118,11 +134,17 @@ public sealed partial class CustomerCardWindow : Window
             UpdateActionState();
         };
         primaryAction.Children.Add(_editButton);
-        actions.Children.Add(primaryAction);
-        AddButton(actions, "Γενική είσπραξη", async () => await AddTransactionAsync("receipt"));
-        AddButton(actions, "Γενική πληρωμή", async () => await AddTransactionAsync("payment"));
-        AddButton(actions, "Στατιστικά πελάτη", ShowCustomerStatisticsAsync);
-        AddButton(actions, "Κλείσιμο", () => { Close(); return Task.CompletedTask; });
+        rightActions.Children.Add(primaryAction);
+        _saveCloseButton.Click += async (_, _) => { if (await SaveAsync()) Close(); };
+        rightActions.Children.Add(_saveCloseButton);
+        AddButton(rightActions, "Κλείσιμο", () => { Close(); return Task.CompletedTask; });
+        actions.SizeChanged += (_, args) =>
+        {
+            var narrow = args.NewSize.Width < 1010;
+            Grid.SetRow(rightActions, narrow ? 1 : 0);
+            Grid.SetColumn(rightActions, narrow ? 0 : 1);
+            rightActions.HorizontalAlignment = HorizontalAlignment.Right;
+        };
         Grid.SetRow(actions, 2);
         _root.Children.Add(actions);
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
@@ -194,12 +216,18 @@ public sealed partial class CustomerCardWindow : Window
         _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_customer.Id == Guid.Empty ? "Νέος" :
             "C-" + _customer.Id.ToString("N")[..8].ToUpperInvariant());
         _headerAfm.Text = "ΑΦΜ  " + (_customer.TaxNumber ?? "—");
+        var balance = CustomerService.Balance(_customer);
+        _headerBalance.Text = balance > 0 ? $"Οφειλή: {balance:N2} €" :
+            balance < 0 ? $"Πιστωτικό: {Math.Abs(balance):N2} €" : "Υπόλοιπο: 0,00 €";
+        _headerBalanceBadge.Background = balance == 0 ? null :
+            new SolidColorBrush(Color.FromArgb(255, 198, 40, 40));
         _headerState.Text = _customer.IsActive ? "● Ενεργός πελάτης" : "● Ανενεργός πελάτης";
     }
 
     private void UpdateActionState()
     {
         _saveButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
+        _saveCloseButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
         _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -233,15 +261,15 @@ public sealed partial class CustomerCardWindow : Window
                 "policies" => "Αναζήτηση συμβολαίου, ασφαλιστικής, κλάδου...",
                 "vehicles" => "Αναζήτηση πινακίδας, μάρκας, στοιχείων...",
                 _ => "Αναζήτηση τίτλου, αριθμού ή στοιχείων..."
-            }, Height = 38, MinHeight = 38, Width = 220 };
-        var stateFilter = new ComboBox { Width = 180, Height = 38,
+            }, Height = 38, MinHeight = 38, Width = 195 };
+        var stateFilter = new ComboBox { Width = 195, Height = 38,
             ItemsSource = new[] { "Όλα", "Ενεργά", "Ιστορικά" }, SelectedIndex = 0 };
-        var fromFilter = new CalendarDatePicker { Width = 170, Height = 38,
+        var fromFilter = new CalendarDatePicker { Width = 195, Height = 38,
             PlaceholderText = "Από ημερομηνία" };
-        var untilFilter = new CalendarDatePicker { Width = 170, Height = 38,
+        var untilFilter = new CalendarDatePicker { Width = 195, Height = 38,
             PlaceholderText = "Έως ημερομηνία" };
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
-            ItemWidth = 235, ItemHeight = 46 };
+            ItemWidth = 205, ItemHeight = 42 };
         foreach (var field in new UIElement[] { search, stateFilter, fromFilter, untilFilter })
             filters.Children.Add(field);
         Grid.SetRow(filters, 1);
@@ -553,28 +581,10 @@ public sealed partial class CustomerCardWindow : Window
             await _service.AddTransactionAsync(_customer.Id, type, ParseAmount(amount.Text, false), description.Text);
             _customer = await _service.GetAsync(_customer.Id) ?? _customer;
             BuildTabs();
+            UpdateHeader();
             _status.Text = $"Η κίνηση καταχωρίστηκε. Νέο υπόλοιπο: {CustomerService.Balance(_customer):N2} €";
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
-    }
-
-    private async Task ShowCustomerStatisticsAsync()
-    {
-        var details = _customer.Details.Count;
-        var linked = _customer.BusinessRecords.Count;
-        var receipts = _customer.Transactions.Where(item => item.Type == "receipt").Sum(item => item.Amount);
-        var payments = _customer.Transactions.Where(item => item.Type == "payment").Sum(item => item.Amount);
-        var balance = CustomerService.Balance(_customer);
-        var summary = new StackPanel { Spacing = 10 };
-        summary.Children.Add(new TextBlock { Text = $"Σχετικά στοιχεία: {details}\n" +
-            $"Συνδεδεμένες εγγραφές: {linked}\nΕισπράξεις: {receipts:N2} €\n" +
-            $"Πληρωμές: {payments:N2} €" });
-        summary.Children.Add(BalanceVisual.Create(balance, $"Τρέχον υπόλοιπο: {balance:N2} €", 16));
-        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
-            Title = "Στατιστικά πελάτη",
-            Content = summary,
-            CloseButtonText = "Κλείσιμο" };
-        await DialogButtonStyles.ShowAsync(dialog);
     }
 
     private async Task<bool> EnsureSavedAsync()
@@ -670,7 +680,31 @@ public sealed partial class CustomerCardWindow : Window
         _readFields.Add(() => setter(input.SelectedItem as string ?? options[0]));
     }
 
-    private void AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)
+    private void AddCatalogChoice(StackPanel form, string label, string category,
+        Func<string?> getter, Action<string?> setter)
+    {
+        var selected = getter();
+        var input = new ComboBox { IsEnabled = _editing, MinHeight = 28, Height = 28,
+            PlaceholderText = "Επιλέξτε", HorizontalAlignment = HorizontalAlignment.Stretch };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
+        form.Children.Add(CreateFieldRow(label, input));
+        _readFields.Add(() => setter(input.SelectedItem as string ?? selected));
+        _ = LoadCatalogChoicesAsync(input, category, selected);
+    }
+
+    private async Task LoadCatalogChoicesAsync(ComboBox input, string category, string? selected)
+    {
+        try
+        {
+            var choices = await _filterService.ChoicesAsync(category);
+            input.ItemsSource = string.IsNullOrWhiteSpace(selected) || choices.Contains(selected)
+                ? choices : choices.Concat([selected]).ToArray();
+            input.SelectedItem = selected;
+        }
+        catch (Exception exception) { _status.Text = exception.Message; }
+    }
+
+    private CalendarDatePicker AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)
     {
         var input = new CalendarDatePicker { PlaceholderText = "Επιλέξτε ημερομηνία",
             MinHeight = 32, Height = 32,
@@ -679,6 +713,7 @@ public sealed partial class CustomerCardWindow : Window
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
         _readFields.Add(() => setter(input.Date?.Date));
+        return input;
     }
 
     private static Grid CreateFieldRow(string label, FrameworkElement input)
@@ -720,7 +755,6 @@ public sealed partial class CustomerCardWindow : Window
     {
         "Γενική είσπραξη" => "Receipt",
         "Γενική πληρωμή" => "Payment",
-        "Στατιστικά πελάτη" => "Statistics",
         "Επισύναψη αρχείου" => "Upload",
         "Άνοιγμα" => "Open",
         "Προσθήκη" => "Add",

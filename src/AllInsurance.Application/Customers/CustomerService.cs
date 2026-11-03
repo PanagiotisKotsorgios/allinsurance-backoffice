@@ -345,9 +345,10 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         customer.FirstName = Normalize(customer.FirstName, 150) ??
             throw new ArgumentException("Το όνομα είναι υποχρεωτικό.");
         customer.TaxNumber = Normalize(customer.TaxNumber, 9);
+        if (customer.TaxNumber is null)
+            throw new ArgumentException("Το ΑΦΜ είναι υποχρεωτικό.");
         customer.CustomerKind = Normalize(customer.CustomerKind, 40) ?? "Φυσικό πρόσωπο";
-        if (customer.TaxNumber is not null &&
-            (customer.TaxNumber.Length != 9 || !customer.TaxNumber.All(char.IsAsciiDigit)))
+        if (customer.TaxNumber.Length != 9 || !customer.TaxNumber.All(char.IsAsciiDigit))
         {
             throw new ArgumentException("Το ΑΦΜ πρέπει να έχει 9 ψηφία.");
         }

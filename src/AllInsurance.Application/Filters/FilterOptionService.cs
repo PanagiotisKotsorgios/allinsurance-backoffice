@@ -14,7 +14,9 @@ public sealed class FilterOptionService(IApplicationDbContextFactory factory, IS
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var saved = await db.FilterOptions.AsNoTracking().Select(item => item.Category)
             .Distinct().ToListAsync(cancellationToken);
-        return new[] { "Πόλεις", "Κλάδοι", "Καλύψεις", "Επαγγέλματα", "Καταστάσεις" }
+        return new[] { "Πόλεις", "Κλάδοι", "Καλύψεις", "Επαγγέλματα", "Καταστάσεις",
+            "Φύλα", "Νομικές μορφές", "Οικογενειακές καταστάσεις", "Πηγές πελατών",
+            "Τύποι ταυτότητας", "Κατηγορίες διπλώματος", "Ιθαγένειες", "ΔΟΥ" }
             .Concat(saved).Distinct(StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase).ToArray();
     }

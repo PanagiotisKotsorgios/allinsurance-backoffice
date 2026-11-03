@@ -49,12 +49,9 @@ public sealed partial class CustomersPage : Page
             }), true);
         InitializeHeaderActions();
         ApplyColumnLayout();
-        StatusFilter.SetOptions(["Ενεργοί", "Ανενεργοί"]);
         BalanceFilter.SetOptions(["Χρεωστικό", "Πιστωτικό", "Μηδενικό"]);
-        OwnershipFilter.SetOptions(["Στο γραφείο", "Σε συνεργάτη"]);
         KindFilter.SetOptions(["Φυσικό πρόσωπο", "Επιχείρηση"]);
-        foreach (var filter in new[] { StatusFilter, BalanceFilter, OwnershipFilter,
-            KindFilter, CityFilter, PartnerFilter })
+        foreach (var filter in new[] { BalanceFilter, KindFilter, CityFilter, PartnerFilter })
             filter.SelectionChanged += (_, _) => ApplyFilters();
         Loaded += async (_, _) => await RefreshAsync();
     }
@@ -64,8 +61,8 @@ public sealed partial class CustomersPage : Page
 
     private async Task RefreshAsync()
     {
-        if (SearchInput is null || StatusFilter is null ||
-            BalanceFilter is null || OwnershipFilter is null || CustomersList is null || StatusText is null)
+        if (SearchInput is null || BalanceFilter is null ||
+            CustomersList is null || StatusText is null)
             return;
         var version = ++_requestVersion;
         try
@@ -100,11 +97,8 @@ public sealed partial class CustomersPage : Page
         if (term.Length > 0) rows = rows.Where(item =>
             item.Code.Contains(term, StringComparison.OrdinalIgnoreCase) ||
             ContainsGreek(item.SearchText, term));
-        rows = rows.Where(item => StatusFilter.SelectedValues.Contains(item.IsActive ? "Ενεργοί" : "Ανενεργοί"));
         rows = rows.Where(item => BalanceFilter.SelectedValues.Contains(item.Balance > 0 ? "Χρεωστικό" :
             item.Balance < 0 ? "Πιστωτικό" : "Μηδενικό"));
-        rows = rows.Where(item => OwnershipFilter.SelectedValues.Contains(item.BelongsToOffice
-            ? "Στο γραφείο" : "Σε συνεργάτη"));
         rows = rows.Where(item => KindFilter.SelectedValues.Contains(item.CustomerKind));
         rows = rows.Where(item => CityFilter.SelectedValues.Contains(item.City ?? "Χωρίς πόλη"));
         rows = rows.Where(item => PartnerFilter.SelectedValues.Contains(item.PartnerName ?? "Χωρίς συνεργάτη"));
@@ -207,8 +201,8 @@ public sealed partial class CustomersPage : Page
     private void ClearFilters_Click(object sender, RoutedEventArgs e)
     {
         SearchInput.Text = "";
-        foreach (var filter in new[] { StatusFilter, BalanceFilter, OwnershipFilter,
-            KindFilter, CityFilter, PartnerFilter }) filter.SelectAll();
+        foreach (var filter in new[] { BalanceFilter, KindFilter, CityFilter, PartnerFilter })
+            filter.SelectAll();
     }
 
     private void ApplyPage()

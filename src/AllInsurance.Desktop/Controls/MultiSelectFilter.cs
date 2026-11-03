@@ -47,6 +47,7 @@ public sealed class MultiSelectFilter : ActionButton
         buttons.Children.Add(none);
         var content = new StackPanel { Spacing = 8, Padding = new Thickness(8) };
         content.Children.Add(_search);
+        content.Children.Add(new TextBlock { Text = "Εμφανίζονται έως 100 επιλογές. Πληκτρολογήστε για αναζήτηση." });
         content.Children.Add(buttons);
         content.Children.Add(_list);
         Flyout = new Flyout { Content = content };
@@ -86,8 +87,8 @@ public sealed class MultiSelectFilter : ActionButton
         try
         {
             var term = _search.Text.Trim();
-            var visible = term.Length == 0 ? _options : _options.Where(value =>
-                value.Contains(term, StringComparison.CurrentCultureIgnoreCase)).ToArray();
+            var visible = (term.Length == 0 ? _options.AsEnumerable() : _options.Where(value =>
+                value.Contains(term, StringComparison.CurrentCultureIgnoreCase))).Take(100).ToArray();
             _list.ItemsSource = visible;
             _list.SelectedItems.Clear();
             foreach (var value in visible.Where(value => _selected.Contains(value)))

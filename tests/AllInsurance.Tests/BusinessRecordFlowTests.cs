@@ -17,7 +17,7 @@ public sealed class BusinessRecordFlowTests
         var customers = new CustomerService(environment.ContextFactory, environment.Session);
         var customerId = await customers.SaveAsync(new Customer
         {
-            LastName = "Οδηγός", FirstName = "Δοκιμή"
+            LastName = "Οδηγός", FirstName = "Δοκιμή", TaxNumber = "100000006"
         });
         var id = await records.SaveAsync(new BusinessRecord
         {

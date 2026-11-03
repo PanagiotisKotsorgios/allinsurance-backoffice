@@ -6,6 +6,20 @@ namespace AllInsurance.Tests;
 public sealed class CustomerFlowTests
 {
     [Fact]
+    public async Task CustomerRequiresTaxNumber()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var service = new CustomerService(environment.ContextFactory, environment.Session);
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync(new Customer
+        {
+            LastName = "Δοκιμή", FirstName = "ΑΦΜ"
+        }));
+        Assert.Contains("ΑΦΜ", error.Message);
+    }
+
+    [Fact]
     public async Task CustomerRequiresSignInAndPersistsAcrossContexts()
     {
         await using var environment = new TestEnvironment();
@@ -44,10 +58,12 @@ public sealed class CustomerFlowTests
         await environment.CreateAdministratorAsync();
         await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
         var service = new CustomerService(environment.ContextFactory, environment.Session);
-        var referrerId = await service.SaveAsync(new Customer { LastName = "Πρώτος", FirstName = "Πελάτης" });
+        var referrerId = await service.SaveAsync(new Customer { LastName = "Πρώτος", FirstName = "Πελάτης",
+            TaxNumber = "100000001" });
         var customerId = await service.SaveAsync(new Customer
         {
             LastName = "Δεύτερος", FirstName = "Πελάτης",
+            TaxNumber = "100000002",
             IsReferral = true, ReferredByCustomerId = referrerId,
             OpeningBalance = 50m
         });
@@ -105,7 +121,8 @@ public sealed class CustomerFlowTests
         var customers = new CustomerService(environment.ContextFactory, environment.Session);
         await Assert.ThrowsAsync<ArgumentException>(() => customers.SaveAsync(new Customer
         {
-            LastName = "Δοκιμή", FirstName = "Συνεργάτη", BelongsToOffice = false
+            LastName = "Δοκιμή", FirstName = "Συνεργάτη", BelongsToOffice = false,
+            TaxNumber = "100000003"
         }));
     }
 
@@ -120,7 +137,8 @@ public sealed class CustomerFlowTests
         var sourcePath = Path.Combine(folder, "source.txt");
         await File.WriteAllTextAsync(sourcePath, "test attachment");
         var service = new CustomerService(environment.ContextFactory, environment.Session, fileRoot);
-        var customerId = await service.SaveAsync(new Customer { LastName = "Αρχείο", FirstName = "Δοκιμή" });
+        var customerId = await service.SaveAsync(new Customer { LastName = "Αρχείο", FirstName = "Δοκιμή",
+            TaxNumber = "100000004" });
         var attachment = await service.AddFileAsync(customerId, sourcePath);
         Assert.Equal("test attachment", await File.ReadAllTextAsync(service.GetFilePath(attachment)));
         Assert.Single((await service.GetAsync(customerId))!.Details);

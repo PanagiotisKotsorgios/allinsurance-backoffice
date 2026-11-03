@@ -14,15 +14,29 @@ internal static class DemoDataSeeder
 
     public static async Task SeedOnceAsync(IServiceProvider services)
     {
-        if (File.Exists(MarkerPath)) return;
         var customers = services.GetRequiredService<ICustomerService>();
         var records = services.GetRequiredService<IBusinessRecordService>();
+        var existingCustomers = await customers.SearchAsync();
+        foreach (var (email, taxNumber) in new[] {
+            ("demo@example.invalid", "900000001"),
+            ("company@example.invalid", "900000002") })
+        {
+            var sample = existingCustomers.FirstOrDefault(item => item.PrimaryEmail == email &&
+                string.IsNullOrWhiteSpace(item.TaxNumber));
+            if (sample is null || existingCustomers.Any(item => item.TaxNumber == taxNumber)) continue;
+            var record = await customers.GetAsync(sample.Id);
+            if (record is null) continue;
+            record.TaxNumber = taxNumber;
+            await customers.SaveAsync(record);
+        }
+        if (File.Exists(MarkerPath)) return;
         Guid? sampleCustomerId = null;
-        if ((await customers.SearchAsync()).Count == 0)
+        if (existingCustomers.Count == 0)
         {
             sampleCustomerId = await customers.SaveAsync(new Customer
             {
                 LastName = "ΔΕΙΓΜΑ", FirstName = "Πελάτη", City = "Αθήνα",
+                TaxNumber = "900000001",
                 PrimaryMobile = "6900000000", PrimaryEmail = "demo@example.invalid",
                 Notes = "Δοκιμαστική καταχώριση για έλεγχο της εφαρμογής.",
                 OpeningBalance = 0m
@@ -30,6 +44,7 @@ internal static class DemoDataSeeder
             await customers.SaveAsync(new Customer
             {
                 LastName = "ΔΟΚΙΜΑΣΤΙΚΗ", FirstName = "Εταιρεία", City = "Πάτρα",
+                TaxNumber = "900000002",
                 CompanyName = "ΔΟΚΙΜΑΣΤΙΚΗ ΕΤΑΙΡΕΙΑ", CustomerKind = "Επιχείρηση",
                 PrimaryMobile = "6900000001", PrimaryEmail = "company@example.invalid",
                 Notes = "Δοκιμαστική καταχώριση για έλεγχο της εφαρμογής.",

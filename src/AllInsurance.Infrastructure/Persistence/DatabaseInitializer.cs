@@ -50,6 +50,7 @@ public sealed class DatabaseInitializer(
             db.Database.Migrate();
             EnableSqlitePragmas(db);
             EnsureRoleSeeds(db);
+            EnsureCustomerCatalogSeeds(db);
 
             if (!databaseExisted)
             {
@@ -153,6 +154,56 @@ public sealed class DatabaseInitializer(
             }
         }
 
+        db.SaveChanges();
+    }
+
+    private static void EnsureCustomerCatalogSeeds(AllInsuranceDbContext db)
+    {
+        const string marker = "customer_catalog_defaults_v2";
+        if (db.AppMetadata.Any(item => item.Key == marker)) return;
+        var defaults = new Dictionary<string, string[]>
+        {
+            ["Φύλα"] = ["Άνδρας", "Γυναίκα", "Άλλο", "Δεν δηλώνεται"],
+            ["Νομικές μορφές"] = ["Ατομική επιχείρηση", "Ο.Ε.", "Ε.Ε.", "Ε.Π.Ε.", "Ι.Κ.Ε.",
+                "Α.Ε.", "Συνεταιρισμός", "Σωματείο", "Μη κερδοσκοπικός οργανισμός"],
+            ["Οικογενειακές καταστάσεις"] = ["Άγαμος/η", "Έγγαμος/η", "Διαζευγμένος/η",
+                "Χήρος/α", "Σύμφωνο συμβίωσης"],
+            ["Πηγές πελατών"] = ["Σύσταση", "Ιστότοπος", "Τηλεφωνική επικοινωνία",
+                "Επίσκεψη στο γραφείο", "Συνεργάτης", "Άλλο"],
+            ["Τύποι ταυτότητας"] = ["Αστυνομική ταυτότητα", "Διαβατήριο", "Άδεια διαμονής",
+                "Άδεια οδήγησης", "Άλλο"],
+            ["Κατηγορίες διπλώματος"] = ["AM", "A1", "A2", "A", "B", "BE", "C1", "C",
+                "CE", "D1", "D", "DE"],
+            ["Ιθαγένειες"] = ["Ελληνική", "Κυπριακή", "Αλβανική", "Βουλγαρική",
+                "Ρουμανική", "Άλλη"],
+            ["ΔΟΥ"] = ["Α' Αθηνών", "ΙΓ' Αθηνών", "Α' Θεσσαλονίκης", "Πατρών",
+                "Μεσολογγίου", "Αγρινίου", "Ηρακλείου", "Λάρισας", "Ιωαννίνων"],
+            ["Επαγγέλματα"] = ["Ελεύθερος επαγγελματίας", "Ιδιωτικός υπάλληλος",
+                "Δημόσιος υπάλληλος", "Συνταξιούχος", "Αγρότης", "Επιχειρηματίας",
+                "Άνεργος/η", "Φοιτητής/τρια", "Άλλο"],
+            ["Πόλεις"] = ["Αθήνα", "Θεσσαλονίκη", "Πάτρα", "Ηράκλειο", "Λάρισα",
+                "Βόλος", "Ιωάννινα", "Μεσολόγγι", "Αγρίνιο"]
+        };
+        var cityFile = Path.Combine(AppContext.BaseDirectory, "Assets", "Data", "greek-settlements.txt");
+        if (File.Exists(cityFile))
+            defaults["Πόλεις"] = defaults["Πόλεις"].Concat(File.ReadLines(cityFile))
+                .Select(value => value.Trim()).Where(value => value.Length > 0)
+                .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
+        var existing = db.FilterOptions.AsNoTracking()
+            .Select(item => new { item.Category, item.Value }).ToList()
+            .Select(item => (item.Category, item.Value))
+            .ToHashSet();
+        foreach (var (category, values) in defaults)
+        {
+            for (var index = 0; index < values.Length; index++)
+            {
+                var value = values[index];
+                if (existing.Contains((category, value))) continue;
+                db.FilterOptions.Add(new FilterOption { Id = Guid.NewGuid(), Category = category,
+                    Value = value, SortOrder = index });
+            }
+        }
+        db.AppMetadata.Add(new AppMetadata { Key = marker, Value = "true" });
         db.SaveChanges();
     }
 
