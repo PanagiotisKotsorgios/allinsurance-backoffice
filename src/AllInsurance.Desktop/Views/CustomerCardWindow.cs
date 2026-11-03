@@ -59,7 +59,17 @@ public sealed partial class CustomerCardWindow : Window
     private readonly Guid? _customerId;
     private readonly Grid _root = new() { RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
         new RowDefinition(), new RowDefinition { Height = GridLength.Auto } } };
-    private readonly TabView _tabs = new() { IsAddTabButtonVisible = false };
+    private readonly Grid _tabs = new() { RowDefinitions =
+    {
+        new RowDefinition { Height = GridLength.Auto }, new RowDefinition()
+    } };
+    private readonly StackPanel _tabStrip = new() { Orientation = Orientation.Horizontal, Spacing = 0 };
+    private readonly ContentControl _tabContent = new();
+    private readonly List<Button> _tabButtons = [];
+    private readonly List<Border> _tabIndicators = [];
+    private readonly List<TextBlock> _tabLabels = [];
+    private readonly List<UIElement> _tabContents = [];
+    private int _selectedTabIndex;
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private readonly List<Action> _readFields = [];
     private Customer _customer = new() { LastName = "", FirstName = "" };
@@ -112,6 +122,13 @@ public sealed partial class CustomerCardWindow : Window
             Padding = new Thickness(24, 12, 24, 12), Child = bannerContent });
         header.Children.Add(_status);
         _root.Children.Add(header);
+        var tabScroller = new ScrollViewer { Content = _tabStrip,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            HorizontalScrollMode = ScrollMode.Enabled };
+        _tabs.Children.Add(tabScroller);
+        Grid.SetRow(_tabContent, 1);
+        _tabs.Children.Add(_tabContent);
         Grid.SetRow(_tabs, 1);
         _root.Children.Add(_tabs);
         var actions = new Grid { ColumnDefinitions = { new ColumnDefinition(),
@@ -201,18 +218,23 @@ public sealed partial class CustomerCardWindow : Window
 
     private void BuildTabs(bool preserveSelectedTab = false)
     {
-        var selectedTab = preserveSelectedTab ? _tabs.SelectedIndex : 0;
+        var selectedTab = preserveSelectedTab ? _selectedTabIndex : 0;
         _readFields.Clear();
         _detailLists.Clear();
         _historyPanels.Clear();
-        _tabs.TabItems.Clear();
+        _tabStrip.Children.Clear();
+        _tabButtons.Clear();
+        _tabIndicators.Clear();
+        _tabLabels.Clear();
+        _tabContents.Clear();
+        _tabContent.Content = null;
         BuildCompactMainTab();
         BuildSupplementaryTab();
         AddDetailTab("Συμβόλαια", "policies");
         AddDetailTab("Οχήματα", "vehicles");
         BuildFinanceTab();
         BuildHistoryTab();
-        _tabs.SelectedIndex = Math.Clamp(selectedTab, 0, _tabs.TabItems.Count - 1);
+        SelectTab(Math.Clamp(selectedTab, 0, _tabContents.Count - 1));
     }
 
     private void UpdateHeader()
@@ -231,11 +253,15 @@ public sealed partial class CustomerCardWindow : Window
         var balance = CustomerService.Balance(_customer);
         _mainBalanceText.Text = balance > 0 ? $"Οφειλή προς το γραφείο: {balance:N2} {CurrencySymbol}" :
             balance < 0 ? $"Πιστωτικό υπόλοιπο: {Math.Abs(balance):N2} {CurrencySymbol}" :
-            $"Μηδενικό υπόλοιπο: 0,00 {CurrencySymbol}";
-        _mainBalanceBadge.Background = balance == 0 ? null :
-            new SolidColorBrush(Color.FromArgb(255, 198, 40, 40));
-        _mainBalanceText.Foreground = balance == 0 ? null : new SolidColorBrush(Colors.White);
-        _mainBalanceBadge.Padding = balance == 0 ? new Thickness(0) : new Thickness(8, 5, 8, 5);
+            $"Υπόλοιπο: 0,00 {CurrencySymbol}";
+        var dark = IsDarkTheme();
+        _mainBalanceBadge.Background = balance == 0
+            ? new SolidColorBrush(dark ? Color.FromArgb(255, 68, 74, 82) : Color.FromArgb(255, 225, 229, 234))
+            : new SolidColorBrush(Color.FromArgb(255, 198, 40, 40));
+        _mainBalanceText.Foreground = new SolidColorBrush(balance == 0
+            ? dark ? Colors.White : Color.FromArgb(255, 37, 45, 55)
+            : Colors.White);
+        _mainBalanceBadge.Padding = new Thickness(8, 5, 8, 5);
     }
 
     private void UpdateActionState()
@@ -572,8 +598,8 @@ public sealed partial class CustomerCardWindow : Window
 
     private void SelectTab(string category)
     {
-        _tabs.SelectedIndex = category switch { "policies" => 2, "vehicles" => 3, _ => 5 };
-        if (_tabs.SelectedIndex == 5 && _historyChoice is not null)
+        SelectTab(category switch { "policies" => 2, "vehicles" => 3, _ => 5 });
+        if (_selectedTabIndex == 5 && _historyChoice is not null)
             _historyChoice.SelectedItem = _historyChoice.Items.OfType<ComboBoxItem>()
                 .FirstOrDefault(item => item.Tag is string key && key == category);
     }
@@ -673,23 +699,61 @@ public sealed partial class CustomerCardWindow : Window
             "Οικονομικά" => "chart-no-axes-combined",
             _ => "clock-3"
         };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9 };
+        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9,
+            VerticalAlignment = VerticalAlignment.Center };
         label.Children.Add(new Image { Source = new SvgImageSource(new Uri(
             $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 25, Height = 25 });
-        label.Children.Add(new TextBlock { Text = header, FontSize = 15,
+        var title = new TextBlock { Text = header, FontSize = 15,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            VerticalAlignment = VerticalAlignment.Center });
-        var dark = _root.RequestedTheme == ElementTheme.Dark ||
-            (_root.RequestedTheme == ElementTheme.Default &&
-             Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
-        var tabBackground = new SolidColorBrush(dark
-            ? Color.FromArgb(255, 54, 59, 66) : Color.FromArgb(255, 229, 234, 239));
-        _tabs.TabItems.Add(new TabViewItem { Header = label, IsClosable = false,
-            MinHeight = 52, MinWidth = 162, Padding = new Thickness(13, 8, 13, 8),
-            Background = tabBackground, CornerRadius = new CornerRadius(7),
-            Content = new ScrollViewer { Content = content,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto } });
+            VerticalAlignment = VerticalAlignment.Center };
+        label.Children.Add(title);
+        var indicator = new Border { Height = 3, VerticalAlignment = VerticalAlignment.Bottom };
+        var tabBody = new Grid { RowDefinitions =
+        {
+            new RowDefinition(), new RowDefinition { Height = GridLength.Auto }
+        } };
+        tabBody.Children.Add(label);
+        Grid.SetRow(indicator, 1);
+        tabBody.Children.Add(indicator);
+        var button = new Button { Content = tabBody, MinHeight = 54, MinWidth = 155,
+            Padding = new Thickness(12, 7, 12, 0), Margin = new Thickness(0),
+            CornerRadius = new CornerRadius(0),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+            BorderBrush = new SolidColorBrush(IsDarkTheme()
+                ? Color.FromArgb(255, 82, 89, 98) : Color.FromArgb(255, 198, 205, 213)) };
+        var index = _tabButtons.Count;
+        button.Click += (_, _) => SelectTab(index);
+        _tabButtons.Add(button);
+        _tabIndicators.Add(indicator);
+        _tabLabels.Add(title);
+        _tabContents.Add(new ScrollViewer { Content = content,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto });
+        _tabStrip.Children.Add(button);
+    }
+
+    private bool IsDarkTheme() => _root.RequestedTheme == ElementTheme.Dark ||
+        (_root.RequestedTheme == ElementTheme.Default &&
+         Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
+
+    private void SelectTab(int index)
+    {
+        if (index < 0 || index >= _tabContents.Count) return;
+        _selectedTabIndex = index;
+        _tabContent.Content = _tabContents[index];
+        var dark = IsDarkTheme();
+        for (var i = 0; i < _tabButtons.Count; i++)
+        {
+            var selected = i == index;
+            _tabButtons[i].Background = new SolidColorBrush(dark
+                ? selected ? Color.FromArgb(255, 35, 77, 111) : Color.FromArgb(255, 54, 59, 66)
+                : selected ? Color.FromArgb(255, 211, 230, 246) : Color.FromArgb(255, 229, 234, 239));
+            _tabLabels[i].Foreground = new SolidColorBrush(dark
+                ? selected ? Colors.White : Color.FromArgb(255, 226, 231, 236)
+                : selected ? Color.FromArgb(255, 15, 79, 127) : Color.FromArgb(255, 43, 53, 65));
+            _tabIndicators[i].Background = selected
+                ? new SolidColorBrush(Color.FromArgb(255, 22, 119, 170)) : null;
+        }
     }
 
     private static void AddHeading(StackPanel form, string title) => form.Children.Add(new TextBlock
