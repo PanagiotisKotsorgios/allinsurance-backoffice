@@ -48,6 +48,9 @@ public sealed partial class CustomersPage : Page
                 args.Handled = true;
             }), true);
         InitializeHeaderActions();
+        TableColumnResizer.Attach(TableHeader, ResizeColumn,
+            () => { try { CustomerColumns.SaveWidths(); }
+                catch (Exception exception) { StatusText.Text = exception.Message; } });
         ApplyColumnLayout();
         BalanceFilter.SetOptions(["Χρεωστικό", "Πιστωτικό", "Μηδενικό"]);
         KindFilter.SetOptions(["Φυσικό πρόσωπο", "Επιχείρηση"]);
@@ -264,6 +267,7 @@ public sealed partial class CustomersPage : Page
         var result = new ListViewItem { Content = row, Tag = item, Padding = new Thickness(0),
             Margin = new Thickness(0), Width = TableStack.Width - 2, Height = 39,
             HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        TableRowResizer.Attach(row, result, "customers", item.Id);
         return result;
     }
 
@@ -296,10 +300,28 @@ public sealed partial class CustomersPage : Page
                 ? Visibility.Visible : Visibility.Collapsed;
         }
         TableStack.Width = columns.Where(column => CustomerColumns.IsVisible(column.Key))
-            .Sum(column => column.Width) + 42;
+            .Sum(column => CustomerColumns.WidthValue(column.Key)) + 42;
         var page = _page;
         _page = page;
         ApplyPage();
+    }
+
+    private void ResizeColumn(int original, double width)
+    {
+        var key = CustomerColumns.All[original].Key;
+        CustomerColumns.SetWidth(key, width);
+        var ordered = CustomerColumns.Ordered;
+        var position = Array.FindIndex(ordered, column => column.Key == key);
+        TableHeader.ColumnDefinitions[position].Width = CustomerColumns.Width(key);
+        TableStack.Width = ordered.Where(column => CustomerColumns.IsVisible(column.Key))
+            .Sum(column => CustomerColumns.WidthValue(column.Key)) + 42;
+        foreach (var item in CustomersList.Items.OfType<ListViewItem>())
+        {
+            if (item.Content is not Grid row) continue;
+            row.ColumnDefinitions[position + 1].Width = CustomerColumns.Width(key);
+            row.Width = TableStack.Width - 2;
+            item.Width = row.Width;
+        }
     }
 
     private void InitializeHeaderActions()

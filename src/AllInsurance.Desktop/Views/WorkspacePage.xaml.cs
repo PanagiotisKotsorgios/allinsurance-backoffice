@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.System;
 using Windows.UI;
@@ -40,6 +41,7 @@ public sealed partial class WorkspacePage : Page
             {
                 Text = section.Title,
                 FontSize = 18,
+                Opacity = 0.88,
                 VerticalAlignment = VerticalAlignment.Center
             };
             _sidebarLabels.Add(label);
@@ -68,16 +70,21 @@ public sealed partial class WorkspacePage : Page
             MainNavigation.MenuItems.Add(item);
         }
 
+        MainNavigation.IsPaneOpen = true;
         MainNavigation.SelectedItem = MainNavigation.MenuItems[0];
         MainNavigation.PaneClosing += (_, _) => SetSidebarLabelsVisible(false);
-        MainNavigation.PaneOpened += (_, _) => SetSidebarLabelsVisible(true);
+        MainNavigation.PaneOpened += (_, _) =>
+        {
+            SetSidebarLabelsVisible(true);
+            AnimateSidebarLabels();
+        };
         SectionHost.Content = new CustomersPage();
         RegisterShortcuts();
         _databaseTimer.Tick += async (_, _) => await RefreshDatabaseStatusAsync();
         Loaded += async (_, _) =>
         {
             SetSidebarLabelsVisible(MainNavigation.IsPaneOpen);
-            App.MaximizeWorkspace();
+            AnimateSidebarLabels();
             try
             {
                 await DemoDataSeeder.SeedOnceAsync(App.Services);
@@ -99,6 +106,21 @@ public sealed partial class WorkspacePage : Page
     {
         foreach (var label in _sidebarLabels)
             label.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void AnimateSidebarLabels()
+    {
+        var storyboard = new Storyboard();
+        foreach (var label in _sidebarLabels.Where(label => label.Visibility == Visibility.Visible))
+        {
+            label.Opacity = 0.88;
+            var fade = new DoubleAnimation { From = 0.88, To = 1,
+                Duration = new Duration(TimeSpan.FromMilliseconds(160)) };
+            Storyboard.SetTarget(fade, label);
+            Storyboard.SetTargetProperty(fade, "Opacity");
+            storyboard.Children.Add(fade);
+        }
+        storyboard.Begin();
     }
 
     private async Task RefreshDatabaseStatusAsync()

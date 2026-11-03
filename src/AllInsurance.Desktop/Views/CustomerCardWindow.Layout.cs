@@ -362,6 +362,7 @@ public sealed partial class CustomerCardWindow
                 var listItem = new ListViewItem { Content = row, Tag = item, Width = 940, Height = 39,
                     Padding = new Thickness(0), Margin = new Thickness(0),
                     HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                TableRowResizer.Attach(row, listItem, "customer-transactions", item.Id);
                 list.Items.Add(listItem);
             }
             applyColumnLayout();

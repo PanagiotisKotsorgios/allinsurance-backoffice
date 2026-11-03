@@ -56,7 +56,7 @@
                                AutomationProperties.LiveSetting="Assertive" />
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Disabled">
-                        <StackPanel Width="1212" HorizontalAlignment="Left">
+                        <StackPanel x:Name="RecordsTableStack" Width="1212" HorizontalAlignment="Left">
                             <Border Background="{ThemeResource TableHeaderBackgroundBrush}" CornerRadius="8"
                                     BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
                                     Padding="0">
@@ -81,7 +81,7 @@
                                       SelectionMode="Single" SelectionChanged="Records_SelectionChanged">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid ColumnDefinitions="40,240,140,190,130,130,240,100" Loaded="RecordRow_Loaded"
+                                        <Grid ColumnDefinitions="40,240,140,190,130,130,240,100" Loaded="RecordRow_Loaded" Unloaded="RecordRow_Unloaded"
                                               ColumnSpacing="0" Width="1210" Height="39">
                                             <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1">
                                                 <controls:VisibleSelectionCheckBox Tag="{Binding Record.Id}" HorizontalAlignment="Center" VerticalAlignment="Center"

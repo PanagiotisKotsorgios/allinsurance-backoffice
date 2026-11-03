@@ -44,6 +44,7 @@ public sealed class NavigationService(
             _ => throw new ArgumentOutOfRangeException(nameof(route))
         };
 
+        if (route == AppRoute.Workspace) App.MaximizeWorkspace();
         frame.Navigate(pageType);
         frame.BackStack.Clear();
     }

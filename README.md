@@ -31,6 +31,8 @@ The authentication lockout values can be changed in `src\AllInsurance.Desktop\ap
 
 Receipts and payments now record a payment method, currency, reference number, and notes. The balance refreshes immediately in the open customer card and customer list. EUR is the default currency; an administrator can change it in system settings before any monetary records exist. See [customer payments](Software%20Analysis/06%20-%20Customer%20Payments/README.md).
 
+Customer and section tables support dragging column edges and row bottoms to resize them; the chosen sizes are stored per Windows user. The workspace window now maximizes before navigation, so sidebar labels appear with the first workspace frame and a brief entrance animation.
+
 ## Build and tests
 
 ```powershell

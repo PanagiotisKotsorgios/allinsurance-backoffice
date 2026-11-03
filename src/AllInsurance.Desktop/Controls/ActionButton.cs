@@ -44,6 +44,7 @@ public class ActionButton : Button
             "Save" => ("#16803D", "save"),
             "Receipt" => ("#047857", "receipt"),
             "Edit" => ("#1D64B3", "pencil"),
+            "Columns" => ("#1D64B3", "columns-3"),
             "Delete" => ("#C62828", "trash"),
             "Deactivate" => ("#C62828", "x"),
             "Close" => ("#B42332", "x"),

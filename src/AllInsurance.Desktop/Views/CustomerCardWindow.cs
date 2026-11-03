@@ -66,7 +66,6 @@ public sealed partial class CustomerCardWindow : Window
     private readonly StackPanel _tabStrip = new() { Orientation = Orientation.Horizontal, Spacing = 0 };
     private readonly ContentControl _tabContent = new();
     private readonly List<Button> _tabButtons = [];
-    private readonly List<Border> _tabIndicators = [];
     private readonly List<TextBlock> _tabLabels = [];
     private readonly List<UIElement> _tabContents = [];
     private int _selectedTabIndex;
@@ -90,7 +89,6 @@ public sealed partial class CustomerCardWindow : Window
     private Border? _mainBalanceBadge;
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly ActionButton _saveButton = new() { Kind = "Save", Label = "Αποθήκευση" };
-    private readonly ActionButton _saveCloseButton = new() { Kind = "Save", Label = "Αποθήκευση και κλείσιμο", Width = 220 };
     private readonly ActionButton _editButton = new() { Kind = "Edit", Label = "Επεξεργασία πελάτη" };
 
     public CustomerCardWindow(Guid? customerId, bool beginEditing = false)
@@ -143,19 +141,15 @@ public sealed partial class CustomerCardWindow : Window
         var rightActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         Grid.SetColumn(rightActions, 1);
         actions.Children.Add(rightActions);
-        var primaryAction = new Grid { Width = 180 };
         _saveButton.Click += async (_, _) => await SaveAsync();
-        primaryAction.Children.Add(_saveButton);
         _editButton.Click += (_, _) =>
         {
             _editing = true;
             BuildTabs();
             UpdateActionState();
         };
-        primaryAction.Children.Add(_editButton);
-        rightActions.Children.Add(primaryAction);
-        _saveCloseButton.Click += async (_, _) => { if (await SaveAsync()) Close(); };
-        rightActions.Children.Add(_saveCloseButton);
+        rightActions.Children.Add(_editButton);
+        rightActions.Children.Add(_saveButton);
         AddButton(rightActions, "Κλείσιμο", () => { Close(); return Task.CompletedTask; });
         actions.SizeChanged += (_, args) =>
         {
@@ -224,7 +218,6 @@ public sealed partial class CustomerCardWindow : Window
         _historyPanels.Clear();
         _tabStrip.Children.Clear();
         _tabButtons.Clear();
-        _tabIndicators.Clear();
         _tabLabels.Clear();
         _tabContents.Clear();
         _tabContent.Content = null;
@@ -267,7 +260,6 @@ public sealed partial class CustomerCardWindow : Window
     private void UpdateActionState()
     {
         _saveButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
-        _saveCloseButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
         _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -446,6 +438,9 @@ public sealed partial class CustomerCardWindow : Window
         var result = new ListViewItem { Content = row, Tag = source, Width = 980, Height = 39,
             Padding = new Thickness(0), Margin = new Thickness(0),
             HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var id = source switch { CustomerDetail detail => detail.Id,
+            BusinessRecord record => record.Id, _ => Guid.Empty };
+        if (id != Guid.Empty) TableRowResizer.Attach(row, result, category, id);
         return result;
     }
 
@@ -707,16 +702,8 @@ public sealed partial class CustomerCardWindow : Window
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center };
         label.Children.Add(title);
-        var indicator = new Border { Height = 3, VerticalAlignment = VerticalAlignment.Bottom };
-        var tabBody = new Grid { RowDefinitions =
-        {
-            new RowDefinition(), new RowDefinition { Height = GridLength.Auto }
-        } };
-        tabBody.Children.Add(label);
-        Grid.SetRow(indicator, 1);
-        tabBody.Children.Add(indicator);
-        var button = new Button { Content = tabBody, MinHeight = 54, MinWidth = 155,
-            Padding = new Thickness(12, 7, 12, 0), Margin = new Thickness(0),
+        var button = new Button { Content = label, MinHeight = 54, MinWidth = 155,
+            Padding = new Thickness(12, 7, 12, 7), Margin = new Thickness(0),
             CornerRadius = new CornerRadius(0),
             BorderThickness = new Thickness(0, 0, 1, 0),
             BorderBrush = new SolidColorBrush(IsDarkTheme()
@@ -724,7 +711,6 @@ public sealed partial class CustomerCardWindow : Window
         var index = _tabButtons.Count;
         button.Click += (_, _) => SelectTab(index);
         _tabButtons.Add(button);
-        _tabIndicators.Add(indicator);
         _tabLabels.Add(title);
         _tabContents.Add(new ScrollViewer { Content = content,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -751,8 +737,6 @@ public sealed partial class CustomerCardWindow : Window
             _tabLabels[i].Foreground = new SolidColorBrush(dark
                 ? selected ? Colors.White : Color.FromArgb(255, 226, 231, 236)
                 : selected ? Color.FromArgb(255, 15, 79, 127) : Color.FromArgb(255, 43, 53, 65));
-            _tabIndicators[i].Background = selected
-                ? new SolidColorBrush(Color.FromArgb(255, 22, 119, 170)) : null;
         }
     }
 

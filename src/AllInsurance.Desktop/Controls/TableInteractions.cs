@@ -17,6 +17,7 @@ internal static class TableInteractions
         void Apply(Grid grid)
         {
             if (grid.ColumnDefinitions.Count != count || grid.Children.Count < count) return;
+            grid.Width = widths.Sum(width => width.Value);
             for (var position = 0; position < count; position++)
             {
                 var original = order[position];
@@ -34,8 +35,14 @@ internal static class TableInteractions
         void ApplyAll()
         {
             Apply(header);
+            if (header.Parent is Border frame) frame.Width = header.Width + 2;
+            list.Width = header.Width + 2;
             foreach (var item in list.Items.OfType<ListViewItem>())
-                if (item.Content is Grid grid) Apply(grid);
+                if (item.Content is Grid grid)
+                {
+                    Apply(grid);
+                    item.Width = grid.Width;
+                }
         }
 
         void Sort(int original, bool reverse)
@@ -81,13 +88,23 @@ internal static class TableInteractions
             cell.ContextFlyout = menu;
         }
 
+        TableColumnResizer.Attach(header, (original, width) =>
+        {
+            widths[original] = new GridLength(width);
+            ApplyAll();
+        });
         return ApplyAll;
     }
 
     private static string CellText(ListViewItem item, int original)
     {
         if (item.Content is not Grid grid || original >= grid.Children.Count) return "";
-        return grid.Children[original] is Border { Child: TextBlock text } ? text.Text : "";
+        return grid.Children[original] switch
+        {
+            Border { Child: TextBlock text } => text.Text,
+            Border { Child: Grid host } => host.Children.OfType<TextBlock>().FirstOrDefault()?.Text ?? "",
+            _ => ""
+        };
     }
 
     private static int Compare(string left, string right)

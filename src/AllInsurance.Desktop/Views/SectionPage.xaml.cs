@@ -22,7 +22,8 @@ public sealed partial class SectionPage : Page
     private int _requestVersion;
     private BusinessRecordRow[] _filtered = [];
     private readonly int[] _columnOrder = [0, 1, 2, 3, 4, 5, 6];
-    private readonly double[] _columnWidths = [240, 140, 190, 130, 130, 240, 100];
+    private readonly double[] _columnWidths;
+    private readonly HashSet<Grid> _recordGrids = [];
     private int _sortColumn = 0;
     private bool _sortDescending;
     private bool _updatingSelectAll;
@@ -35,10 +36,14 @@ public sealed partial class SectionPage : Page
     {
         _section = section;
         _columnOrder = SectionColumnOrder.Load(section.Key);
+        _columnWidths = SectionColumnOrder.LoadWidths(section.Key);
         _records = App.Services.GetRequiredService<IBusinessRecordService>();
         _customers = App.Services.GetRequiredService<ICustomerService>();
         InitializeComponent();
         InitializeTableActions();
+        TableColumnResizer.Attach(RecordsHeader, ResizeColumn,
+            () => { try { SectionColumnOrder.SaveWidths(_section.Key, _columnWidths); }
+                catch (Exception exception) { StatusText.Text = exception.Message; } });
         ApplyColumnOrder(RecordsHeader);
         var accent = Color.FromArgb(255,
             Convert.ToByte(section.Accent.Substring(1, 2), 16),
@@ -206,8 +211,8 @@ public sealed partial class SectionPage : Page
             if (args.InRecycleQueue || args.Item is not BusinessRecordRow row || args.ItemContainer is null) return;
             args.ItemContainer.Padding = new Thickness(0);
             args.ItemContainer.Margin = new Thickness(0);
-            args.ItemContainer.Width = 1210;
-            args.ItemContainer.Height = 39;
+            args.ItemContainer.Width = TableWidth;
+            args.ItemContainer.Height = TableRowResizer.HeightFor(_section.Key, row.Record.Id);
             args.ItemContainer.HorizontalContentAlignment = HorizontalAlignment.Stretch;
         };
         for (var index = 0; index < _columnOrder.Length; index++)
@@ -316,17 +321,40 @@ public sealed partial class SectionPage : Page
     private void RecordRow_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Grid grid) return;
+        var firstLoad = _recordGrids.Add(grid);
         ApplyColumnOrder(grid);
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
+        if (firstLoad && FindRecordContainer(grid) is ListViewItem container)
+            TableRowResizer.Attach(grid, container, _section.Key, row.Record.Id);
         _syncingChecks = true;
         check.IsChecked = _checkedRecordIds.Contains(row.Record.Id);
         _syncingChecks = false;
     }
 
+    private void RecordRow_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Grid grid) _recordGrids.Remove(grid);
+    }
+
+    private double TableWidth => 40 + _columnWidths.Sum();
+
+    private void ResizeColumn(int original, double width)
+    {
+        _columnWidths[original] = Math.Clamp(width, 70, 520);
+        ApplyColumnOrder(RecordsHeader);
+        foreach (var grid in _recordGrids.ToArray()) ApplyColumnOrder(grid);
+        RecordsTableStack.Width = TableWidth + 2;
+        foreach (var item in RecordsList.Items)
+            if (RecordsList.ContainerFromItem(item) is ListViewItem container)
+                container.Width = TableWidth;
+    }
+
     private void ApplyColumnOrder(Grid grid)
     {
         var isHeader = ReferenceEquals(grid, RecordsHeader);
+        if (isHeader) RecordsTableStack.Width = TableWidth + 2;
+        else grid.Width = TableWidth;
         for (var position = 0; position < _columnOrder.Length; position++)
         {
             var original = _columnOrder[position];

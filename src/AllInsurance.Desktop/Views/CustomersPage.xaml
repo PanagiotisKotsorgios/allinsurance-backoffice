@@ -25,7 +25,7 @@
                         <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="50">
                             <controls:ActionButton Kind="Add" Label="Προσθήκη πελάτη" Width="210" Click="Add_Click" />
                             <controls:ActionButton Kind="Edit" Label="Επεξεργασία πελάτη" Width="210" Click="Open_Click" />
-                            <controls:ActionButton Kind="Edit" Label="Διαχείριση στηλών" Width="210" Click="Columns_Click" />
+                            <controls:ActionButton Kind="Columns" Label="Διαχείριση στηλών" Width="210" Click="Columns_Click" />
                         </VariableSizedWrapGrid>
                         <controls:ActionButton Grid.Column="1" Kind="Delete" Label="Διαγραφή πελάτη"
                                                Click="Delete_Click" HorizontalAlignment="Right" VerticalAlignment="Top" />
