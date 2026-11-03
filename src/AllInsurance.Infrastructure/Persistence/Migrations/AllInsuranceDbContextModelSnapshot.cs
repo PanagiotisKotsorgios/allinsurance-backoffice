@@ -33,6 +33,323 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.ToTable("AppMetadata", (string)null);
                 });
 
+            modelBuilder.Entity("AllInsurance.Domain.Entities.BusinessRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EventDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelatedParty")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SectionKey")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("SectionKey", "Title");
+
+                    b.ToTable("BusinessRecords", (string)null);
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("BelongsToOffice")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("BirthDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BirthPlace")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BusinessEmail")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BusinessPhone")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CompanyName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CustomerKind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DiscountDocumentDescription")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FatherName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GroupName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HLDiploma")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("HasDiscountDocument")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("HasPersonalInsurance")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("IdentityNumber")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdentityType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDriver")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsReferral")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LicenseCategory")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LicenseEndDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LicenseNumber")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LicenseStartDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MotherName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nationality")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Occupation")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("OpeningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PartnerName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrimaryAddress")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrimaryEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrimaryMobile")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ReferredByCustomerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Region")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SecondEmail")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SecondPhone")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SocialSecurityNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaxNumber")
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaxOffice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThirdEmail")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThirdPhone")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReferredByCustomerId");
+
+                    b.HasIndex("TaxNumber")
+                        .IsUnique()
+                        .HasFilter("\"TaxNumber\" IS NOT NULL");
+
+                    b.HasIndex("LastName", "FirstName");
+
+                    b.ToTable("Customers", (string)null);
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerDetail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EffectiveFrom")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EffectiveUntil")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsHistorical")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId", "Category");
+
+                    b.ToTable("CustomerDetails", (string)null);
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId", "OccurredAtUtc");
+
+                    b.ToTable("CustomerTransactions", (string)null);
+                });
+
             modelBuilder.Entity("AllInsurance.Domain.Entities.RecoveryCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -227,6 +544,48 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.ToTable("UserRoles", (string)null);
                 });
 
+            modelBuilder.Entity("AllInsurance.Domain.Entities.BusinessRecord", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.Customer", "Customer")
+                        .WithMany("BusinessRecords")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.Customer", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.Customer", "ReferredByCustomer")
+                        .WithMany()
+                        .HasForeignKey("ReferredByCustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ReferredByCustomer");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerDetail", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.Customer", "Customer")
+                        .WithMany("Details")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerTransaction", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.Customer", "Customer")
+                        .WithMany("Transactions")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("AllInsurance.Domain.Entities.RecoveryCode", b =>
                 {
                     b.HasOne("AllInsurance.Domain.Entities.User", "User")
@@ -272,6 +631,15 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.Customer", b =>
+                {
+                    b.Navigation("BusinessRecords");
+
+                    b.Navigation("Details");
+
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.Role", b =>

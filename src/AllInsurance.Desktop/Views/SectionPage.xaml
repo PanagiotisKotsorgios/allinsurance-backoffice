@@ -5,40 +5,125 @@
     Background="{ThemeResource PageBackgroundBrush}">
     <ScrollViewer x:Name="PageScroller" SizeChanged="Scroller_SizeChanged"
                   VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel x:Name="PageContent" MaxWidth="1100" Margin="24" Spacing="18" HorizontalAlignment="Center">
+        <StackPanel x:Name="PageContent" MaxWidth="1380" Margin="24" Spacing="16"
+                    HorizontalAlignment="Center">
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="24">
-                <StackPanel Spacing="12">
-                    <Border x:Name="IconBackground" Width="74" Height="74" CornerRadius="16" HorizontalAlignment="Left">
-                        <Image x:Name="SectionIcon" Width="48" Height="48"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
+                      ColumnSpacing="18" RowSpacing="12">
+                    <Border x:Name="IconBackground" Width="70" Height="70" CornerRadius="14">
+                        <Image x:Name="SectionIcon" Width="48" Height="48" />
                     </Border>
-                    <TextBlock x:Name="SectionTitle" FontSize="30" FontWeight="SemiBold" TextWrapping="Wrap" />
-                    <TextBlock x:Name="SectionDescription" FontSize="15" TextWrapping="Wrap"
-                               Foreground="{ThemeResource SecondaryTextBrush}" />
-                </StackPanel>
-            </Border>
-            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
-                <StackPanel Spacing="14">
-                    <TextBlock Text="Αναζήτηση" FontSize="18" FontWeight="SemiBold" />
-                    <TextBox x:Name="SearchInput" MaxWidth="460" HorizontalAlignment="Stretch"
-                             AutomationProperties.Name="Αναζήτηση εγγραφών" />
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                        <StackPanel x:Name="ColumnHeaders" Orientation="Horizontal" Spacing="24" />
-                    </ScrollViewer>
-                    <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,26,0,20">
-                        <StackPanel HorizontalAlignment="Center" Spacing="8">
-                            <TextBlock x:Name="EmptyTitle" Text="Δεν υπάρχουν καταχωρήσεις ακόμη"
-                                       FontSize="18" FontWeight="SemiBold" TextAlignment="Center" />
-                            <TextBlock x:Name="EmptyDescription" Text="Οι πληροφορίες θα εμφανίζονται εδώ όταν προστεθούν."
-                                       Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" TextAlignment="Center" />
+                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock x:Name="SectionTitle" FontSize="30" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock x:Name="TotalBadge" Text="0 εγγραφές" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource BrandAccentBrush}" FontWeight="SemiBold" />
                         </StackPanel>
-                    </Border>
+                        <TextBlock x:Name="SectionDescription" FontSize="15" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource SecondaryTextBrush}" />
+                    </StackPanel>
+                    <Button x:Name="AddButton" Grid.Row="1" Grid.Column="1"
+                            Content="Προσθήκη" Click="Add_Click" HorizontalAlignment="Left" />
+                </Grid>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBox x:Name="SearchInput" Width="330" TextChanged="Filter_Changed" />
+                            <TextBox x:Name="StatusFilter" Width="180" PlaceholderText="Κατάσταση"
+                                     TextChanged="Filter_Changed" />
+                            <ComboBox x:Name="CustomerFilter" Width="250"
+                                      PlaceholderText="Όλοι οι πελάτες"
+                                      SelectionChanged="CustomerFilter_Changed" />
+                            <TextBox x:Name="FromFilter" Width="150" PlaceholderText="Από ηη/μμ/εεεε"
+                                     TextChanged="Filter_Changed" />
+                            <TextBox x:Name="UntilFilter" Width="150" PlaceholderText="Έως ηη/μμ/εεεε"
+                                     TextChanged="Filter_Changed" />
+                        </StackPanel>
+                    </ScrollViewer>
                 </StackPanel>
             </Border>
-            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock Text="Σχετικές ενότητες" FontSize="18" FontWeight="SemiBold" />
-                    <StackPanel x:Name="HighlightsPanel" Spacing="8" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Επεξεργασία" Click="Edit_Click" />
+                            <Button Content="Διαγραφή" Click="Delete_Click" />
+                            <Button Content="Στατιστικά" Click="Statistics_Click" />
+                            <Button Content="Ανανέωση" Click="Refresh_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock x:Name="StatusText" TextWrapping="Wrap"
+                               AutomationProperties.LiveSetting="Assertive" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <StackPanel Width="1240">
+                            <Border Background="{ThemeResource PageBackgroundBrush}" CornerRadius="8"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="240,140,190,130,130,240,100"
+                                      ColumnSpacing="12">
+                                    <TextBlock x:Name="TitleHeader" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Κωδικός" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="PartyHeader" Grid.Column="2" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Κατάσταση" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Ημερομηνία" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="Πελάτης" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Εγγραφή" FontWeight="SemiBold" />
+                                </Grid>
+                            </Border>
+                            <ListView x:Name="RecordsList" Height="440" IsItemClickEnabled="True"
+                                      ItemClick="Record_ItemClick" SelectionMode="Single">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="240,140,190,130,130,240,100"
+                                              ColumnSpacing="12" Padding="8,9">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Reference}" />
+                                            <TextBlock Grid.Column="2" Text="{Binding RelatedParty}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="3" Text="{Binding Status}" />
+                                            <TextBlock Grid.Column="4" Text="{Binding EventDateDisplay}" />
+                                            <TextBlock Grid.Column="5" Text="{Binding CustomerName}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="6" Text="{Binding CreatedDisplay}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock x:Name="PageText" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Content="Προηγούμενη" Click="Previous_Click" />
+                            <Button Content="Επόμενη" Click="Next_Click" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <Border x:Name="RelatedRecordsBorder" Visibility="Collapsed"
+                    Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Σχετικά στοιχεία από καρτέλες πελατών"
+                               FontSize="18" FontWeight="SemiBold" />
+                    <Button Content="Άνοιγμα πελάτη" Click="OpenRelatedCustomer_Click"
+                            HorizontalAlignment="Left" />
+                    <ListView x:Name="RelatedRecordsList" Height="180" SelectionMode="Single">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="2*,2*,*" ColumnSpacing="16" Padding="4,8">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CustomerName}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Value}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
                 </StackPanel>
             </Border>
         </StackPanel>

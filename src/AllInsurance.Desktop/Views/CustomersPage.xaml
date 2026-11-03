@@ -1,0 +1,136 @@
+<Page
+    x:Class="AllInsurance.Desktop.Views.CustomersPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{ThemeResource PageBackgroundBrush}">
+    <ScrollViewer x:Name="Scroller" SizeChanged="Scroller_SizeChanged"
+                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="PageContent" MaxWidth="1380" Margin="24" Spacing="16"
+                    HorizontalAlignment="Center">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="24">
+                <Grid RowDefinitions="Auto,Auto" RowSpacing="12">
+                    <StackPanel Spacing="5">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="Πελάτες" FontSize="30" FontWeight="SemiBold" />
+                            <TextBlock x:Name="TotalBadge" Text="0 εγγραφές" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource BrandAccentBrush}" FontWeight="SemiBold" />
+                            <TextBlock x:Name="SelectedBadge" Text="0 επιλεγμένοι" VerticalAlignment="Center"
+                                       Foreground="{ThemeResource SecondaryTextBrush}" />
+                        </StackPanel>
+                        <TextBlock Text="Καρτέλες, στοιχεία επικοινωνίας, συστάσεις και οικονομικό ιστορικό."
+                                   Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Row="1" Content="Προσθήκη πελάτη" Click="Add_Click"
+                            HorizontalAlignment="Left" />
+                </Grid>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBox x:Name="SearchInput" Width="330"
+                                 PlaceholderText="Όνομα, ΑΦΜ, τηλέφωνο, email"
+                                 TextChanged="Filter_Changed" />
+                        <ComboBox x:Name="StatusFilter" Width="160" SelectionChanged="Filter_Changed">
+                            <ComboBoxItem Content="Όλες οι καταστάσεις" />
+                            <ComboBoxItem Content="Ενεργοί" />
+                            <ComboBoxItem Content="Ανενεργοί" />
+                        </ComboBox>
+                        <ComboBox x:Name="BalanceFilter" Width="180" SelectionChanged="Filter_Changed">
+                            <ComboBoxItem Content="Όλα τα υπόλοιπα" />
+                            <ComboBoxItem Content="Χρεωστικό" />
+                            <ComboBoxItem Content="Πιστωτικό" />
+                            <ComboBoxItem Content="Μηδενικό" />
+                        </ComboBox>
+                        <ComboBox x:Name="OwnershipFilter" Width="180" SelectionChanged="Filter_Changed">
+                            <ComboBoxItem Content="Όλοι οι πελάτες" />
+                            <ComboBoxItem Content="Στο γραφείο" />
+                            <ComboBoxItem Content="Σε συνεργάτη" />
+                        </ComboBox>
+                        <ComboBox x:Name="KindFilter" Width="190" SelectionChanged="Filter_Changed">
+                            <ComboBoxItem Content="Όλοι οι τύποι" />
+                            <ComboBoxItem Content="Φυσικό πρόσωπο" />
+                            <ComboBoxItem Content="Επιχείρηση" />
+                        </ComboBox>
+                        <ComboBox x:Name="CityFilter" Width="200" PlaceholderText="Όλες οι πόλεις"
+                                  SelectionChanged="Filter_Changed" />
+                        <ComboBox x:Name="PartnerFilter" Width="220" PlaceholderText="Όλοι οι συνεργάτες"
+                                  SelectionChanged="Filter_Changed" />
+                        <Button Content="Καθαρισμός" Click="ClearFilters_Click" />
+                    </StackPanel>
+                    </ScrollViewer>
+                    <TextBox x:Name="GroupFilter" Width="330" HorizontalAlignment="Left"
+                             PlaceholderText="Φίλτρο ομαδοποίησης" TextChanged="Filter_Changed" />
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
+                <StackPanel Spacing="12">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Επεξεργασία πελάτη" Click="Open_Click" />
+                        <Button Content="Διαγραφή πελάτη" Click="Delete_Click" />
+                        <Button Content="Στατιστικά πελατών" Click="Statistics_Click" />
+                        <Button Content="Ανανέωση" Click="Refresh_Click" />
+                    </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock x:Name="StatusText" TextWrapping="Wrap"
+                               AutomationProperties.LiveSetting="Assertive" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled">
+                        <StackPanel Width="1590">
+                            <Border Background="{ThemeResource PageBackgroundBrush}" Padding="12,10"
+                                    CornerRadius="8">
+                                <Grid ColumnDefinitions="125,130,155,155,180,100,220,145,140,100"
+                                      ColumnSpacing="12">
+                                    <TextBlock Text="Κωδικός" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="Είδος" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="Επώνυμο" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Text="Όνομα" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="4" Text="Επωνυμία" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="5" Text="ΑΦΜ" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="6" Text="Email" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="7" Text="Κινητό" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="8" Text="Πόλη" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="9" Text="Υπόλοιπο" FontWeight="SemiBold" />
+                                </Grid>
+                            </Border>
+                            <ListView x:Name="CustomersList" IsItemClickEnabled="True"
+                                      ItemClick="Customer_ItemClick" SelectionMode="Single"
+                                      SelectionChanged="Customers_SelectionChanged"
+                                      Height="460" AutomationProperties.Name="Πίνακας πελατών">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="125,130,155,155,180,100,220,145,140,100"
+                                              ColumnSpacing="12" Padding="8,9">
+                                            <TextBlock Text="{Binding Code}" FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="1" Text="{Binding CustomerKind}" />
+                                            <TextBlock Grid.Column="2" Text="{Binding LastName}" />
+                                            <TextBlock Grid.Column="3" Text="{Binding FirstName}" />
+                                            <TextBlock Grid.Column="4" Text="{Binding CompanyName}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="5" Text="{Binding TaxNumber}" />
+                                            <TextBlock Grid.Column="6" Text="{Binding PrimaryEmail}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="7" Text="{Binding PrimaryMobile}" />
+                                            <TextBlock Grid.Column="8" Text="{Binding City}" />
+                                            <TextBlock Grid.Column="9" Text="{Binding BalanceDisplay}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <TextBlock x:Name="PageText" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Content="Προηγούμενη" Click="Previous_Click" />
+                            <Button Content="Επόμενη" Click="Next_Click" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

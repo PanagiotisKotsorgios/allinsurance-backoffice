@@ -66,7 +66,7 @@ public sealed partial class WorkspacePage : Page
         }
 
         MainNavigation.SelectedItem = MainNavigation.MenuItems[0];
-        SectionHost.Content = new SectionPage(WorkspaceSections.All[0]);
+        SectionHost.Content = new CustomersPage();
         RegisterShortcuts();
         _databaseTimer.Tick += async (_, _) => await RefreshDatabaseStatusAsync();
         Loaded += async (_, _) =>
@@ -142,7 +142,7 @@ public sealed partial class WorkspacePage : Page
         var item = MainNavigation.MenuItems.OfType<NavigationViewItem>()
             .First(candidate => candidate.Tag is string itemKey && itemKey == key);
         MainNavigation.SelectedItem = item;
-        SectionHost.Content = new SectionPage(section);
+        SectionHost.Content = section.Key == "customers" ? new CustomersPage() : new SectionPage(section);
     }
 
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -155,7 +155,7 @@ public sealed partial class WorkspacePage : Page
         var section = WorkspaceSections.All.FirstOrDefault(candidate => candidate.Key == key);
         if (section is not null)
         {
-            SectionHost.Content = new SectionPage(section);
+            SectionHost.Content = section.Key == "customers" ? new CustomersPage() : new SectionPage(section);
         }
     }
 

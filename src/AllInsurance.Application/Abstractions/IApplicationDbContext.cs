@@ -1,6 +1,7 @@
 using AllInsurance.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace AllInsurance.Application.Abstractions;
 
@@ -12,7 +13,12 @@ public interface IApplicationDbContext : IAsyncDisposable
     DbSet<RecoveryCode> RecoveryCodes { get; }
     DbSet<SecurityEvent> SecurityEvents { get; }
     DbSet<AppMetadata> AppMetadata { get; }
+    DbSet<Customer> Customers { get; }
+    DbSet<CustomerDetail> CustomerDetails { get; }
+    DbSet<CustomerTransaction> CustomerTransactions { get; }
+    DbSet<BusinessRecord> BusinessRecords { get; }
     DatabaseFacade Database { get; }
+    EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

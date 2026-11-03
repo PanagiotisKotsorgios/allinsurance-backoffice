@@ -2,6 +2,8 @@ using AllInsurance.Application.Abstractions;
 using AllInsurance.Application.Authentication;
 using AllInsurance.Application.Authorization;
 using AllInsurance.Application.Users;
+using AllInsurance.Application.Customers;
+using AllInsurance.Application.Business;
 using AllInsurance.Desktop.Navigation;
 using AllInsurance.Desktop.Security;
 using AllInsurance.Desktop.Settings;
@@ -75,6 +77,8 @@ public partial class App : Microsoft.UI.Xaml.Application
                 services.AddTransient<IAuthenticationService, AuthenticationService>();
                 services.AddTransient<IRecoveryService, RecoveryService>();
                 services.AddTransient<IUserAdministrationService, UserAdministrationService>();
+                services.AddTransient<ICustomerService, CustomerService>();
+                services.AddTransient<IBusinessRecordService, BusinessRecordService>();
                 services.AddTransient<AdministratorSetupViewModel>();
                 services.AddTransient<LoginViewModel>();
                 services.AddTransient<ForgotPasswordViewModel>();

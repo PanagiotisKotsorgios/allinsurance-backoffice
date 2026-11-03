@@ -13,6 +13,10 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<RecoveryCode> RecoveryCodes => Set<RecoveryCode>();
     public DbSet<SecurityEvent> SecurityEvents => Set<SecurityEvent>();
     public DbSet<AppMetadata> AppMetadata => Set<AppMetadata>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<CustomerDetail> CustomerDetails => Set<CustomerDetail>();
+    public DbSet<CustomerTransaction> CustomerTransactions => Set<CustomerTransaction>();
+    public DbSet<BusinessRecord> BusinessRecords => Set<BusinessRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -112,6 +116,72 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.HasKey(metadata => metadata.Key);
             entity.Property(metadata => metadata.Key).HasMaxLength(100);
             entity.Property(metadata => metadata.Value).IsRequired().HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.ToTable("Customers");
+            entity.HasKey(customer => customer.Id);
+            entity.Property(customer => customer.LastName).IsRequired().HasMaxLength(150);
+            entity.Property(customer => customer.FirstName).IsRequired().HasMaxLength(150);
+            entity.Property(customer => customer.CompanyName).HasMaxLength(200);
+            entity.Property(customer => customer.CustomerKind).IsRequired().HasMaxLength(40);
+            entity.Property(customer => customer.PrimaryAddress).HasMaxLength(300);
+            entity.Property(customer => customer.City).HasMaxLength(120);
+            entity.Property(customer => customer.Region).HasMaxLength(120);
+            entity.Property(customer => customer.PostalCode).HasMaxLength(20);
+            entity.Property(customer => customer.Gender).HasMaxLength(40);
+            entity.Property(customer => customer.SocialSecurityNumber).HasMaxLength(20);
+            entity.Property(customer => customer.PrimaryMobile).HasMaxLength(40);
+            entity.Property(customer => customer.PrimaryEmail).HasMaxLength(254);
+            entity.Property(customer => customer.TaxNumber).HasMaxLength(9);
+            entity.HasIndex(customer => customer.TaxNumber).IsUnique().HasFilter("\"TaxNumber\" IS NOT NULL");
+            entity.Property(customer => customer.OpeningBalance).HasPrecision(18, 2);
+            entity.HasIndex(customer => new { customer.LastName, customer.FirstName });
+            entity.HasOne(customer => customer.ReferredByCustomer)
+                .WithMany().HasForeignKey(customer => customer.ReferredByCustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CustomerDetail>(entity =>
+        {
+            entity.ToTable("CustomerDetails");
+            entity.HasKey(detail => detail.Id);
+            entity.Property(detail => detail.Category).IsRequired().HasMaxLength(40);
+            entity.Property(detail => detail.Title).IsRequired().HasMaxLength(200);
+            entity.Property(detail => detail.Value).HasMaxLength(1000);
+            entity.Property(detail => detail.Notes).HasMaxLength(2000);
+            entity.HasIndex(detail => new { detail.CustomerId, detail.Category });
+            entity.HasOne(detail => detail.Customer).WithMany(customer => customer.Details)
+                .HasForeignKey(detail => detail.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomerTransaction>(entity =>
+        {
+            entity.ToTable("CustomerTransactions");
+            entity.HasKey(transaction => transaction.Id);
+            entity.Property(transaction => transaction.Type).IsRequired().HasMaxLength(20);
+            entity.Property(transaction => transaction.Amount).HasPrecision(18, 2);
+            entity.Property(transaction => transaction.Description).HasMaxLength(500);
+            entity.HasIndex(transaction => new { transaction.CustomerId, transaction.OccurredAtUtc });
+            entity.HasOne(transaction => transaction.Customer).WithMany(customer => customer.Transactions)
+                .HasForeignKey(transaction => transaction.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BusinessRecord>(entity =>
+        {
+            entity.ToTable("BusinessRecords");
+            entity.HasKey(record => record.Id);
+            entity.Property(record => record.SectionKey).IsRequired().HasMaxLength(40);
+            entity.Property(record => record.Title).IsRequired().HasMaxLength(200);
+            entity.Property(record => record.Reference).HasMaxLength(100);
+            entity.Property(record => record.RelatedParty).HasMaxLength(200);
+            entity.Property(record => record.Status).HasMaxLength(100);
+            entity.Property(record => record.Notes).HasMaxLength(2000);
+            entity.HasIndex(record => new { record.SectionKey, record.Title });
+            entity.HasIndex(record => record.CustomerId);
+            entity.HasOne(record => record.Customer).WithMany(customer => customer.BusinessRecords)
+                .HasForeignKey(record => record.CustomerId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
