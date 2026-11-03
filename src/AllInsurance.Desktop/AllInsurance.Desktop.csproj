@@ -21,6 +21,7 @@
     <Content Include="Assets\allinsurance.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Icons\*.svg" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Sections\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Data\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets\Icons\LICENSE-lucide.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

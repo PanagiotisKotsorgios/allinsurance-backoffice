@@ -4,6 +4,7 @@ using AllInsurance.Application.Authorization;
 using AllInsurance.Application.Users;
 using AllInsurance.Application.Customers;
 using AllInsurance.Application.Business;
+using AllInsurance.Application.Filters;
 using AllInsurance.Desktop.Navigation;
 using AllInsurance.Desktop.Security;
 using AllInsurance.Desktop.Settings;
@@ -79,6 +80,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                 services.AddTransient<IUserAdministrationService, UserAdministrationService>();
                 services.AddTransient<ICustomerService, CustomerService>();
                 services.AddTransient<IBusinessRecordService, BusinessRecordService>();
+                services.AddTransient<IFilterOptionService, FilterOptionService>();
                 services.AddTransient<AdministratorSetupViewModel>();
                 services.AddTransient<LoginViewModel>();
                 services.AddTransient<ForgotPasswordViewModel>();
@@ -126,6 +128,10 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     public static void MaximizeWorkspace() =>
         ((App)Current)._mainWindow?.MaximizeWorkspace();
+
+    public static nint MainWindowHandle() =>
+        WinRT.Interop.WindowNative.GetWindowHandle(((App)Current)._mainWindow
+            ?? throw new InvalidOperationException("Το κύριο παράθυρο δεν είναι διαθέσιμο."));
 
     private static int ReadPolicyValue(string? value, int defaultValue, string settingName)
     {

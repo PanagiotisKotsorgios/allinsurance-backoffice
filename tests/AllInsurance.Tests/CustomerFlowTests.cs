@@ -18,12 +18,18 @@ public sealed class CustomerFlowTests
         {
             LastName = "Παπαδόπουλος", FirstName = "Νίκος",
             TaxNumber = "123456789", PrimaryMobile = "6900000000",
-            OpeningBalance = 100m, City = "Πάτρα", CustomerKind = "Φυσικό πρόσωπο"
+            OpeningBalance = 100m, City = "Πάτρα", CustomerKind = "Φυσικό πρόσωπο",
+            HomePhone = "2610000000", MaritalStatus = "Έγγαμος", Source = "Σύσταση",
+            PassportNumber = "AA123456", Zone = "Αιτωλοακαρνανία", HasDrivingLicense = true
         });
         var loaded = await service.GetAsync(id);
         Assert.NotNull(loaded);
         Assert.Equal("Παπαδόπουλος", loaded.LastName);
         Assert.Equal("Πάτρα", loaded.City);
+        Assert.Equal("Έγγαμος", loaded.MaritalStatus);
+        Assert.Equal("AA123456", loaded.PassportNumber);
+        Assert.True(loaded.HasDrivingLicense);
+        Assert.Contains("2610000000", (await service.SearchAsync()).Single().SearchText);
         Assert.Equal(100m, CustomerService.Balance(loaded));
         Assert.Single(await service.SearchAsync("123456789"));
         Assert.Single(await service.SearchAsync("Πάτρα"));
@@ -88,6 +94,19 @@ public sealed class CustomerFlowTests
         await service.SaveAsync(first);
         stale.PrimaryMobile = "6900000001";
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveAsync(stale));
+    }
+
+    [Fact]
+    public async Task PartnerOwnershipRequiresPartnerName()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+        await Assert.ThrowsAsync<ArgumentException>(() => customers.SaveAsync(new Customer
+        {
+            LastName = "Δοκιμή", FirstName = "Συνεργάτη", BelongsToOffice = false
+        }));
     }
 
     [Fact]

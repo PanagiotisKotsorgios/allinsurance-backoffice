@@ -8,7 +8,7 @@ using Windows.UI;
 
 namespace AllInsurance.Desktop.Controls;
 
-public sealed class ActionButton : Button
+public class ActionButton : Button
 {
     private string _kind = "Open";
     public static readonly DependencyProperty LabelProperty = DependencyProperty.Register(
@@ -32,6 +32,7 @@ public sealed class ActionButton : Button
         Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["ActionButtonStyle"];
         UseSystemFocusVisuals = true;
         RegisterPropertyChangedCallback(LabelProperty, (_, _) => UpdateVisual());
+        ButtonMotion.Attach(this);
         UpdateVisual();
     }
 
@@ -50,6 +51,7 @@ public sealed class ActionButton : Button
             "Refresh" => ("#0B7774", "refresh-cw"),
             "Statistics" => ("#7041A3", "chart-no-axes-combined"),
             "Filter" => ("#52657D", "funnel-x"),
+            "Choice" => ("#455A73", "list-filter"),
             "Previous" => ("#52657D", "chevron-left"),
             "Next" => ("#52657D", "chevron-right"),
             "Upload" => ("#1D64B3", "upload"),

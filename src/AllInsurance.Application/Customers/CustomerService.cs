@@ -50,7 +50,19 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             Balance(customer), customer.CreatedAtUtc, customer.GroupName,
             customer.PartnerName, customer.BelongsToOffice,
             customer.LastName, customer.FirstName, customer.CompanyName,
-            customer.CustomerKind, customer.City)).ToArray();
+            customer.CustomerKind, customer.City)
+        {
+            SearchText = string.Join(' ', new[] { customer.LastName, customer.FirstName,
+                customer.CompanyName, customer.TaxNumber, customer.PrimaryMobile,
+                customer.HomePhone, customer.SecondMobile, customer.SecondPhone,
+                customer.ThirdPhone, customer.PrimaryEmail, customer.SecondEmail,
+                customer.ThirdEmail, customer.BusinessEmail, customer.BusinessPhone,
+                customer.PrimaryAddress, customer.City, customer.Region,
+                customer.PostalCode, customer.Occupation, customer.PartnerName,
+                customer.GroupName, customer.IdentityNumber, customer.LicenseNumber,
+                customer.Tags, customer.PassportNumber, customer.Zone }
+                .Where(value => !string.IsNullOrWhiteSpace(value))!)
+        }).ToArray();
         return codeSearch ? results.Where(item => item.Code.StartsWith(term!,
             StringComparison.OrdinalIgnoreCase)).ToArray() : results;
     }
@@ -358,6 +370,8 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         customer.IsReferral = customer.ReferredByCustomerId.HasValue || customer.IsReferral;
         if (!customer.IsReferral) customer.ReferredByCustomerId = null;
         if (customer.BelongsToOffice) customer.PartnerName = null;
+        else if (string.IsNullOrWhiteSpace(customer.PartnerName))
+            throw new ArgumentException("Επιλέξτε συνεργάτη ή δηλώστε ότι ο πελάτης ανήκει στο γραφείο.");
     }
 
     private static string? Normalize(string? value, int maximumLength)

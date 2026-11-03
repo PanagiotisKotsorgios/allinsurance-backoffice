@@ -1,4 +1,5 @@
 ﻿using AllInsurance.Application.Customers;
+using AllInsurance.Application.Filters;
 using AllInsurance.Desktop.Settings;
 using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
@@ -20,9 +21,10 @@ using Windows.UI;
 
 namespace AllInsurance.Desktop.Views;
 
-public sealed class CustomerCardWindow : Window
+public sealed partial class CustomerCardWindow : Window
 {
     private readonly ICustomerService _service = App.Services.GetRequiredService<ICustomerService>();
+    private readonly IFilterOptionService _filterService = App.Services.GetRequiredService<IFilterOptionService>();
     private readonly Guid? _customerId;
     private readonly Grid _root = new() { RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
         new RowDefinition(), new RowDefinition { Height = GridLength.Auto } } };
@@ -31,6 +33,13 @@ public sealed class CustomerCardWindow : Window
     private readonly List<Action> _readFields = [];
     private Customer _customer = new() { LastName = "", FirstName = "" };
     private ComboBox? _referralChoice;
+    private ComboBox? _partnerChoice;
+    private readonly Dictionary<string, ListView> _detailLists = [];
+    private readonly Dictionary<string, Grid> _historyPanels = [];
+    private ComboBox? _historyChoice;
+    private ContentControl? _historyHost;
+    private Grid? _compactMain;
+    private double _contentWidth = 1100;
     private bool _editing;
     private readonly TextBlock _headerTitle = new() { FontSize = 26,
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) };
@@ -44,7 +53,7 @@ public sealed class CustomerCardWindow : Window
     {
         _customerId = customerId;
         _editing = !customerId.HasValue;
-        var header = new StackPanel { Spacing = 8, Margin = new Thickness(18, 16, 18, 8) };
+        var header = new StackPanel { Spacing = 4, Margin = new Thickness(18, 8, 18, 4) };
         var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 22, 119, 170), Offset = 1 });
@@ -66,7 +75,7 @@ public sealed class CustomerCardWindow : Window
         bannerContent.Children.Add(identity);
         bannerContent.Children.Add(metadata);
         header.Children.Add(new Border { Background = gradient, CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(24, 18, 24, 18), Child = bannerContent });
+            Padding = new Thickness(24, 12, 24, 12), Child = bannerContent });
         header.Children.Add(_status);
         _root.Children.Add(header);
         Grid.SetRow(_tabs, 1);
@@ -87,9 +96,6 @@ public sealed class CustomerCardWindow : Window
         AddButton(actions, "Γενική είσπραξη", async () => await AddTransactionAsync("receipt"));
         AddButton(actions, "Γενική πληρωμή", async () => await AddTransactionAsync("payment"));
         AddButton(actions, "Στατιστικά πελάτη", ShowCustomerStatisticsAsync);
-        AddDeferredButton(actions, "Υπεύθυνη δήλωση Ν. 105");
-        AddDeferredButton(actions, "Ασφαλιστικός γονέας");
-        AddDeferredButton(actions, "Έντυπο GDPR");
         AddButton(actions, "Κλείσιμο", () => { Close(); return Task.CompletedTask; });
         Grid.SetRow(actions, 2);
         _root.Children.Add(actions);
@@ -104,8 +110,14 @@ public sealed class CustomerCardWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
         var working = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
-        var width = Math.Min(1220, Math.Max(680, working.Width - 80));
-        var height = Math.Min(880, Math.Max(520, working.Height - 80));
+        var width = Math.Min(1260, Math.Max(680, working.Width - 40));
+        var height = Math.Min(960, Math.Max(520, working.Height - 30));
+        _contentWidth = Math.Min(1100, width - 70);
+        _tabs.SizeChanged += (_, args) =>
+        {
+            if (_compactMain is not null)
+                _compactMain.Width = Math.Min(1100, Math.Max(600, args.NewSize.Width - 50));
+        };
         appWindow.MoveAndResize(new RectInt32(working.X + (working.Width - width) / 2,
             working.Y + (working.Height - height) / 2, width, height));
         appWindow.Title = "Καρτέλα πελάτη — AllInsurance Backoffice Software";
@@ -137,140 +149,16 @@ public sealed class CustomerCardWindow : Window
     private void BuildTabs()
     {
         _readFields.Clear();
+        _detailLists.Clear();
+        _historyPanels.Clear();
         _tabs.TabItems.Clear();
-        BuildMainTab();
-
-        var other = CreateForm();
-        AddText(other, "Δεύτερο τηλέφωνο", () => _customer.SecondPhone, value => _customer.SecondPhone = value);
-        AddText(other, "Τρίτο τηλέφωνο", () => _customer.ThirdPhone, value => _customer.ThirdPhone = value);
-        AddText(other, "Δεύτερο email", () => _customer.SecondEmail, value => _customer.SecondEmail = value);
-        AddText(other, "Τρίτο email", () => _customer.ThirdEmail, value => _customer.ThirdEmail = value);
-        AddText(other, "Email επιχείρησης", () => _customer.BusinessEmail, value => _customer.BusinessEmail = value);
-        AddText(other, "Τηλέφωνο επιχείρησης", () => _customer.BusinessPhone, value => _customer.BusinessPhone = value);
-        AddText(other, "Σημειώσεις", () => _customer.Notes, value => _customer.Notes = value, multiline: true);
-        AddTab("Λοιπά", other);
-
-        AddDetailTab("Ασφαλιστήρια", "policies");
+        BuildCompactMainTab();
+        BuildSupplementaryTab();
+        AddDetailTab("Συμβόλαια", "policies");
         AddDetailTab("Οχήματα", "vehicles");
-        AddDetailTab("Σκάφη", "boats");
-        AddDetailTab("Ζημιές", "claims");
-        AddDetailTab("Τηλέφωνα", "phones");
-        AddDetailTab("Διευθύνσεις", "addresses");
-        AddDetailTab("Email", "emails");
-        AddDetailTab("Πρόσωπα", "persons");
-        AddDetailTab("Άλλα στοιχεία", "other");
-        AddDetailTab("Αρχεία", "files");
-        var movements = new StackPanel { Margin = new Thickness(24), Spacing = 10 };
-        movements.Children.Add(new TextBlock { Text = $"Τρέχον υπόλοιπο: {CustomerService.Balance(_customer):N2} €",
-            FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        foreach (var transaction in _customer.Transactions.OrderByDescending(item => item.OccurredAtUtc))
-        {
-            movements.Children.Add(new TextBlock
-            {
-                Text = $"{transaction.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm} · " +
-                    $"{(transaction.Type == "receipt" ? "Είσπραξη" : "Πληρωμή")} · " +
-                    $"{transaction.Amount:N2} € · {transaction.Description}",
-                TextWrapping = TextWrapping.Wrap
-            });
-        }
-        AddTab("Κινήσεις", movements);
+        BuildFinanceTab();
+        BuildHistoryTab();
         _tabs.SelectedIndex = 0;
-    }
-
-    private void BuildMainTab()
-    {
-        var main = new Grid { Width = 1100, ColumnSpacing = 24,
-            Margin = new Thickness(24, 14, 24, 24) };
-        main.ColumnDefinitions.Add(new ColumnDefinition());
-        main.ColumnDefinitions.Add(new ColumnDefinition());
-        var left = new StackPanel { Spacing = 8 };
-        var right = new StackPanel { Spacing = 8 };
-        Grid.SetColumn(right, 1);
-        main.Children.Add(left);
-        main.Children.Add(right);
-
-        AddHeading(left, "Ταυτότητα και επικοινωνία");
-        AddText(left, "Επώνυμο *", () => _customer.LastName, value => _customer.LastName = value ?? "");
-        AddText(left, "Όνομα *", () => _customer.FirstName, value => _customer.FirstName = value ?? "");
-        AddChoice(left, "Τύπος πελάτη", () => _customer.CustomerKind,
-            value => _customer.CustomerKind = value, ["Φυσικό πρόσωπο", "Επιχείρηση"]);
-        AddText(left, "Επωνυμία επιχείρησης", () => _customer.CompanyName,
-            value => _customer.CompanyName = value);
-        AddText(left, "Κύρια διεύθυνση", () => _customer.PrimaryAddress,
-            value => _customer.PrimaryAddress = value);
-        AddText(left, "Πόλη", () => _customer.City, value => _customer.City = value);
-        AddText(left, "Περιοχή", () => _customer.Region, value => _customer.Region = value);
-        AddText(left, "Ταχυδρομικός κώδικας", () => _customer.PostalCode,
-            value => _customer.PostalCode = value);
-        AddText(left, "Κύριο κινητό", () => _customer.PrimaryMobile,
-            value => _customer.PrimaryMobile = value);
-        AddText(left, "Κύριο email", () => _customer.PrimaryEmail,
-            value => _customer.PrimaryEmail = value);
-        AddText(left, "Επάγγελμα", () => _customer.Occupation, value => _customer.Occupation = value);
-        AddText(left, "ΑΦΜ", () => _customer.TaxNumber, value => _customer.TaxNumber = value);
-        AddText(left, "ΔΟΥ", () => _customer.TaxOffice, value => _customer.TaxOffice = value);
-        AddHeading(left, "Γέννηση και οικογένεια");
-        AddDate(left, "Ημερομηνία γέννησης", () => _customer.BirthDate,
-            value => _customer.BirthDate = value);
-        AddText(left, "Τόπος γέννησης", () => _customer.BirthPlace,
-            value => _customer.BirthPlace = value);
-        AddText(left, "Ιθαγένεια", () => _customer.Nationality,
-            value => _customer.Nationality = value);
-        AddText(left, "Φύλο", () => _customer.Gender, value => _customer.Gender = value);
-        AddText(left, "Πατρώνυμο", () => _customer.FatherName,
-            value => _customer.FatherName = value);
-        AddText(left, "Μητρώνυμο", () => _customer.MotherName,
-            value => _customer.MotherName = value);
-
-        AddHeading(right, "Στοιχεία και κατάσταση");
-        AddText(right, "Τύπος ταυτότητας", () => _customer.IdentityType,
-            value => _customer.IdentityType = value);
-        AddText(right, "Αριθμός ταυτότητας", () => _customer.IdentityNumber,
-            value => _customer.IdentityNumber = value);
-        AddText(right, "ΑΜΚΑ", () => _customer.SocialSecurityNumber,
-            value => _customer.SocialSecurityNumber = value);
-        AddBool(right, "Έχει προσωπικά ασφαλιστήρια", () => _customer.HasPersonalInsurance,
-            value => _customer.HasPersonalInsurance = value);
-        AddText(right, "Ομαδοποίηση", () => _customer.GroupName, value => _customer.GroupName = value);
-        AddText(right, "Αρχικό υπόλοιπο (€)", () => _customer.OpeningBalance.ToString("N2"),
-            value => _customer.OpeningBalance = ParseAmount(value, allowNegative: true));
-        right.Children.Add(new TextBlock
-        {
-            Text = $"Τρέχον υπόλοιπο: {CustomerService.Balance(_customer):N2} €",
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-        });
-        AddBool(right, "Ενεργός πελάτης", () => _customer.IsActive, value => _customer.IsActive = value);
-        AddBool(right, "Πελάτης από σύσταση", () => _customer.IsReferral,
-            value => _customer.IsReferral = value);
-        _referralChoice = new ComboBox { Header = "Σύσταση από πελάτη",
-            DisplayMemberPath = "FullName", SelectedValuePath = "Id", IsEnabled = _editing };
-        right.Children.Add(_referralChoice);
-        _ = LoadReferrersAsync();
-        AddBool(right, "Ανήκει στο γραφείο", () => _customer.BelongsToOffice,
-            value => _customer.BelongsToOffice = value);
-        AddText(right, "Συνεργάτης", () => _customer.PartnerName, value => _customer.PartnerName = value);
-        AddHeading(right, "Οδήγηση και έγγραφα");
-        AddBool(right, "Είναι οδηγός", () => _customer.IsDriver, value => _customer.IsDriver = value);
-        AddDate(right, "Έναρξη διπλώματος", () => _customer.LicenseStartDate,
-            value => _customer.LicenseStartDate = value);
-        AddDate(right, "Λήξη διπλώματος", () => _customer.LicenseEndDate,
-            value => _customer.LicenseEndDate = value);
-        AddText(right, "Κατηγορία διπλώματος", () => _customer.LicenseCategory,
-            value => _customer.LicenseCategory = value);
-        AddText(right, "Αριθμός διπλώματος", () => _customer.LicenseNumber,
-            value => _customer.LicenseNumber = value);
-        AddText(right, "HL diploma", () => _customer.HLDiploma,
-            value => _customer.HLDiploma = value);
-        AddBool(right, "Έχει δικαιολογητικό έκπτωσης", () => _customer.HasDiscountDocument,
-            value => _customer.HasDiscountDocument = value);
-        AddText(right, "Δικαιολογητικό έκπτωσης", () => _customer.DiscountDocumentDescription,
-            value => _customer.DiscountDocumentDescription = value);
-        right.Children.Add(new TextBlock
-        {
-            Text = _customer.Id == Guid.Empty ? "Η εγγραφή θα οριστεί κατά την αποθήκευση." :
-                $"Ημερομηνία εγγραφής: {_customer.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}"
-        });
-        AddTab("Καρτέλα πελάτη", main);
     }
 
     private void UpdateHeader()
@@ -306,11 +194,42 @@ public sealed class CustomerCardWindow : Window
     }
 
     private void AddDetailTab(string label, string category)
+        => AddTab(label, CreateDetailPanel(category));
+
+    private Grid CreateDetailPanel(string category)
     {
-        var root = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto }, new RowDefinition() },
+        var root = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition { Height = GridLength.Auto }, new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition() },
             Margin = new Thickness(16) };
+        var search = new TextBox { PlaceholderText = category switch
+            {
+                "policies" => "Αναζήτηση συμβολαίου, ασφαλιστικής, κλάδου...",
+                "vehicles" => "Αναζήτηση πινακίδας, μάρκας, στοιχείων...",
+                _ => "Αναζήτηση τίτλου, αριθμού ή στοιχείων..."
+            }, Height = 38, MinHeight = 38, Width = 220 };
+        var stateFilter = new ComboBox { Width = 180, Height = 38,
+            ItemsSource = new[] { "Όλα", "Ενεργά", "Ιστορικά" }, SelectedIndex = 0 };
+        var fromFilter = new TextBox { Width = 170, Height = 38, MinHeight = 38,
+            PlaceholderText = "Από ηη/μμ/εεεε" };
+        var untilFilter = new TextBox { Width = 170, Height = 38, MinHeight = 38,
+            PlaceholderText = "Έως ηη/μμ/εεεε" };
+        var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
+            ItemWidth = 235, ItemHeight = 46 };
+        foreach (var field in new UIElement[] { search, stateFilter, fromFilter, untilFilter })
+            filters.Children.Add(field);
+        root.Children.Add(filters);
         var commands = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 190, ItemHeight = 48 };
+        var clear = new ActionButton { Kind = "Filter", Label = "Καθαρισμός", Width = 180 };
+        clear.Click += (_, _) =>
+        {
+            search.Text = "";
+            stateFilter.SelectedIndex = 0;
+            fromFilter.Text = "";
+            untilFilter.Text = "";
+        };
+        commands.Children.Add(clear);
         if (category == "files")
         {
             AddButton(commands, "Επισύναψη αρχείου", AddFileAsync);
@@ -320,30 +239,95 @@ public sealed class CustomerCardWindow : Window
         if (category != "files") AddButton(commands, "Επεξεργασία", async () =>
         {
             var selected = GetSelectedDetail(category);
-            if (selected is null) { _status.Text = "Επιλέξτε στοιχείο."; return; }
+            if (selected is null) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε στοιχείο."); return; }
             await EditDetailAsync(category, selected);
         });
         AddButton(commands, "Διαγραφή επιλεγμένου", async () => await DeleteDetailAsync(category));
+        Grid.SetRow(commands, 1);
         root.Children.Add(commands);
+        var headers = new Grid { ColumnSpacing = 8, Padding = new Thickness(8, 10, 8, 10),
+            Background = new SolidColorBrush(Color.FromArgb(36, 77, 129, 174)) };
+        foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
+            headers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
+        var names = new[] { category == "vehicles" ? "Πινακίδα / όχημα" :
+            category == "policies" ? "Συμβόλαιο" : "Τίτλος", "Αριθμός / στοιχεία",
+            "Περιγραφή", "Από", "Έως", "Κατάσταση" };
+        for (var index = 0; index < names.Length; index++)
+        {
+            var caption = new TextBlock { Text = names[index], FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            Grid.SetColumn(caption, index);
+            headers.Children.Add(caption);
+        }
+        Grid.SetRow(headers, 2);
+        root.Children.Add(headers);
         var list = new ListView { SelectionMode = ListViewSelectionMode.Single,
-            Height = 460, Margin = new Thickness(0, 12, 0, 0),
+            Height = 410,
             Tag = category };
-        var details = _customer.Details.Where(detail => detail.Category == category)
-            .OrderByDescending(detail => detail.CreatedAtUtc)
-            .Select(detail => (object)new DetailRow(detail));
-        var linked = _customer.BusinessRecords.Where(record => record.SectionKey == category)
-            .OrderByDescending(record => record.CreatedAtUtc)
-            .Select(record => (object)new LinkedRecordRow(record));
-        list.ItemsSource = details.Concat(linked).ToArray();
-        Grid.SetRow(list, 1);
+        _detailLists[category] = list;
+        void refresh() => FillDetailList(list, category, search.Text,
+            stateFilter.SelectedIndex, ParseFilterDate(fromFilter.Text), ParseFilterDate(untilFilter.Text));
+        search.TextChanged += (_, _) => refresh();
+        stateFilter.SelectionChanged += (_, _) => refresh();
+        fromFilter.TextChanged += (_, _) => refresh();
+        untilFilter.TextChanged += (_, _) => refresh();
+        refresh();
+        Grid.SetRow(list, 3);
         root.Children.Add(list);
-        AddTab(label, root);
+        return root;
+    }
+
+    private void FillDetailList(ListView list, string category, string query,
+        int state, DateTime? from, DateTime? until)
+    {
+        list.Items.Clear();
+        var term = query.Trim();
+        var details = _customer.Details.Where(item => item.Category == category)
+            .Where(item => term.Length == 0 || new[] { item.Title, item.Value, item.Notes }
+                .Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true))
+            .Where(item => state == 0 || (state == 2) == item.IsHistorical)
+            .Where(item => !from.HasValue || item.EffectiveFrom >= from || item.CreatedAtUtc.Date >= from)
+            .Where(item => !until.HasValue || item.EffectiveFrom <= until || item.CreatedAtUtc.Date <= until)
+            .OrderByDescending(item => item.CreatedAtUtc);
+        foreach (var item in details)
+            list.Items.Add(DetailListItem(item, item.Title, item.Value, item.Notes,
+                item.EffectiveFrom?.ToString("dd/MM/yyyy"), item.EffectiveUntil?.ToString("dd/MM/yyyy"),
+                item.IsHistorical ? "Ιστορικό" : "Ενεργό"));
+        var linked = _customer.BusinessRecords.Where(item => item.SectionKey == category)
+            .Where(item => term.Length == 0 || new[] { item.Title, item.Reference,
+                item.RelatedParty, item.Status, item.Notes }.Any(value =>
+                    value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true))
+            .Where(item => state != 2)
+            .Where(item => !from.HasValue || item.EventDate >= from || item.CreatedAtUtc.Date >= from)
+            .Where(item => !until.HasValue || item.EventDate <= until || item.CreatedAtUtc.Date <= until)
+            .OrderByDescending(item => item.CreatedAtUtc);
+        foreach (var item in linked)
+            list.Items.Add(DetailListItem(item, item.Title, item.Reference,
+                item.RelatedParty ?? item.Notes, item.EventDate?.ToString("dd/MM/yyyy"),
+                null, item.Status));
+    }
+
+    private static DateTime? ParseFilterDate(string value) =>
+        DateTime.TryParseExact(value.Trim(), "dd/MM/yyyy", CultureInfo.GetCultureInfo("el-GR"),
+            DateTimeStyles.None, out var date) ? date : null;
+
+    private static ListViewItem DetailListItem(object source, params string?[] cells)
+    {
+        var row = new Grid { ColumnSpacing = 8, Padding = new Thickness(6, 8, 6, 8) };
+        foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
+        for (var index = 0; index < cells.Length; index++)
+        {
+            var text = new TextBlock { Text = cells[index] ?? "—", TextTrimming = TextTrimming.CharacterEllipsis };
+            Grid.SetColumn(text, index);
+            row.Children.Add(text);
+        }
+        return new ListViewItem { Content = row, Tag = source };
     }
 
     private async Task EditDetailAsync(string category, CustomerDetail? existing)
     {
         if (!await EnsureSavedAsync()) return;
-        var title = new TextBox { Header = "Τίτλος *", PlaceholderText = category == "vehicles" ? "Πινακίδα" : "Περιγραφή",
+        var title = new TextBox { Header = RequiredHeader.Create("Τίτλος"), PlaceholderText = category == "vehicles" ? "Πινακίδα" : "Περιγραφή",
             Text = existing?.Title ?? "" };
         var value = new TextBox { Header = "Τιμή / αριθμός / στοιχεία", Text = existing?.Value ?? "" };
         var notes = new TextBox { Header = "Σημειώσεις", AcceptsReturn = true, Height = 90,
@@ -373,7 +357,7 @@ public sealed class CustomerCardWindow : Window
             SelectTab(category);
             _status.Text = "Το στοιχείο αποθηκεύτηκε.";
         }
-        catch (Exception exception) { _status.Text = exception.Message; }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
     private async Task DeleteDetailAsync(string category)
@@ -381,7 +365,7 @@ public sealed class CustomerCardWindow : Window
         var detail = GetSelectedDetail(category);
         if (detail is null)
         {
-            _status.Text = "Επιλέξτε στοιχείο.";
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε στοιχείο.");
             return;
         }
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot, Title = "Διαγραφή στοιχείου",
@@ -396,7 +380,7 @@ public sealed class CustomerCardWindow : Window
             SelectTab(category);
             _status.Text = "Το στοιχείο διαγράφηκε.";
         }
-        catch (Exception exception) { _status.Text = exception.Message; }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
     private async Task AddFileAsync()
@@ -415,43 +399,40 @@ public sealed class CustomerCardWindow : Window
             SelectTab("files");
             _status.Text = "Το αρχείο επισυνάφθηκε.";
         }
-        catch (Exception exception) { _status.Text = exception.Message; }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
-    private Task OpenSelectedFileAsync()
+    private async Task OpenSelectedFileAsync()
     {
         var file = GetSelectedDetail("files");
         if (file is null)
         {
-            _status.Text = "Επιλέξτε αρχείο.";
-            return Task.CompletedTask;
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε αρχείο.");
+            return;
         }
         try
         {
             Process.Start(new ProcessStartInfo(_service.GetFilePath(file)) { UseShellExecute = true });
         }
-        catch (Exception exception) { _status.Text = exception.Message; }
-        return Task.CompletedTask;
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
     private CustomerDetail? GetSelectedDetail(string category) =>
-        _tabs.TabItems.OfType<TabViewItem>().Select(item => item.Content)
-            .OfType<ScrollViewer>().Select(view => view.Content).OfType<Grid>()
-            .SelectMany(grid => grid.Children.OfType<ListView>())
-            .FirstOrDefault(view => view.Tag is string tag && tag == category)?
-            .SelectedItem is DetailRow row ? row.Detail : null;
+        _detailLists.TryGetValue(category, out var list) &&
+        list.SelectedItem is ListViewItem { Tag: CustomerDetail detail } ? detail : null;
 
     private void SelectTab(string category)
     {
-        var labels = new[] { "policies", "vehicles", "boats", "claims", "phones", "addresses",
-            "emails", "persons", "other", "files" };
-        _tabs.SelectedIndex = Array.IndexOf(labels, category) + 2;
+        _tabs.SelectedIndex = category switch { "policies" => 2, "vehicles" => 3, _ => 5 };
+        if (_tabs.SelectedIndex == 5 && _historyChoice is not null)
+            _historyChoice.SelectedItem = _historyChoice.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(item => item.Tag is string key && key == category);
     }
 
     private async Task AddTransactionAsync(string type)
     {
         if (!await EnsureSavedAsync()) return;
-        var amount = new TextBox { Header = "Ποσό (€) *" };
+        var amount = new TextBox { Header = RequiredHeader.Create("Ποσό (€)") };
         var description = new TextBox { Header = "Αιτιολογία" };
         var form = new StackPanel { Spacing = 12, Width = 360 };
         form.Children.Add(amount);
@@ -467,7 +448,7 @@ public sealed class CustomerCardWindow : Window
             BuildTabs();
             _status.Text = $"Η κίνηση καταχωρίστηκε. Νέο υπόλοιπο: {CustomerService.Balance(_customer):N2} €";
         }
-        catch (Exception exception) { _status.Text = exception.Message; }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
     private async Task ShowCustomerStatisticsAsync()
@@ -509,34 +490,45 @@ public sealed class CustomerCardWindow : Window
         }
         catch (Exception exception)
         {
-            _status.Text = exception.Message;
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message);
             return false;
         }
     }
 
     private void AddTab(string header, UIElement content)
     {
-        _tabs.TabItems.Add(new TabViewItem { Header = header,
+        var icon = header switch
+        {
+            "Καρτέλα πελάτη" => "user-round",
+            "Λοιπά" => "settings-2",
+            "Συμβόλαια" => "file-text",
+            "Οχήματα" => "car-front",
+            "Οικονομικά" => "chart-no-axes-combined",
+            _ => "clock-3"
+        };
+        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
+        label.Children.Add(new Image { Source = new SvgImageSource(new Uri(
+            $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 17, Height = 17 });
+        label.Children.Add(new TextBlock { Text = header, VerticalAlignment = VerticalAlignment.Center });
+        _tabs.TabItems.Add(new TabViewItem { Header = label, IsClosable = false,
             Content = new ScrollViewer { Content = content,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto } });
     }
 
-    private static StackPanel CreateForm() => new() { Spacing = 12, Margin = new Thickness(24, 16, 24, 24),
-        MaxWidth = 820, HorizontalAlignment = HorizontalAlignment.Left };
-
     private static void AddHeading(StackPanel form, string title) => form.Children.Add(new TextBlock
     {
-        Text = title, FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-        Margin = new Thickness(0, 12, 0, 2)
+        Text = title, FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        Margin = new Thickness(0, 2, 0, 2)
     });
 
     private void AddText(StackPanel form, string label, Func<string?> getter,
         Action<string?> setter, bool multiline = false)
     {
-        var input = new TextBox { Text = getter() ?? "",
+        var input = new TextBox { Text = getter() ?? "", MinHeight = multiline ? 72 : 28,
+            Height = multiline ? 72 : 28, FontSize = 13,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            AcceptsReturn = multiline, Height = multiline ? 110 : double.NaN,
+            AcceptsReturn = multiline,
             TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
             IsReadOnly = !_editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
@@ -544,18 +536,21 @@ public sealed class CustomerCardWindow : Window
         _readFields.Add(() => setter(input.Text.Trim()));
     }
 
-    private void AddBool(StackPanel form, string label, Func<bool> getter, Action<bool> setter)
+    private CheckBox AddBool(StackPanel form, string label, Func<bool> getter, Action<bool> setter)
     {
-        var input = new CheckBox { IsChecked = getter(), IsEnabled = _editing };
+        var input = new CheckBox { IsChecked = getter(), IsEnabled = _editing,
+            MinHeight = 28, Height = 28 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
         _readFields.Add(() => setter(input.IsChecked == true));
+        return input;
     }
 
     private void AddChoice(StackPanel form, string label, Func<string> getter,
         Action<string> setter, string[] options)
     {
         var input = new ComboBox { ItemsSource = options, IsEnabled = _editing,
+            MinHeight = 28, Height = 28,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             SelectedItem = options.Contains(getter()) ? getter() : options[0] };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
@@ -565,7 +560,7 @@ public sealed class CustomerCardWindow : Window
 
     private void AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)
     {
-        var input = new TextBox { PlaceholderText = "ηη/μμ/εεεε",
+        var input = new TextBox { PlaceholderText = "ηη/μμ/εεεε", MinHeight = 28, Height = 28,
             Text = getter()?.ToString("dd/MM/yyyy") ?? "",
             IsReadOnly = !_editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
@@ -576,10 +571,17 @@ public sealed class CustomerCardWindow : Window
     private static Grid CreateFieldRow(string label, FrameworkElement input)
     {
         var row = new Grid { ColumnSpacing = 10 };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(165) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(145) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        row.Children.Add(new TextBlock { Text = label, FontSize = 13,
-            TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
+        var required = label.EndsWith('*');
+        var caption = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2,
+            VerticalAlignment = VerticalAlignment.Center };
+        caption.Children.Add(new TextBlock { Text = required ? label[..^1].TrimEnd() : label,
+            FontSize = 12, TextWrapping = TextWrapping.Wrap });
+        if (required) caption.Children.Add(new TextBlock { Text = "*", FontSize = 14,
+            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 38, 38)) });
+        row.Children.Add(caption);
         Grid.SetColumn(input, 1);
         row.Children.Add(input);
         return row;
@@ -609,14 +611,6 @@ public sealed class CustomerCardWindow : Window
         panel.Children.Add(button);
     }
 
-    private static void AddDeferredButton(Panel panel, string label)
-    {
-        var button = new ActionButton { Label = label, Kind = "File", Width = 180,
-            IsEnabled = false, Opacity = 0.6 };
-        ToolTipService.SetToolTip(button, "Διαθέσιμο σε επόμενη φάση με το εγκεκριμένο υπόδειγμα.");
-        panel.Children.Add(button);
-    }
-
     private static string ActionKind(string label) => label switch
     {
         "Γενική είσπραξη" => "Receipt",
@@ -631,14 +625,4 @@ public sealed class CustomerCardWindow : Window
         _ => "Open"
     };
 
-    private sealed record DetailRow(CustomerDetail Detail)
-    {
-        public override string ToString() => $"{Detail.Title} — {Detail.Value}" +
-            (Detail.IsHistorical ? " · Ιστορικό" : "");
-    }
-
-    private sealed record LinkedRecordRow(BusinessRecord Record)
-    {
-        public override string ToString() => $"{Record.Title} — {Record.Reference} · Από την ενότητα";
-    }
 }

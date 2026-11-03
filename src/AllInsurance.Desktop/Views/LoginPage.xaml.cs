@@ -1,4 +1,5 @@
 using AllInsurance.Desktop.ViewModels;
+using AllInsurance.Desktop.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -16,6 +17,7 @@ public sealed partial class LoginPage : Page
         InitializeComponent();
         ViewModel = App.Services.GetRequiredService<LoginViewModel>();
         DataContext = ViewModel;
+        Loaded += (_, _) => ButtonMotion.AttachTree(this);
     }
 
     private void PasswordChanged(object sender, RoutedEventArgs e) => ViewModel.Password = PasswordInput.Password;

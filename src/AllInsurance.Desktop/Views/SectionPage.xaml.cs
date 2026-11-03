@@ -122,7 +122,7 @@ public sealed partial class SectionPage : Page
     private async void Edit_Click(object sender, RoutedEventArgs e)
     {
         if (RecordsList.SelectedItem is BusinessRecordRow row) await EditRecordAsync(row.Record);
-        else StatusText.Text = "Επιλέξτε εγγραφή από τον πίνακα.";
+        else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
     }
     private async void Record_ItemClick(object sender, ItemClickEventArgs e)
     {
@@ -133,8 +133,8 @@ public sealed partial class SectionPage : Page
     {
         var record = existing is null ? new BusinessRecord { SectionKey = _section.Key, Title = "" } :
             await _records.GetAsync(existing.Id);
-        if (record is null) { StatusText.Text = "Η εγγραφή δεν υπάρχει."; return; }
-        var title = new TextBox { Header = _section.Columns[0] + " *", Text = record.Title };
+        if (record is null) { await UiAlerts.ShowErrorAsync(XamlRoot, "Η εγγραφή δεν υπάρχει."); return; }
+        var title = new TextBox { Header = RequiredHeader.Create(_section.Columns[0]), Text = record.Title };
         var reference = new TextBox { Header = "Κωδικός / αριθμός", Text = record.Reference ?? "" };
         var party = new TextBox { Header = _section.Columns.Length > 1 ? _section.Columns[1] : "Σχετικό πρόσωπο",
             Text = record.RelatedParty ?? "" };
@@ -173,14 +173,14 @@ public sealed partial class SectionPage : Page
             await RefreshAsync();
             StatusText.Text = "Η εγγραφή αποθηκεύτηκε.";
         }
-        catch (Exception exception) { StatusText.Text = exception.Message; }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
     {
         if (RecordsList.SelectedItem is not BusinessRecordRow row)
         {
-            StatusText.Text = "Επιλέξτε εγγραφή από τον πίνακα.";
+            await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
             return;
         }
         var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Διαγραφή εγγραφής",
@@ -192,7 +192,7 @@ public sealed partial class SectionPage : Page
             await _records.DeleteAsync(row.Record.Id);
             await RefreshAsync();
         }
-        catch (Exception exception) { StatusText.Text = exception.Message; }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
     private async void Statistics_Click(object sender, RoutedEventArgs e)

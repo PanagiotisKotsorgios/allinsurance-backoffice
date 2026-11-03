@@ -1,0 +1,58 @@
+<Page
+    x:Class="AllInsurance.Desktop.Views.FilterOptionsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:AllInsurance.Desktop.Controls"
+    Background="{ThemeResource PageBackgroundBrush}">
+    <ScrollViewer SizeChanged="Scroller_SizeChanged" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="PageContent" MaxWidth="1100" Margin="24" Spacing="16"
+                    HorizontalAlignment="Center">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="24">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Παραμετροποίηση φίλτρων εφαρμογής" FontSize="28" FontWeight="SemiBold" />
+                    <TextBlock Text="Προσθέστε, επεξεργαστείτε ή εισαγάγετε τιμές για πόλεις, κλάδους, καλύψεις και άλλες λίστες. Οι συνεργάτες και οι πελάτες προκύπτουν από τις καταχωρήσεις τους."
+                               TextWrapping="Wrap" Foreground="{ThemeResource SecondaryTextBrush}" />
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Κατηγορία" FontSize="18" FontWeight="SemiBold" />
+                    <ComboBox x:Name="CategoryChoice" MinWidth="240" SelectionChanged="Category_Changed" />
+                    <TextBox x:Name="CustomCategory" Header="Ή νέα κατηγορία" PlaceholderText="π.χ. Τύποι κάλυψης" MaxLength="80"
+                             TextChanged="CustomCategory_Changed" />
+                    <TextBox x:Name="ValueInput" PlaceholderText="π.χ. Μεσολόγγι" MaxLength="160">
+                        <TextBox.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="3">
+                                <TextBlock Text="Τιμή" />
+                                <TextBlock Text="*" Foreground="#FFDC2626" FontWeight="Bold" />
+                            </StackPanel>
+                        </TextBox.Header>
+                    </TextBox>
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="195" ItemHeight="50">
+                        <controls:ActionButton Kind="Add" Label="Προσθήκη" Width="185" Click="Add_Click" />
+                        <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="185" Click="Edit_Click" />
+                        <controls:ActionButton Kind="Delete" Label="Διαγραφή" Width="185" Click="Delete_Click" />
+                        <controls:ActionButton Kind="Refresh" Label="Ανανέωση" Width="185" Click="Refresh_Click" />
+                    </VariableSizedWrapGrid>
+                    <ListView x:Name="OptionsList" Height="220" SelectionMode="Single"
+                              SelectionChanged="Options_SelectionChanged" />
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Μαζική εισαγωγή" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="Μία τιμή ανά γραμμή ή τιμές χωρισμένες με κόμμα ή ελληνικό ερωτηματικό. Οι διπλές τιμές αγνοούνται."
+                               TextWrapping="Wrap" Foreground="{ThemeResource SecondaryTextBrush}" />
+                    <TextBox x:Name="BulkInput" AcceptsReturn="True" TextWrapping="Wrap" Height="130"
+                             PlaceholderText="Αθήνα&#10;Θεσσαλονίκη&#10;Πάτρα" />
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="245" ItemHeight="50">
+                        <controls:ActionButton Kind="Upload" Label="Εισαγωγή κειμένου" Width="235" Click="ImportText_Click" />
+                        <controls:ActionButton Kind="Upload" Label="Εισαγωγή αρχείου" Width="235" Click="ImportFile_Click" />
+                        <controls:ActionButton Kind="Add" Label="Ελληνικοί οικισμοί" Width="235" Click="ImportGreekCities_Click" />
+                    </VariableSizedWrapGrid>
+                    <TextBlock x:Name="StatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

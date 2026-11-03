@@ -1,4 +1,5 @@
 using AllInsurance.Desktop.ViewModels;
+using AllInsurance.Desktop.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -14,6 +15,7 @@ public sealed partial class ForgotPasswordPage : Page
         InitializeComponent();
         ViewModel = App.Services.GetRequiredService<ForgotPasswordViewModel>();
         DataContext = ViewModel;
+        Loaded += (_, _) => ButtonMotion.AttachTree(this);
     }
 
     private void RecoveryCodeChanged(object sender, RoutedEventArgs e) =>

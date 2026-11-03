@@ -13,6 +13,7 @@ public sealed record CustomerListItem(
     public string StatusLabel => IsActive ? "Ενεργός" : "Ανενεργός";
     public string BalanceDisplay => $"{Balance:N2} €";
     public string CreatedDisplay => CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy");
+    public string SearchText { get; init; } = "";
 }
 
 public sealed record CustomerStatistics(

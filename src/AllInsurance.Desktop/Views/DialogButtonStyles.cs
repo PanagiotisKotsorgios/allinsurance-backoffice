@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using AllInsurance.Desktop.Controls;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -12,6 +13,7 @@ internal static class DialogButtonStyles
             ? "DialogDangerButtonStyle" : "DialogConfirmButtonStyle"];
         dialog.SecondaryButtonStyle = (Style)resources["DialogDangerButtonStyle"];
         dialog.CloseButtonStyle = (Style)resources["DialogCloseButtonStyle"];
+        dialog.Loaded += (_, _) => ButtonMotion.AttachTree(dialog);
         return await dialog.ShowAsync();
     }
 }

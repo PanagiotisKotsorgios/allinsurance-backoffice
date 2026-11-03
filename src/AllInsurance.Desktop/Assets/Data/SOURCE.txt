@@ -1,0 +1,8 @@
+Greek settlement names in greek-settlements.txt are derived from the GeoNames Greece
+country dump (GR.zip), downloaded 2026-11-03 from
+https://download.geonames.org/export/dump/GR.zip .
+GeoNames data is licensed under Creative Commons Attribution 4.0:
+https://creativecommons.org/licenses/by/4.0/ .
+Only populated-place (feature class P) rows with a Greek-script alternate name
+are included; duplicate names are combined. The file is an import option, not
+an authoritative administrative register.

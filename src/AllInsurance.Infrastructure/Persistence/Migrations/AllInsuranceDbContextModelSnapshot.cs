@@ -104,6 +104,10 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<string>("BirthPlace")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("BusinessActivityCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("BusinessEmail")
                         .HasColumnType("TEXT");
 
@@ -132,6 +136,10 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<string>("DiscountDocumentDescription")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Employer")
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("FatherName")
                         .HasColumnType("TEXT");
 
@@ -153,13 +161,24 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<bool>("HasDiscountDocument")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("HasDrivingLicense")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("HasPersonalInsurance")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("HomePhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("IdentityNumber")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("IdentityType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InsuranceRegistry")
+                        .HasMaxLength(80)
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsActive")
@@ -168,12 +187,19 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDriver")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsNewDriver")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsReferral")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LegalForm")
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("LicenseCategory")
@@ -188,7 +214,14 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("LicenseStartDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("MaritalStatus")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("MotherName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("NameDay")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Nationality")
@@ -205,6 +238,14 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PartnerName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PassportNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhotoUrl")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PostalCode")
@@ -233,11 +274,27 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<string>("SecondEmail")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SecondMobile")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SecondPhone")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SocialSecurityNumber")
                         .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpouseName")
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tags")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("TaxNumber")
@@ -254,6 +311,10 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Zone")
+                        .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -348,6 +409,33 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.HasIndex("CustomerId", "OccurredAtUtc");
 
                     b.ToTable("CustomerTransactions", (string)null);
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.FilterOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category", "Value")
+                        .IsUnique();
+
+                    b.ToTable("FilterOptions", (string)null);
                 });
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.RecoveryCode", b =>

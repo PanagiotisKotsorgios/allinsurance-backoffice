@@ -17,6 +17,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<CustomerDetail> CustomerDetails => Set<CustomerDetail>();
     public DbSet<CustomerTransaction> CustomerTransactions => Set<CustomerTransaction>();
     public DbSet<BusinessRecord> BusinessRecords => Set<BusinessRecord>();
+    public DbSet<FilterOption> FilterOptions => Set<FilterOption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -132,6 +133,19 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(customer => customer.PostalCode).HasMaxLength(20);
             entity.Property(customer => customer.Gender).HasMaxLength(40);
             entity.Property(customer => customer.SocialSecurityNumber).HasMaxLength(20);
+            entity.Property(customer => customer.MaritalStatus).HasMaxLength(80);
+            entity.Property(customer => customer.SpouseName).HasMaxLength(160);
+            entity.Property(customer => customer.HomePhone).HasMaxLength(40);
+            entity.Property(customer => customer.SecondMobile).HasMaxLength(40);
+            entity.Property(customer => customer.InsuranceRegistry).HasMaxLength(80);
+            entity.Property(customer => customer.LegalForm).HasMaxLength(100);
+            entity.Property(customer => customer.BusinessActivityCode).HasMaxLength(80);
+            entity.Property(customer => customer.Employer).HasMaxLength(160);
+            entity.Property(customer => customer.Source).HasMaxLength(160);
+            entity.Property(customer => customer.Tags).HasMaxLength(500);
+            entity.Property(customer => customer.PhotoUrl).HasMaxLength(500);
+            entity.Property(customer => customer.PassportNumber).HasMaxLength(50);
+            entity.Property(customer => customer.Zone).HasMaxLength(120);
             entity.Property(customer => customer.PrimaryMobile).HasMaxLength(40);
             entity.Property(customer => customer.PrimaryEmail).HasMaxLength(254);
             entity.Property(customer => customer.TaxNumber).HasMaxLength(9);
@@ -182,6 +196,15 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.HasIndex(record => record.CustomerId);
             entity.HasOne(record => record.Customer).WithMany(customer => customer.BusinessRecords)
                 .HasForeignKey(record => record.CustomerId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<FilterOption>(entity =>
+        {
+            entity.ToTable("FilterOptions");
+            entity.HasKey(option => option.Id);
+            entity.Property(option => option.Category).IsRequired().HasMaxLength(80);
+            entity.Property(option => option.Value).IsRequired().HasMaxLength(160);
+            entity.HasIndex(option => new { option.Category, option.Value }).IsUnique();
         });
     }
 }

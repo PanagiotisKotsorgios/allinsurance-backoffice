@@ -168,6 +168,7 @@ public sealed partial class WorkspacePage : Page
     {
         if (UsersMenuItem.IsEnabled)
         {
+            MainNavigation.SelectedItem = null;
             SectionHost.Content = new UserManagementPage();
         }
     }
@@ -176,17 +177,20 @@ public sealed partial class WorkspacePage : Page
     {
         if (AuditMenuItem.IsEnabled)
         {
+            MainNavigation.SelectedItem = null;
             SectionHost.Content = new AuditLogPage();
         }
     }
 
-    private void ShowSettings() => SectionHost.Content = new SettingsPage();
-    private void ShowShortcuts() => SectionHost.Content = new ShortcutsPage();
+    private void ShowSettings() { MainNavigation.SelectedItem = null; SectionHost.Content = new SettingsPage(); }
+    private void ShowFilterOptions() { MainNavigation.SelectedItem = null; SectionHost.Content = new FilterOptionsPage(); }
+    private void ShowShortcuts() { MainNavigation.SelectedItem = null; SectionHost.Content = new ShortcutsPage(); }
 
     private void Users_Click(object sender, RoutedEventArgs e) => ShowUsers();
 
     private void Audit_Click(object sender, RoutedEventArgs e) => ShowAudit();
     private void Settings_Click(object sender, RoutedEventArgs e) => ShowSettings();
+    private void FilterOptions_Click(object sender, RoutedEventArgs e) => ShowFilterOptions();
     private void Shortcuts_Click(object sender, RoutedEventArgs e) => ShowShortcuts();
 
     private async void Guide_Click(object sender, RoutedEventArgs e) => await ShowInformationAsync(

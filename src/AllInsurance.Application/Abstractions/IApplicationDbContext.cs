@@ -17,6 +17,7 @@ public interface IApplicationDbContext : IAsyncDisposable
     DbSet<CustomerDetail> CustomerDetails { get; }
     DbSet<CustomerTransaction> CustomerTransactions { get; }
     DbSet<BusinessRecord> BusinessRecords { get; }
+    DbSet<FilterOption> FilterOptions { get; }
     DatabaseFacade Database { get; }
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

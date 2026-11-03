@@ -23,6 +23,22 @@ public sealed class Customer
     public string? SocialSecurityNumber { get; set; }
     public string? FatherName { get; set; }
     public string? MotherName { get; set; }
+    public string? MaritalStatus { get; set; }
+    public string? SpouseName { get; set; }
+    public string? HomePhone { get; set; }
+    public string? SecondMobile { get; set; }
+    public string? InsuranceRegistry { get; set; }
+    public string? LegalForm { get; set; }
+    public string? BusinessActivityCode { get; set; }
+    public string? Employer { get; set; }
+    public string? Source { get; set; }
+    public string? Tags { get; set; }
+    public string? PhotoUrl { get; set; }
+    public string? PassportNumber { get; set; }
+    public string? Zone { get; set; }
+    public bool HasDrivingLicense { get; set; }
+    public bool IsNewDriver { get; set; }
+    public DateTime? NameDay { get; set; }
     public bool HasPersonalInsurance { get; set; }
     public string? GroupName { get; set; }
     public decimal OpeningBalance { get; set; }

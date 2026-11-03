@@ -28,39 +28,18 @@
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
                     <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
-                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="54">
-                        <TextBox x:Name="SearchInput" Width="210"
-                                 PlaceholderText="Όνομα, ΑΦΜ, τηλέφωνο, email"
-                                 TextChanged="Filter_Changed" />
-                        <ComboBox x:Name="StatusFilter" Width="210" SelectionChanged="Filter_Changed">
-                            <ComboBoxItem Content="Όλες οι καταστάσεις" />
-                            <ComboBoxItem Content="Ενεργοί" />
-                            <ComboBoxItem Content="Ανενεργοί" />
-                        </ComboBox>
-                        <ComboBox x:Name="BalanceFilter" Width="210" SelectionChanged="Filter_Changed">
-                            <ComboBoxItem Content="Όλα τα υπόλοιπα" />
-                            <ComboBoxItem Content="Χρεωστικό" />
-                            <ComboBoxItem Content="Πιστωτικό" />
-                            <ComboBoxItem Content="Μηδενικό" />
-                        </ComboBox>
-                        <ComboBox x:Name="OwnershipFilter" Width="210" SelectionChanged="Filter_Changed">
-                            <ComboBoxItem Content="Όλοι οι πελάτες" />
-                            <ComboBoxItem Content="Στο γραφείο" />
-                            <ComboBoxItem Content="Σε συνεργάτη" />
-                        </ComboBox>
-                        <ComboBox x:Name="KindFilter" Width="210" SelectionChanged="Filter_Changed">
-                            <ComboBoxItem Content="Όλοι οι τύποι" />
-                            <ComboBoxItem Content="Φυσικό πρόσωπο" />
-                            <ComboBoxItem Content="Επιχείρηση" />
-                        </ComboBox>
-                        <ComboBox x:Name="CityFilter" Width="210" PlaceholderText="Όλες οι πόλεις"
-                                  SelectionChanged="Filter_Changed" />
-                        <ComboBox x:Name="PartnerFilter" Width="210" PlaceholderText="Όλοι οι συνεργάτες"
-                                  SelectionChanged="Filter_Changed" />
-                        <TextBox x:Name="GroupFilter" Width="210"
-                                 PlaceholderText="Ομαδοποίηση" TextChanged="Filter_Changed" />
+                    <TextBox x:Name="SearchInput" Height="42" MinHeight="42"
+                             PlaceholderText="Αναζήτηση: π.χ. Βιλλίου, 123456789, C-000001, 693..., email ή πόλη"
+                             TextChanged="Filter_Changed" AutomationProperties.Name="Αναζήτηση πελατών" />
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="50">
+                        <controls:MultiSelectFilter x:Name="StatusFilter" Title="Κατάσταση" Width="210" Height="42" />
+                        <controls:MultiSelectFilter x:Name="BalanceFilter" Title="Υπόλοιπο" Width="210" Height="42" />
+                        <controls:MultiSelectFilter x:Name="OwnershipFilter" Title="Ιδιοκτησία" Width="210" Height="42" />
+                        <controls:MultiSelectFilter x:Name="KindFilter" Title="Είδος" Width="210" Height="42" />
+                        <controls:MultiSelectFilter x:Name="CityFilter" Title="Πόλη" Width="210" Height="42" />
+                        <controls:MultiSelectFilter x:Name="PartnerFilter" Title="Συνεργάτης" Width="210" Height="42" />
                         <controls:ActionButton Kind="Filter" Label="Καθαρισμός φίλτρων"
-                                               Width="210" Click="ClearFilters_Click" />
+                                               Width="210" Height="42" Click="ClearFilters_Click" />
                     </VariableSizedWrapGrid>
                 </StackPanel>
             </Border>
@@ -75,16 +54,24 @@
                                                Width="210" Click="Statistics_Click" />
                         <controls:ActionButton Kind="Refresh" Label="Ανανέωση"
                                                Width="210" Click="Refresh_Click" />
+                        <controls:ActionButton Kind="Choice" Label="Διαχείριση στηλών"
+                                               Width="210" Click="Columns_Click" />
                     </VariableSizedWrapGrid>
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Disabled">
-                        <StackPanel Width="1590">
+                        <StackPanel x:Name="TableStack" Width="1590">
                             <Border Background="{ThemeResource PageBackgroundBrush}" Padding="12,10"
                                     CornerRadius="8">
-                                <Grid ColumnDefinitions="125,130,155,155,180,100,220,145,140,100"
-                                      ColumnSpacing="12">
+                                <Grid x:Name="TableHeader" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="125" /><ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="155" /><ColumnDefinition Width="155" />
+                                        <ColumnDefinition Width="180" /><ColumnDefinition Width="100" />
+                                        <ColumnDefinition Width="220" /><ColumnDefinition Width="145" />
+                                        <ColumnDefinition Width="140" /><ColumnDefinition Width="100" />
+                                    </Grid.ColumnDefinitions>
                                     <TextBlock Text="Κωδικός" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="1" Text="Είδος" FontWeight="SemiBold" />
                                     <TextBlock Grid.Column="2" Text="Επώνυμο" FontWeight="SemiBold" />
@@ -101,26 +88,7 @@
                                       ItemClick="Customer_ItemClick" SelectionMode="Single"
                                       SelectionChanged="Customers_SelectionChanged"
                                       Height="460" AutomationProperties.Name="Πίνακας πελατών">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid ColumnDefinitions="125,130,155,155,180,100,220,145,140,100"
-                                              ColumnSpacing="12" Padding="8,9">
-                                            <TextBlock Text="{Binding Code}" FontWeight="SemiBold"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="1" Text="{Binding CustomerKind}" />
-                                            <TextBlock Grid.Column="2" Text="{Binding LastName}" />
-                                            <TextBlock Grid.Column="3" Text="{Binding FirstName}" />
-                                            <TextBlock Grid.Column="4" Text="{Binding CompanyName}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="5" Text="{Binding TaxNumber}" />
-                                            <TextBlock Grid.Column="6" Text="{Binding PrimaryEmail}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="7" Text="{Binding PrimaryMobile}" />
-                                            <TextBlock Grid.Column="8" Text="{Binding City}" />
-                                            <TextBlock Grid.Column="9" Text="{Binding BalanceDisplay}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
+
                             </ListView>
                         </StackPanel>
                     </ScrollViewer>

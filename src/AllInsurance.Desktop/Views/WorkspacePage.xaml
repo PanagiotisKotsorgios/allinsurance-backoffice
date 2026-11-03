@@ -29,6 +29,7 @@
                         <MenuBarItem Title="Ρυθμίσεις">
                             <MenuFlyoutItem Text="Ρυθμίσεις συστήματος" Click="Settings_Click" />
                             <MenuFlyoutItem Text="Διαχείριση συντομεύσεων" Click="Shortcuts_Click" />
+                            <MenuFlyoutItem Text="Παραμετροποίηση φίλτρων εφαρμογής" Click="FilterOptions_Click" />
                         </MenuBarItem>
                         <MenuBarItem Title="Βοήθεια">
                             <MenuFlyoutItem Text="Οδηγός χρήσης" Click="Guide_Click" />
