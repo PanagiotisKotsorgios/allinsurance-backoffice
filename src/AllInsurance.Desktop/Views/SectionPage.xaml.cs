@@ -160,7 +160,7 @@ public sealed partial class SectionPage : Page
     }
     private void RecordCheck_Changed(object sender, RoutedEventArgs e)
     {
-        if (_syncingChecks || sender is not CheckBox { Tag: Guid id } box) return;
+        if (_syncingChecks || sender is not VisibleSelectionCheckBox { Tag: Guid id } box) return;
         if (box.IsChecked == true) _checkedRecordIds.Add(id);
         else _checkedRecordIds.Remove(id);
         UpdateCheckedState();
@@ -248,7 +248,7 @@ public sealed partial class SectionPage : Page
         var current = source as DependencyObject;
         while (current is not null)
         {
-            if (current is CheckBox) return true;
+            if (current is VisibleSelectionCheckBox or CheckBox) return true;
             if (current is ListViewItem) return false;
             current = VisualTreeHelper.GetParent(current);
         }
@@ -318,7 +318,7 @@ public sealed partial class SectionPage : Page
         if (sender is not Grid grid) return;
         ApplyColumnOrder(grid);
         if (grid.DataContext is not BusinessRecordRow row ||
-            grid.Children[0] is not Border { Child: CheckBox check }) return;
+            grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
         _syncingChecks = true;
         check.IsChecked = _checkedRecordIds.Contains(row.Record.Id);
         _syncingChecks = false;

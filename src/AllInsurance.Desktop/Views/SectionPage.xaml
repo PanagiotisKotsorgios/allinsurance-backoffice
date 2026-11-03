@@ -61,7 +61,7 @@
                                     BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
                                     Padding="0">
                                 <Grid ColumnDefinitions="40,*">
-                                    <CheckBox x:Name="SelectAllRecords" VerticalAlignment="Center"
+                                    <controls:VisibleSelectionCheckBox x:Name="SelectAllRecords" VerticalAlignment="Center"
                                               HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των αποτελεσμάτων"
                                               Checked="SelectAllRecords_Changed" Unchecked="SelectAllRecords_Changed" />
                                 <Grid x:Name="RecordsHeader" Grid.Column="1" ColumnDefinitions="240,140,190,130,130,240,100"
@@ -84,7 +84,7 @@
                                         <Grid ColumnDefinitions="40,240,140,190,130,130,240,100" Loaded="RecordRow_Loaded"
                                               ColumnSpacing="0" Width="1210" Height="39">
                                             <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1">
-                                                <CheckBox Tag="{Binding Record.Id}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                <controls:VisibleSelectionCheckBox Tag="{Binding Record.Id}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                           Checked="RecordCheck_Changed" Unchecked="RecordCheck_Changed" />
                                             </Border>
                                             <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">

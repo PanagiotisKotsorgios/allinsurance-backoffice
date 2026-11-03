@@ -59,7 +59,7 @@
                                     BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
                                     CornerRadius="8">
                                 <Grid ColumnDefinitions="40,*">
-                                    <CheckBox x:Name="SelectAllCustomers" VerticalAlignment="Center"
+                                    <controls:VisibleSelectionCheckBox x:Name="SelectAllCustomers" VerticalAlignment="Center"
                                               HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των αποτελεσμάτων"
                                               Checked="SelectAllCustomers_Changed" Unchecked="SelectAllCustomers_Changed" />
                                 <Grid x:Name="TableHeader" Grid.Column="1" ColumnSpacing="0">

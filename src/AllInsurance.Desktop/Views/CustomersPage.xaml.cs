@@ -148,7 +148,7 @@ public sealed partial class CustomersPage : Page
     }
     private void CustomerCheck_Changed(object sender, RoutedEventArgs e)
     {
-        if (sender is not CheckBox { Tag: Guid id } box) return;
+        if (sender is not VisibleSelectionCheckBox { Tag: Guid id } box) return;
         if (box.IsChecked == true) _checkedCustomerIds.Add(id);
         else _checkedCustomerIds.Remove(id);
         UpdateCheckedState();
@@ -184,7 +184,7 @@ public sealed partial class CustomersPage : Page
         var current = source as DependencyObject;
         while (current is not null)
         {
-            if (current is CheckBox) return true;
+            if (current is VisibleSelectionCheckBox or CheckBox) return true;
             if (current is ListViewItem) return false;
             current = VisualTreeHelper.GetParent(current);
         }
@@ -221,7 +221,8 @@ public sealed partial class CustomersPage : Page
     {
         var row = new Grid { ColumnSpacing = 0, Width = TableStack.Width - 2, Height = 39 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-        var check = new CheckBox { Tag = item.Id, IsChecked = _checkedCustomerIds.Contains(item.Id),
+        var check = new VisibleSelectionCheckBox { Tag = item.Id,
+            IsChecked = _checkedCustomerIds.Contains(item.Id),
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         check.Checked += CustomerCheck_Changed;
         check.Unchecked += CustomerCheck_Changed;
