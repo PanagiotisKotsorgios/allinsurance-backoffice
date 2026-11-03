@@ -137,6 +137,9 @@ public sealed class CustomerFlowTests
         var stale = (await service.GetAsync(id))!;
         first.PrimaryMobile = "6900000000";
         await service.SaveAsync(first);
+        Assert.Contains(await service.GetActivitiesAsync(id), item =>
+            item.Action == "Επεξεργασία πελάτη" &&
+            item.Description.Contains("κινητό") && item.Description.Contains("6900000000"));
         stale.PrimaryMobile = "6900000001";
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveAsync(stale));
     }

@@ -1,5 +1,6 @@
 using AllInsurance.Application.Abstractions;
 using AllInsurance.Application.Authorization;
+using AllInsurance.Application.Customers;
 using AllInsurance.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,10 +50,23 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         record.RelatedParty = Normalize(record.RelatedParty, 200);
         record.Status = Normalize(record.Status, 100);
         record.Notes = Normalize(record.Notes, 2000);
+        record.DocumentType = Normalize(record.DocumentType, 40);
+        record.DetailsJson = Normalize(record.DetailsJson, 12000);
+        if (record.SectionKey == "policies" && record.DocumentType is not null &&
+            record.DocumentType is not ("Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο"))
+            throw new ArgumentException("Μη έγκυρος τύπος εγγράφου ασφάλισης.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         if (record.CustomerId is Guid customerId &&
             !await db.Customers.AnyAsync(customer => customer.Id == customerId, cancellationToken))
             throw new ArgumentException("Ο συνδεδεμένος πελάτης δεν υπάρχει.");
+        if (record.SectionKey == "policies")
+        {
+            var vehicleId = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson).VehicleId;
+            if (vehicleId is Guid id && !await db.BusinessRecords.AnyAsync(item =>
+                item.Id == id && item.SectionKey == "vehicles" && item.CustomerId == record.CustomerId,
+                cancellationToken))
+                throw new ArgumentException("Το όχημα πρέπει να ανήκει στον ίδιο πελάτη.");
+        }
         var now = DateTime.UtcNow;
         if (record.Id == Guid.Empty)
         {
@@ -61,6 +75,11 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
             record.UpdatedAtUtc = now;
             record.CreatedByUserId = session.Current!.UserId;
             db.BusinessRecords.Add(record);
+            if (record.CustomerId is Guid activityCustomerId)
+                CustomerActivityLog.Add(db, activityCustomerId, "Προσθήκη " +
+                    (record.SectionKey == "policies" ? record.DocumentType ?? "ασφαλιστηρίου" :
+                     record.SectionKey == "vehicles" ? "οχήματος" : "εγγραφής"),
+                    $"Καταχωρίστηκε {record.Title}.", session.Current!.DisplayName);
         }
         else
         {
@@ -72,7 +91,28 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
                 throw new InvalidOperationException("Η εγγραφή έχει αλλάξει. Ανοίξτε την ξανά.");
             var created = existing.CreatedAtUtc;
             var creator = existing.CreatedByUserId;
+            var previousType = existing.DocumentType;
+            var previousCustomerId = existing.CustomerId;
+            var changes = new List<string>();
+            if (existing.Title != record.Title) changes.Add($"Αριθμός: {existing.Title} → {record.Title}");
+            if (existing.Status != record.Status)
+                changes.Add($"Κατάσταση: {existing.Status ?? "—"} → {record.Status ?? "—"}");
+            if (existing.DocumentType != record.DocumentType)
+                changes.Add($"Τύπος: {existing.DocumentType ?? "—"} → {record.DocumentType ?? "—"}");
+            if (existing.DetailsJson != record.DetailsJson) changes.Add("Ενημερώθηκαν τα αναλυτικά στοιχεία.");
+            if (existing.Notes != record.Notes) changes.Add("Ενημερώθηκαν οι σημειώσεις.");
             db.Entry(existing).CurrentValues.SetValues(record);
+            if (previousCustomerId is Guid previousOwnerId && previousCustomerId != record.CustomerId)
+                CustomerActivityLog.Add(db, previousOwnerId, "Αλλαγή σύνδεσης εγγραφής",
+                    $"Η εγγραφή {record.Title} αποσυνδέθηκε από τον πελάτη.", session.Current!.DisplayName);
+            if (record.CustomerId is Guid activityCustomerId)
+                CustomerActivityLog.Add(db, activityCustomerId, "Επεξεργασία εγγραφής",
+                    (previousType is "Αίτηση" or "Ειδοποιητήριο") &&
+                    record.DocumentType == "Ασφαλιστήριο"
+                        ? $"Η αίτηση {record.Title} μετατράπηκε σε ασφαλιστήριο."
+                        : $"Ενημερώθηκε η εγγραφή {record.Title}. " +
+                            string.Join(" ", changes),
+                    session.Current!.DisplayName);
             existing.CreatedAtUtc = created;
             existing.CreatedByUserId = creator;
             existing.UpdatedAtUtc = now;
@@ -87,6 +127,20 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var record = await db.BusinessRecords.SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
             ?? throw new InvalidOperationException("Η εγγραφή δεν υπάρχει.");
+        if (record.SectionKey == "policies" &&
+            await db.CustomerTransactions.AnyAsync(item => item.BusinessRecordId == id, cancellationToken))
+            throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένες οικονομικές κινήσεις και δεν μπορεί να διαγραφεί.");
+        if (record.SectionKey == "vehicles")
+        {
+            var policies = await db.BusinessRecords.AsNoTracking()
+                .Where(item => item.SectionKey == "policies" && item.DetailsJson != null)
+                .Select(item => item.DetailsJson).ToListAsync(cancellationToken);
+            if (policies.Any(json => BusinessRecordDetails.Read<PolicyCardData>(json).VehicleId == id))
+                throw new InvalidOperationException("Το όχημα συνδέεται με αίτηση ή ασφαλιστήριο και δεν μπορεί να διαγραφεί.");
+        }
+        if (record.CustomerId is Guid customerId)
+            CustomerActivityLog.Add(db, customerId, "Διαγραφή εγγραφής",
+                $"Διαγράφηκε η εγγραφή {record.Title}.", session.Current!.DisplayName);
         db.BusinessRecords.Remove(record);
         await db.SaveChangesAsync(cancellationToken);
     }

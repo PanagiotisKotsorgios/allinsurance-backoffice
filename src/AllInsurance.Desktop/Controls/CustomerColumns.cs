@@ -52,7 +52,7 @@ public static class CustomerColumns
         return All.Select(item => item.Key).ToArray();
     }
 
-    public static bool IsVisible(string key) => _visible.Contains(key);
+    public static bool IsVisible(string key) => key == "Mobile" || _visible.Contains(key);
     public static double WidthValue(string key) => _widths.TryGetValue(key, out var width)
         ? width : All.First(item => item.Key == key).Width;
 
@@ -87,7 +87,7 @@ public static class CustomerColumns
     public static void Save(IEnumerable<string> visible)
     {
         var selected = visible.ToHashSet(StringComparer.Ordinal);
-        if (selected.Count == 0) throw new ArgumentException("Επιλέξτε τουλάχιστον μία στήλη.");
+        selected.Add("Mobile");
         _visible = selected;
         Directory.CreateDirectory(Path.GetDirectoryName(PathOnDisk)!);
         File.WriteAllText(PathOnDisk, JsonSerializer.Serialize(selected));

@@ -9,6 +9,8 @@ public sealed class BusinessRecord
     public string? RelatedParty { get; set; }
     public string? Status { get; set; }
     public string? Notes { get; set; }
+    public string? DocumentType { get; set; }
+    public string? DetailsJson { get; set; }
     public DateTime? EventDate { get; set; }
     public Guid? CustomerId { get; set; }
     public Customer? Customer { get; set; }

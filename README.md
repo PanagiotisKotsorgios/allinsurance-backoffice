@@ -33,6 +33,8 @@ Receipts and payments now record a payment method, currency, reference number, a
 
 Customer and section tables support dragging column edges and row bottoms to resize them; the chosen sizes are stored per Windows user. The workspace window now maximizes before navigation, so sidebar labels appear with the first workspace frame and a brief entrance animation.
 
+The customer card now opens dedicated policy and vehicle cards. New policy records start as applications, and an explicit action converts them to insurance policies. Receipts and payments can be linked to a policy belonging to the same customer. Customer activities are recorded with timestamp, action, details, and user; earlier edits cannot be reconstructed from databases created before this audit feature. See [customer card workflow](Software%20Analysis/08%20-%20Customer%20Card%20Workflow/README.md).
+
 ## Build and tests
 
 ```powershell

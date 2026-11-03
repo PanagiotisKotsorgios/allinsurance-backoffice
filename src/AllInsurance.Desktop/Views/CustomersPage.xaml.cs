@@ -368,7 +368,7 @@ public sealed partial class CustomersPage : Page
 
     private async void Columns_Click(object sender, RoutedEventArgs e)
     {
-        var choices = CustomerColumns.All.Select(column =>
+        var choices = CustomerColumns.All.Where(column => column.Key != "Mobile").Select(column =>
             (column.Key, Box: new CheckBox { Content = column.Title,
                 IsChecked = CustomerColumns.IsVisible(column.Key) })).ToArray();
         var panel = new StackPanel { Spacing = 4 };

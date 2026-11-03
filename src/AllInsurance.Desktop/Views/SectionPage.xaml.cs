@@ -18,6 +18,7 @@ public sealed partial class SectionPage : Page
     private readonly IBusinessRecordService _records;
     private readonly ICustomerService _customers;
     private CustomerCardWindow? _card;
+    private BusinessRecordCardWindow? _businessCard;
     private CustomerChoice[] _customerChoices = [];
     private int _requestVersion;
     private BusinessRecordRow[] _filtered = [];
@@ -325,6 +326,13 @@ public sealed partial class SectionPage : Page
         ApplyColumnOrder(grid);
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
+        if (grid.Children[4] is Border { Child: TextBlock statusText } statusCell)
+        {
+            var highlighted = row.Status is "Ενεργό" or "Σε εξέλιξη";
+            statusCell.Background = highlighted ? new SolidColorBrush(row.Status == "Ενεργό"
+                ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 204, 111, 25)) : null;
+            statusText.Foreground = highlighted ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
+        }
         if (firstLoad && FindRecordContainer(grid) is ListViewItem container)
             TableRowResizer.Attach(grid, container, _section.Key, row.Record.Id);
         _syncingChecks = true;
@@ -378,6 +386,11 @@ public sealed partial class SectionPage : Page
     }
     private async Task EditRecordAsync(BusinessRecord? existing)
     {
+        if (_section.Key is "policies" or "vehicles")
+        {
+            OpenBusinessRecordCard(existing?.Id);
+            return;
+        }
         var record = existing is null ? new BusinessRecord { SectionKey = _section.Key, Title = "" } :
             await _records.GetAsync(existing.Id);
         if (record is null) { await UiAlerts.ShowErrorAsync(XamlRoot, "Η εγγραφή δεν υπάρχει."); return; }
@@ -421,6 +434,23 @@ public sealed partial class SectionPage : Page
             StatusText.Text = "Η εγγραφή αποθηκεύτηκε.";
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+    }
+
+    private void OpenBusinessRecordCard(Guid? id)
+    {
+        if (_businessCard is not null) { _businessCard.BringToFront(); return; }
+        try
+        {
+            _businessCard = new BusinessRecordCardWindow(_section.Key, recordId: id);
+            _businessCard.RecordSaved += async (_, _) => await RefreshAsync();
+            _businessCard.Closed += async (_, _) =>
+            {
+                _businessCard = null;
+                await RefreshAsync();
+            };
+            _businessCard.BringToFront();
+        }
+        catch (Exception exception) { _businessCard = null; StatusText.Text = exception.Message; }
     }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)

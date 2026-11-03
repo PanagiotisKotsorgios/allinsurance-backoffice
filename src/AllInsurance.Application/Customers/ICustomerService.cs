@@ -30,6 +30,8 @@ public interface ICustomerService
 {
     Task<IReadOnlyList<CustomerListItem>> SearchAsync(string? query = null, bool includeInactive = true, CancellationToken cancellationToken = default);
     Task<Customer?> GetAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CustomerActivity>> GetActivitiesAsync(Guid customerId,
+        CancellationToken cancellationToken = default);
     Task<Guid> SaveAsync(Customer customer, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<CustomerDetail> AddDetailAsync(Guid customerId, string category, string title, string? value,
@@ -42,7 +44,7 @@ public interface ICustomerService
     Task<CustomerDetail> AddFileAsync(Guid customerId, string sourcePath, CancellationToken cancellationToken = default);
     string GetFilePath(CustomerDetail file);
     Task<CustomerTransaction> AddTransactionAsync(Guid customerId, string type, decimal amount, string? description,
-        string? paymentMethod = null, string? reference = null,
+        string? paymentMethod = null, string? reference = null, Guid? businessRecordId = null,
         CancellationToken cancellationToken = default);
     Task<CustomerStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CustomerRelatedRecord>> GetRelatedRecordsAsync(string category,

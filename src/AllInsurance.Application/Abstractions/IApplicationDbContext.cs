@@ -16,6 +16,7 @@ public interface IApplicationDbContext : IAsyncDisposable
     DbSet<Customer> Customers { get; }
     DbSet<CustomerDetail> CustomerDetails { get; }
     DbSet<CustomerTransaction> CustomerTransactions { get; }
+    DbSet<CustomerActivity> CustomerActivities { get; }
     DbSet<BusinessRecord> BusinessRecords { get; }
     DbSet<FilterOption> FilterOptions { get; }
     DatabaseFacade Database { get; }

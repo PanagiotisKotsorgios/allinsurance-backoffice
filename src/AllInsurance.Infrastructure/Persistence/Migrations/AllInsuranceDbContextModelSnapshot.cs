@@ -48,6 +48,14 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CustomerId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DetailsJson")
+                        .HasMaxLength(12000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DocumentType")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("EventDate")
                         .HasColumnType("TEXT");
 
@@ -330,6 +338,40 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.ToTable("Customers", (string)null);
                 });
 
+            modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId", "OccurredAtUtc");
+
+                    b.ToTable("CustomerActivities", (string)null);
+                });
+
             modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerDetail", b =>
                 {
                     b.Property<Guid>("Id")
@@ -386,6 +428,9 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("BusinessRecordId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("CreatedByUserId")
                         .HasColumnType("TEXT");
 
@@ -423,6 +468,8 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BusinessRecordId");
 
                     b.HasIndex("CustomerId", "OccurredAtUtc");
 
@@ -670,6 +717,17 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Navigation("ReferredByCustomer");
                 });
 
+            modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerActivity", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.Customer", "Customer")
+                        .WithMany("Activities")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerDetail", b =>
                 {
                     b.HasOne("AllInsurance.Domain.Entities.Customer", "Customer")
@@ -683,11 +741,18 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.CustomerTransaction", b =>
                 {
+                    b.HasOne("AllInsurance.Domain.Entities.BusinessRecord", "BusinessRecord")
+                        .WithMany()
+                        .HasForeignKey("BusinessRecordId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("AllInsurance.Domain.Entities.Customer", "Customer")
                         .WithMany("Transactions")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("BusinessRecord");
 
                     b.Navigation("Customer");
                 });
@@ -741,6 +806,8 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.Customer", b =>
                 {
+                    b.Navigation("Activities");
+
                     b.Navigation("BusinessRecords");
 
                     b.Navigation("Details");

@@ -16,6 +16,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerDetail> CustomerDetails => Set<CustomerDetail>();
     public DbSet<CustomerTransaction> CustomerTransactions => Set<CustomerTransaction>();
+    public DbSet<CustomerActivity> CustomerActivities => Set<CustomerActivity>();
     public DbSet<BusinessRecord> BusinessRecords => Set<BusinessRecord>();
     public DbSet<FilterOption> FilterOptions => Set<FilterOption>();
 
@@ -182,9 +183,23 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
                 .HasDefaultValue("EUR");
             entity.Property(transaction => transaction.Reference).HasMaxLength(100);
             entity.Property(transaction => transaction.Description).HasMaxLength(500);
+            entity.HasOne(transaction => transaction.BusinessRecord).WithMany()
+                .HasForeignKey(transaction => transaction.BusinessRecordId).OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(transaction => new { transaction.CustomerId, transaction.OccurredAtUtc });
             entity.HasOne(transaction => transaction.Customer).WithMany(customer => customer.Transactions)
                 .HasForeignKey(transaction => transaction.CustomerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CustomerActivity>(entity =>
+        {
+            entity.ToTable("CustomerActivities");
+            entity.HasKey(activity => activity.Id);
+            entity.Property(activity => activity.Action).IsRequired().HasMaxLength(80);
+            entity.Property(activity => activity.Description).IsRequired().HasMaxLength(4000);
+            entity.Property(activity => activity.ActorName).IsRequired().HasMaxLength(200);
+            entity.HasIndex(activity => new { activity.CustomerId, activity.OccurredAtUtc });
+            entity.HasOne(activity => activity.Customer).WithMany(customer => customer.Activities)
+                .HasForeignKey(activity => activity.CustomerId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<BusinessRecord>(entity =>
@@ -197,6 +212,8 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(record => record.RelatedParty).HasMaxLength(200);
             entity.Property(record => record.Status).HasMaxLength(100);
             entity.Property(record => record.Notes).HasMaxLength(2000);
+            entity.Property(record => record.DocumentType).HasMaxLength(40);
+            entity.Property(record => record.DetailsJson).HasMaxLength(12000);
             entity.HasIndex(record => new { record.SectionKey, record.Title });
             entity.HasIndex(record => record.CustomerId);
             entity.HasOne(record => record.Customer).WithMany(customer => customer.BusinessRecords)

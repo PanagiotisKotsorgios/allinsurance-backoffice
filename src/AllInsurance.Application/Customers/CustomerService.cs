@@ -84,6 +84,17 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             .SingleOrDefaultAsync(customer => customer.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CustomerActivity>> GetActivitiesAsync(Guid customerId,
+        CancellationToken cancellationToken = default)
+    {
+        RequireSession();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        return await db.CustomerActivities.AsNoTracking()
+            .Where(item => item.CustomerId == customerId)
+            .OrderByDescending(item => item.OccurredAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Guid> SaveAsync(Customer customer, CancellationToken cancellationToken = default)
     {
         RequireSession();
@@ -111,6 +122,8 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             customer.UpdatedAtUtc = now;
             customer.CreatedByUserId = session.Current!.UserId;
             db.Customers.Add(customer);
+            CustomerActivityLog.Add(db, customer.Id, "Δημιουργία πελάτη",
+                "Δημιουργήθηκε η καρτέλα πελάτη.", session.Current!.DisplayName);
         }
         else
         {
@@ -124,6 +137,17 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             var created = existing.CreatedAtUtc;
             var creator = existing.CreatedByUserId;
             db.Customers.Entry(existing).CurrentValues.SetValues(customer);
+            var changed = db.Entry(existing).Properties
+                .Where(property => property.IsModified && property.Metadata.Name is not
+                    (nameof(Customer.UpdatedAtUtc) or nameof(Customer.CreatedAtUtc) or
+                     nameof(Customer.CreatedByUserId) or nameof(Customer.Id)))
+                .ToArray();
+            foreach (var property in changed)
+                CustomerActivityLog.Add(db, customer.Id, "Επεξεργασία πελάτη",
+                    $"{CustomerActivityLog.FieldLabel(property.Metadata.Name)}: " +
+                    $"{CustomerActivityLog.FormatValue(property.OriginalValue)} → " +
+                    CustomerActivityLog.FormatValue(property.CurrentValue),
+                    session.Current!.DisplayName);
             existing.Id = id;
             existing.CreatedAtUtc = created;
             existing.CreatedByUserId = creator;
@@ -175,6 +199,8 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             IsHistorical = isHistorical, CreatedAtUtc = DateTime.UtcNow
         };
         db.CustomerDetails.Add(detail);
+        CustomerActivityLog.Add(db, customerId, "Προσθήκη στοιχείου",
+            $"Προστέθηκε στοιχείο στην κατηγορία {CustomerActivityLog.CategoryLabel(category)}: {detail.Title}.", session.Current!.DisplayName);
         await db.SaveChangesAsync(cancellationToken);
         return detail;
     }
@@ -187,6 +213,9 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             item.CustomerId == customerId, cancellationToken)
             ?? throw new InvalidOperationException("Η σχετική καταχώριση δεν υπάρχει.");
         db.CustomerDetails.Remove(detail);
+        CustomerActivityLog.Add(db, customerId, "Διαγραφή στοιχείου",
+            $"Διαγράφηκε στοιχείο από την κατηγορία {CustomerActivityLog.CategoryLabel(detail.Category)}: {detail.Title}.",
+            session.Current!.DisplayName);
         await db.SaveChangesAsync(cancellationToken);
         if (detail.Category == "files")
         {
@@ -222,6 +251,8 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
                 CreatedAtUtc = DateTime.UtcNow
             };
             db.CustomerDetails.Add(detail);
+            CustomerActivityLog.Add(db, customerId, "Επισύναψη αρχείου",
+                $"Επισυνάφθηκε αρχείο: {detail.Title}.", session.Current!.DisplayName);
             await db.SaveChangesAsync(cancellationToken);
             return detail;
         }
@@ -263,11 +294,15 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         detail.EffectiveFrom = effectiveFrom;
         detail.EffectiveUntil = effectiveUntil;
         detail.IsHistorical = isHistorical;
+        CustomerActivityLog.Add(db, customerId, "Επεξεργασία στοιχείου",
+            $"Ενημερώθηκε στοιχείο της κατηγορίας {CustomerActivityLog.CategoryLabel(detail.Category)}: {detail.Title}.",
+            session.Current!.DisplayName);
         await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<CustomerTransaction> AddTransactionAsync(Guid customerId, string type, decimal amount,
         string? description, string? paymentMethod = null, string? reference = null,
+        Guid? businessRecordId = null,
         CancellationToken cancellationToken = default)
     {
         RequireSession();
@@ -280,6 +315,17 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         {
             throw new InvalidOperationException("Ο πελάτης δεν υπάρχει.");
         }
+        string? policyTitle = null;
+        if (businessRecordId is Guid policyId)
+        {
+            policyTitle = await db.BusinessRecords.AsNoTracking()
+                .Where(record => record.Id == policyId && record.CustomerId == customerId &&
+                    record.SectionKey == "policies" &&
+                    (record.DocumentType == null || record.DocumentType == "Ασφαλιστήριο"))
+                .Select(record => record.Title).SingleOrDefaultAsync(cancellationToken);
+            if (policyTitle is null)
+                throw new ArgumentException("Επιλέξτε ασφαλιστήριο του συγκεκριμένου πελάτη.");
+        }
         var method = Normalize(paymentMethod, 80) ?? "Μετρητά";
         var currency = await db.AppMetadata.AsNoTracking()
             .Where(item => item.Key == TransactionSettingsService.CurrencyKey)
@@ -288,10 +334,15 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         {
             Id = Guid.NewGuid(), CustomerId = customerId, Type = type, Amount = amount,
             PaymentMethod = method, Currency = currency, Reference = Normalize(reference, 100),
+            BusinessRecordId = businessRecordId,
             Description = Normalize(description, 500), OccurredAtUtc = DateTime.UtcNow,
             CreatedByUserId = session.Current!.UserId
         };
         db.CustomerTransactions.Add(transaction);
+        CustomerActivityLog.Add(db, customerId,
+            type == "receipt" ? "Είσπραξη" : "Πληρωμή",
+            $"{(type == "receipt" ? "Είσπραξη" : "Πληρωμή")} {amount:N2} {currency} με {method}" +
+            (policyTitle is null ? "." : $" για {policyTitle}."), session.Current!.DisplayName);
         await db.SaveChangesAsync(cancellationToken);
         return transaction;
     }

@@ -71,4 +71,5 @@ public sealed class Customer
     public ICollection<CustomerDetail> Details { get; } = new List<CustomerDetail>();
     public ICollection<CustomerTransaction> Transactions { get; } = new List<CustomerTransaction>();
     public ICollection<BusinessRecord> BusinessRecords { get; } = new List<BusinessRecord>();
+    public ICollection<CustomerActivity> Activities { get; } = new List<CustomerActivity>();
 }

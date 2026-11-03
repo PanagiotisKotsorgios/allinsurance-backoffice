@@ -30,7 +30,6 @@ public sealed partial class CustomerCardWindow
     private void BuildCompactMainTab()
     {
         var main = CompactColumns(out var left, out var right);
-        AddHeading(left, "Ταυτότητα και επικοινωνία");
         AddText(left, "ΑΦΜ *", () => _customer.TaxNumber, value => _customer.TaxNumber = value);
         AddText(left, "Επώνυμο *", () => _customer.LastName, value => _customer.LastName = value ?? "");
         AddText(left, "Όνομα *", () => _customer.FirstName, value => _customer.FirstName = value ?? "");
@@ -60,7 +59,6 @@ public sealed partial class CustomerCardWindow
         left.Children.Add(CreateFieldRow("Υπόλοιπο πελάτη", _mainBalanceBadge));
         UpdateMainBalance();
 
-        AddHeading(right, "Έγγραφα και οδήγηση");
         AddText(right, "Αρ. ταυτότητας", () => _customer.IdentityNumber, value => _customer.IdentityNumber = value);
         AddCatalogChoice(right, "Τύπος ταυτότητας", "Τύποι ταυτότητας",
             () => _customer.IdentityType, value => _customer.IdentityType = value);
@@ -161,7 +159,6 @@ public sealed partial class CustomerCardWindow
         var root = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 350, ItemHeight = 510, Margin = new Thickness(18, 10, 18, 16) };
         var family = new StackPanel { Spacing = 3, Width = 330 };
-        AddHeading(family, "Προσωπικά και οικογενειακά");
         AddText(family, "Μητρώνυμο", () => _customer.MotherName, value => _customer.MotherName = value);
         AddText(family, "Διαβατήριο", () => _customer.PassportNumber,
             value => _customer.PassportNumber = value);
@@ -181,7 +178,6 @@ public sealed partial class CustomerCardWindow
         root.Children.Add(family);
 
         var business = new StackPanel { Spacing = 3, Width = 330 };
-        AddHeading(business, "Επαγγελματικά και φορολογικά");
         AddCatalogChoice(business, "ΔΟΥ", "ΔΟΥ", () => _customer.TaxOffice,
             value => _customer.TaxOffice = value);
         AddText(business, "Ταχ. κώδικας", () => _customer.PostalCode,
@@ -209,7 +205,6 @@ public sealed partial class CustomerCardWindow
         root.Children.Add(business);
 
         var status = new StackPanel { Spacing = 3, Width = 330 };
-        AddHeading(status, "Σχέσεις, σύσταση και εκπτώσεις");
         AddBool(status, "Δικαιολογητικό έκπτωσης", () => _customer.HasDiscountDocument,
             value => _customer.HasDiscountDocument = value);
         AddText(status, "Περιγραφή έκπτωσης", () => _customer.DiscountDocumentDescription,
@@ -278,15 +273,19 @@ public sealed partial class CustomerCardWindow
         UpdateOpeningStyle();
         root.Children.Add(new TextBlock { Text = "Οικονομικές κινήσεις", FontSize = 17,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        var search = new TextBox { Width = 240, Height = 38, MinHeight = 38,
+        var search = new TextBox { Height = 38, MinHeight = 38,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Αναζήτηση κίνησης..." };
+        root.Children.Add(search);
+        var kind = new ComboBox { Width = 170, Height = 38,
+            ItemsSource = new[] { "Όλες οι κινήσεις", "Εισπράξεις", "Πληρωμές" }, SelectedIndex = 0 };
         var from = new CalendarDatePicker { Width = 170, Height = 38,
             PlaceholderText = "Από ημερομηνία" };
         var until = new CalendarDatePicker { Width = 170, Height = 38,
             PlaceholderText = "Έως ημερομηνία" };
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 210, ItemHeight = 42 };
-        foreach (var field in new UIElement[] { search, from, until }) filters.Children.Add(field);
+        foreach (var field in new UIElement[] { kind, from, until }) filters.Children.Add(field);
         root.Children.Add(filters);
         var header = new Grid { ColumnSpacing = 0, Width = 940,
             Background = new SolidColorBrush(Color.FromArgb(36, 77, 129, 174)) };
@@ -336,10 +335,13 @@ public sealed partial class CustomerCardWindow
             var start = from.Date?.Date;
             var end = until.Date?.Date;
             foreach (var item in _customer.Transactions.OrderByDescending(item => item.OccurredAtUtc)
+                .Where(item => kind.SelectedIndex == 0 ||
+                    (kind.SelectedIndex == 1 ? item.Type == "receipt" : item.Type == "payment"))
                 .Where(item => !start.HasValue || item.OccurredAtUtc.ToLocalTime().Date >= start)
                 .Where(item => !end.HasValue || item.OccurredAtUtc.ToLocalTime().Date <= end)
                 .Where(item => term.Length == 0 || item.Description?.Contains(term,
                     StringComparison.CurrentCultureIgnoreCase) == true ||
+                    item.Reference?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true ||
                     item.Amount.ToString("N2").Contains(term, StringComparison.CurrentCultureIgnoreCase)))
             {
                 var row = new Grid { ColumnSpacing = 0, Width = 940, Height = 39 };
@@ -347,7 +349,10 @@ public sealed partial class CustomerCardWindow
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 var values = new[] { item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
                     item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή",
-                    $"{item.Amount:N2} {TransactionSettingsService.Symbol(item.Currency)}", item.Description ?? "—" };
+                    $"{item.Amount:N2} {TransactionSettingsService.Symbol(item.Currency)}",
+                    (item.BusinessRecordId is Guid policyId
+                        ? _customer.BusinessRecords.FirstOrDefault(record => record.Id == policyId)?.Title + " · " : "") +
+                    (item.Description ?? "—") };
                 for (var index = 0; index < values.Length; index++)
                 {
                     var text = new TextBlock { Text = values[index], TextTrimming = TextTrimming.CharacterEllipsis };
@@ -356,6 +361,12 @@ public sealed partial class CustomerCardWindow
                         BorderThickness = index == values.Length - 1 ? new Thickness(0, 0, 0, 1) :
                             new Thickness(0, 0, 1, 1),
                         Padding = new Thickness(10, 5, 10, 5) };
+                    if (index == 1)
+                    {
+                        cell.Background = new SolidColorBrush(item.Type == "receipt"
+                            ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 194, 89, 44));
+                        text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+                    }
                     Grid.SetColumn(cell, index);
                     row.Children.Add(cell);
                 }
@@ -368,6 +379,7 @@ public sealed partial class CustomerCardWindow
             applyColumnLayout();
         }
         search.TextChanged += (_, _) => refresh();
+        kind.SelectionChanged += (_, _) => refresh();
         from.DateChanged += (_, _) => refresh();
         until.DateChanged += (_, _) => refresh();
         refresh();
@@ -376,61 +388,19 @@ public sealed partial class CustomerCardWindow
 
     private async Task ShowTransactionAsync(CustomerTransaction transaction)
     {
+        var policy = transaction.BusinessRecordId is Guid policyId
+            ? _customer.BusinessRecords.FirstOrDefault(record => record.Id == policyId)?.Title
+            : null;
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
             Title = transaction.Type == "receipt" ? "Γενική είσπραξη" : "Γενική πληρωμή",
             Content = $"Ημερομηνία: {transaction.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
                 $"Ποσό: {transaction.Amount:N2} {TransactionSettingsService.Symbol(transaction.Currency)}\n" +
                 $"Τρόπος πληρωμής: {transaction.PaymentMethod}\n" +
                 $"Αριθμός αναφοράς: {transaction.Reference ?? "—"}\n" +
+                $"Ασφαλιστήριο: {policy ?? "Χωρίς σύνδεση"}\n" +
                 $"Αιτιολογία: {transaction.Description ?? "—"}",
             CloseButtonText = "Κλείσιμο" };
         await DialogButtonStyles.ShowAsync(dialog);
     }
 
-    private void BuildHistoryTab()
-    {
-        var root = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
-        root.Children.Add(new TextBlock { Text = "Ιστορικό και επιπλέον στοιχεία", FontSize = 18,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        root.Children.Add(new TextBlock { Text = "Ζημιές, σκάφη, επαφές, διευθύνσεις και αρχεία παραμένουν διαθέσιμα εδώ.",
-            TextWrapping = TextWrapping.Wrap });
-        var timeline = new List<(DateTime When, string Text)>();
-        if (_customer.Id != Guid.Empty)
-        {
-            timeline.Add((_customer.CreatedAtUtc, "Δημιουργία καρτέλας πελάτη"));
-            if (_customer.UpdatedAtUtc > _customer.CreatedAtUtc)
-                timeline.Add((_customer.UpdatedAtUtc, "Τελευταία ενημέρωση καρτέλας"));
-        }
-        timeline.AddRange(_customer.Details.Select(item => (item.CreatedAtUtc,
-            $"Στοιχείο: {item.Title}")));
-        timeline.AddRange(_customer.Transactions.Select(item => (item.OccurredAtUtc,
-            $"{(item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή")}: {item.Amount:N2} {TransactionSettingsService.Symbol(item.Currency)}")));
-        timeline.AddRange(_customer.BusinessRecords.Select(item => (item.CreatedAtUtc,
-            $"Συνδεδεμένη εγγραφή: {item.Title}")));
-        if (timeline.Count > 0)
-            root.Children.Add(new ListView { ItemsSource = timeline.OrderByDescending(item => item.When)
-                .Take(30).Select(item => $"{item.When.ToLocalTime():dd/MM/yyyy HH:mm}  ·  {item.Text}")
-                .ToArray(), Height = Math.Min(130, timeline.Count * 38 + 6) });
-        else root.Children.Add(new TextBlock { Text = "Δεν υπάρχουν ακόμη κινήσεις ιστορικού.",
-            FontSize = 12, Margin = new Thickness(0, 0, 0, 2) });
-        _historyChoice = new ComboBox { MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Left };
-        var categories = new (string Key, string Label)[] { ("claims", "Ζημιές"), ("boats", "Σκάφη"),
-            ("phones", "Τηλέφωνα"), ("addresses", "Διευθύνσεις"), ("emails", "Email"),
-            ("persons", "Πρόσωπα"), ("other", "Άλλα στοιχεία"), ("files", "Αρχεία") };
-        foreach (var (key, label) in categories)
-        {
-            _historyPanels[key] = CreateDetailPanel(key);
-            _historyChoice.Items.Add(new ComboBoxItem { Content = label, Tag = key });
-        }
-        root.Children.Add(_historyChoice);
-        _historyHost = new ContentControl();
-        root.Children.Add(_historyHost);
-        _historyChoice.SelectionChanged += (_, _) =>
-        {
-            if (_historyChoice.SelectedItem is ComboBoxItem item && item.Tag is string key)
-                _historyHost.Content = _historyPanels[key];
-        };
-        _historyChoice.SelectedIndex = 0;
-        AddTab("Ιστορικό ενεργειών", root);
-    }
 }
