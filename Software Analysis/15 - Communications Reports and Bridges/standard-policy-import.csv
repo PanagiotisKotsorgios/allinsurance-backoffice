@@ -1,0 +1,2 @@
+policy_number;customer_tax_number;document_type;start_date;end_date;gross_premium;net_premium;branch;insurer
+DEMO-0001;000000000;policy;2026-11-01;2027-11-01;100,00;85,00;Αυτοκίνητο;Δοκιμαστική ασφαλιστική

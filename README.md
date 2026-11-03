@@ -45,6 +45,8 @@ The login action is larger and centered. The partner's financial tab now shows a
 
 The policy card now has linked holder, partner, insurer and agency; renewal numbers and dates; duration-based expiry; insured value and discounts; coverage, insured-object, installment, endorsement and green-card lists; live payment balance; linked claims; previous/next renewal navigation; and local PDF/image/DOCX attachments. See [insurance policy card](Software%20Analysis/14%20-%20Insurance%20Policy%20Card/README.md).
 
+The latest workspace adds a customer and partner name-day calendar, renewal outreach with Brevo email and Bulker SMS configuration, filtered CSV reports, and alphabetical insurer/agency bridge folders with a standard CSV import for insurance documents. The email and SMS API keys are saved in Windows Credential Manager. Sending requires an explicit confirmation in the app; no provider credentials are included in the repository. Insurer-specific import formats, invoice mapping and live SMS credit balances require provider file samples and API configuration. See [communications, reports and bridges](Software%20Analysis/15%20-%20Communications%20Reports%20and%20Bridges/README.md).
+
 ## Build and tests
 
 ```powershell

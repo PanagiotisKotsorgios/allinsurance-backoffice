@@ -1,0 +1,12 @@
+<Page x:Class="AllInsurance.Desktop.Views.CompanyBridgesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource PageBackgroundBrush}">
+    <Grid Margin="20,16" RowDefinitions="Auto,Auto,*" RowSpacing="14">
+        <TextBlock Text="Γέφυρες Εταιρειών" FontSize="28" FontWeight="SemiBold" />
+        <TextBlock Grid.Row="1" Text="Επιλέξτε εταιρεία ή πρακτορείο για εισαγωγή αρχείου. Οι διαθέσιμοι μετατροπείς εξαρτώνται από τη μορφή του αρχείου." TextWrapping="Wrap" />
+        <ScrollViewer Grid.Row="2">
+            <StackPanel x:Name="Folders" Spacing="6" />
+        </ScrollViewer>
+    </Grid>
+</Page>

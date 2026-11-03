@@ -199,7 +199,7 @@ public sealed partial class WorkspacePage : Page
         var item = MainNavigation.MenuItems.OfType<NavigationViewItem>()
             .First(candidate => candidate.Tag is string itemKey && itemKey == key);
         MainNavigation.SelectedItem = item;
-        SectionHost.Content = section.Key == "customers" ? new CustomersPage() : new SectionPage(section);
+        SectionHost.Content = CreateSectionPage(section);
     }
 
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -212,7 +212,7 @@ public sealed partial class WorkspacePage : Page
         var section = WorkspaceSections.All.FirstOrDefault(candidate => candidate.Key == key);
         if (section is not null)
         {
-            SectionHost.Content = section.Key == "customers" ? new CustomersPage() : new SectionPage(section);
+            SectionHost.Content = CreateSectionPage(section);
         }
     }
 
@@ -263,6 +263,20 @@ public sealed partial class WorkspacePage : Page
     private void Audit_Click(object sender, RoutedEventArgs e) => ShowAudit();
     private void Backups_Click(object sender, RoutedEventArgs e) => ShowBackups();
     private void ErrorLog_Click(object sender, RoutedEventArgs e) => ShowErrorLog();
+    private void NameDays_Click(object sender, RoutedEventArgs e)
+    {
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new NameDaysPage();
+    }
+
+    private static Page CreateSectionPage(WorkspaceSection section) => section.Key switch
+    {
+        "customers" => new CustomersPage(),
+        "updates" => new CommunicationsPage(),
+        "reports" => new ReportsPage(),
+        "bridges" => new CompanyBridgesPage(),
+        _ => new SectionPage(section)
+    };
     private async void UpdateApplication_Click(object sender, RoutedEventArgs e)
     {
         try
