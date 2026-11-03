@@ -7,6 +7,10 @@ public sealed class PolicyCardData
     public string? ApplicationNumber { get; set; }
     public string? NoticeNumber { get; set; }
     public string? PolicyNumber { get; set; }
+    public string? RenewalNumber { get; set; }
+    public Guid? PreviousPolicyId { get; set; }
+    public DateTime? RenewalDate { get; set; }
+    public DateTime? CompanyRenewalDate { get; set; }
     public string? Insurer { get; set; }
     public Guid? CompanyId { get; set; }
     public string? Agency { get; set; }
@@ -14,16 +18,76 @@ public sealed class PolicyCardData
     public string? Branch { get; set; }
     public string? Product { get; set; }
     public Guid? VehicleId { get; set; }
+    public Guid? HolderCustomerId { get; set; }
     public DateTime? IssueDate { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    public int? CoverageDurationMonths { get; set; }
+    public decimal? InsuredValue { get; set; }
     public decimal? GrossPremium { get; set; }
     public decimal? NetPremium { get; set; }
+    public decimal? DiscountPercent { get; set; }
+    public decimal? DiscountAmount { get; set; }
+    public string? DiscountReason { get; set; }
+    public bool PayInInstallments { get; set; }
+    public string? PreviousInsurer { get; set; }
+    public string? RenewalNotes { get; set; }
     public string? CoverageNotes { get; set; }
     public Guid? PartnerId { get; set; }
     public decimal? PartnerCommissionPercent { get; set; }
     public decimal? OfficeCommissionPercent { get; set; }
     public Guid? CommissionRuleId { get; set; }
+    public List<PolicyCoverage> Coverages { get; set; } = [];
+    public List<PolicyInsuredObject> InsuredObjects { get; set; } = [];
+    public List<PolicyEndorsement> Endorsements { get; set; } = [];
+    public List<PolicyGreenCard> GreenCards { get; set; } = [];
+    public List<PolicyInstallment> Installments { get; set; } = [];
+}
+
+public sealed class PolicyInsuredObject
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Kind { get; set; } = "Άλλο";
+    public string Description { get; set; } = "";
+    public decimal? InsuredValue { get; set; }
+}
+
+public sealed class PolicyCoverage
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public decimal? SumInsured { get; set; }
+    public decimal? Deductible { get; set; }
+    public decimal? Premium { get; set; }
+    public string? Notes { get; set; }
+}
+
+public sealed class PolicyEndorsement
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Number { get; set; } = "";
+    public string Type { get; set; } = "Πρόσθετη πράξη";
+    public DateTime? EffectiveDate { get; set; }
+    public decimal? PremiumDifference { get; set; }
+    public string? Notes { get; set; }
+}
+
+public sealed class PolicyGreenCard
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Number { get; set; } = "";
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public string? Countries { get; set; }
+}
+
+public sealed class PolicyInstallment
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Number { get; set; }
+    public DateTime? DueDate { get; set; }
+    public decimal Amount { get; set; }
+    public string? Notes { get; set; }
 }
 
 public sealed class VehicleCardData

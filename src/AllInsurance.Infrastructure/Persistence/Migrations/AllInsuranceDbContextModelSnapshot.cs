@@ -49,7 +49,7 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("DetailsJson")
-                        .HasMaxLength(12000)
+                        .HasMaxLength(100000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("DocumentType")
@@ -129,6 +129,40 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.HasIndex("RecordId", "OccurredAtUtc");
 
                     b.ToTable("BusinessRecordActivities", (string)null);
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.BusinessRecordAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UploadedBy")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordId", "UploadedAtUtc");
+
+                    b.ToTable("BusinessRecordAttachments", (string)null);
                 });
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.CommissionRule", b =>
@@ -882,6 +916,17 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.BusinessRecordActivity", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.BusinessRecord", "Record")
+                        .WithMany()
+                        .HasForeignKey("RecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Record");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.BusinessRecordAttachment", b =>
                 {
                     b.HasOne("AllInsurance.Domain.Entities.BusinessRecord", "Record")
                         .WithMany()

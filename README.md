@@ -43,6 +43,8 @@ The partner card now places cooperation details and multiple bank accounts in th
 
 The login action is larger and centered. The partner's financial tab now shows a dated ledger of earned commissions, payouts, receipts and running balance. A vehicle can open a new insurance application with its primary owner and vehicle already selected. Administrators can maintain initial commission rules by insurer, branch, vehicle use, coverage and package; the applicable percentages are snapshotted when a policy is issued. The settings screen also shows a preliminary insurer remittance estimate based on gross premium less the office commission. See [financial links and commission settings](Software%20Analysis/12%20-%20Financial%20Links%20and%20Commission%20Settings/README.md).
 
+The policy card now has linked holder, partner, insurer and agency; renewal numbers and dates; duration-based expiry; insured value and discounts; coverage, insured-object, installment, endorsement and green-card lists; live payment balance; linked claims; previous/next renewal navigation; and local PDF/image/DOCX attachments. See [insurance policy card](Software%20Analysis/14%20-%20Insurance%20Policy%20Card/README.md).
+
 ## Build and tests
 
 ```powershell

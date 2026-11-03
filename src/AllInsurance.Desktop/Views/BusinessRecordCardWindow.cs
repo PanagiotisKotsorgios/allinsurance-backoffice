@@ -62,6 +62,8 @@ public sealed partial class BusinessRecordCardWindow : Window
     private IReadOnlyList<BusinessRecord> _vehiclePolicies = [];
     private IReadOnlyList<BusinessRecord> _vehicleClaims = [];
     private IReadOnlyList<BusinessRecord> _agencyRecords = [];
+    private IReadOnlyList<BusinessRecord> _partnerRecords = [];
+    private IReadOnlyList<BusinessRecord> _allPolicyRecords = [];
     private WorkspaceRecordCardWindow? _linkedOrganizationCard;
     private ListView? _peopleList;
     private ListView? _policiesList;
@@ -91,7 +93,7 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     public BusinessRecordCardWindow(string section, Guid? customerId = null, Guid? recordId = null,
         nint ownerHandle = default, Guid? vehicleId = null, bool beginEditing = false,
-        string? insurerName = null, string? agencyName = null)
+        string? insurerName = null, string? agencyName = null, Guid? previousPolicyId = null)
     {
         if (section is not ("policies" or "vehicles"))
             throw new ArgumentException("Μη υποστηριζόμενη καρτέλα.");
@@ -104,7 +106,8 @@ public sealed partial class BusinessRecordCardWindow : Window
             CustomerId = customerId, DocumentType = section == "policies" ? "Αίτηση" : null,
             DetailsJson = section == "policies"
                 ? BusinessRecordDetails.Write(new PolicyCardData { VehicleId = vehicleId,
-                    Insurer = insurerName, Agency = agencyName }) : null };
+                    Insurer = insurerName, Agency = agencyName,
+                    PreviousPolicyId = previousPolicyId }) : null };
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
         _root.Background = new SolidColorBrush(IsDarkTheme()
             ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 246, 249, 252));
@@ -149,12 +152,49 @@ public sealed partial class BusinessRecordCardWindow : Window
             if (_record.SectionKey != _section ||
                 (_fixedCustomerId is Guid fixedId && _record.CustomerId != fixedId))
                 throw new InvalidOperationException("Η εγγραφή δεν ανήκει σε αυτή την καρτέλα.");
+            if (_section == "policies" && _record.Id == Guid.Empty &&
+                BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PreviousPolicyId is Guid previousId)
+            {
+                var previous = await _records.GetAsync(previousId)
+                    ?? throw new InvalidOperationException("Το προηγούμενο ασφαλιστήριο δεν υπάρχει.");
+                if (previous.SectionKey != "policies" || previous.CustomerId != _record.CustomerId)
+                    throw new InvalidOperationException("Η ανανέωση πρέπει να αφορά τον ίδιο πελάτη.");
+                var old = BusinessRecordDetails.Read<PolicyCardData>(previous.DetailsJson);
+                var start = old.EndDate ?? DateTime.Today;
+                var duration = old.CoverageDurationMonths ?? 12;
+                _record.DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+                {
+                    PreviousPolicyId = previousId, Insurer = old.Insurer, Agency = old.Agency,
+                    CompanyId = old.CompanyId, AgencyId = old.AgencyId,
+                    Branch = old.Branch, Product = old.Product, VehicleId = old.VehicleId,
+                    HolderCustomerId = old.HolderCustomerId, PartnerId = old.PartnerId,
+                    PreviousInsurer = old.Insurer, CoverageDurationMonths = duration,
+                    StartDate = start, EndDate = start.AddMonths(duration),
+                    RenewalDate = DateTime.Today, InsuredValue = old.InsuredValue,
+                    CoverageNotes = old.CoverageNotes,
+                    Coverages = (old.Coverages ?? []).Select(item => new PolicyCoverage
+                    {
+                        Name = item.Name, SumInsured = item.SumInsured,
+                        Deductible = item.Deductible, Premium = item.Premium,
+                        Notes = item.Notes
+                    }).ToList(),
+                    InsuredObjects = (old.InsuredObjects ?? []).Select(item => new PolicyInsuredObject
+                    {
+                        Kind = item.Kind, Description = item.Description,
+                        InsuredValue = item.InsuredValue
+                    }).ToList()
+                });
+            }
             var customers = await _customers.SearchAsync();
             var companies = _section == "policies"
                 ? (await _records.SearchAsync("companies")).ToArray()
                 : [];
             _agencyRecords = _section == "policies"
                 ? (await _records.SearchAsync("agencies")).ToArray() : [];
+            _partnerRecords = _section == "policies"
+                ? (await _records.SearchAsync("partners")).ToArray() : [];
+            _allPolicyRecords = _section == "policies"
+                ? (await _records.SearchAsync("policies")).ToArray() : [];
             var vehicles = _section == "policies"
                 ? (await _records.SearchAsync("vehicles")).ToArray()
                 : [];
@@ -172,6 +212,8 @@ public sealed partial class BusinessRecordCardWindow : Window
                 ? (await _customers.GetAsync(ownerId))?.Transactions
                     .Where(item => item.BusinessRecordId == _record.Id).ToArray() ?? []
                 : [];
+            _policyTransactions = transactions;
+            if (_section == "policies") _policyCurrency = await _policySettings.GetCurrencyAsync();
             _vehicleCustomers = customers;
             _vehiclePolicies = policies;
             _vehicleClaims = claims;
@@ -267,6 +309,10 @@ public sealed partial class BusinessRecordCardWindow : Window
         if (_typeChoice is not null) _typeChoice.IsEnabled = _editing;
         if (_statusChoice is not null) _statusChoice.IsEnabled = _editing;
         if (_kteoStatusChoice is not null) _kteoStatusChoice.IsEnabled = _editing;
+        if (_policyPartnerChoice is not null) _policyPartnerChoice.IsEnabled = _editing;
+        if (_policyHolderChoice is not null) _policyHolderChoice.IsEnabled = _editing;
+        if (_policyDurationChoice is not null) _policyDurationChoice.IsEnabled = _editing;
+        if (_payInInstallments is not null) _payInInstallments.IsEnabled = _editing;
         if (_insurerSuggest is not null) _insurerSuggest.IsEnabled = _editing;
         if (_convertButton is not null) _convertButton.IsEnabled = _editing;
         foreach (var button in _editControls) button.IsEnabled = _editing;
@@ -398,6 +444,8 @@ public sealed partial class BusinessRecordCardWindow : Window
         IReadOnlyList<BusinessRecord> companies)
     {
         var data = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson);
+        _policyData = data;
+        NormalizePolicyLists();
         if (_record.DocumentType is null && _record.Id != Guid.Empty)
             data.PolicyNumber ??= _record.Reference ?? _record.Title;
         var main = TwoColumns(out var left, out var right);
@@ -410,6 +458,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         Text(left, "application", "Αριθμός αίτησης", data.ApplicationNumber);
         Text(left, "notice", "Αριθμός ειδοποιητηρίου", data.NoticeNumber);
         Text(left, "policy", "Αριθμός ασφαλιστηρίου", data.PolicyNumber);
+        Text(left, "renewalnumber", "Αριθμός ανανεωτηρίου", data.RenewalNumber);
         void UpdateRequiredNumber()
         {
             var type = _typeChoice?.SelectedItem as string;
@@ -448,9 +497,11 @@ public sealed partial class BusinessRecordCardWindow : Window
         var openAgency = OrganizationLinkButton("agencies", () => agencyInput.Text, _agencyRecords);
         Grid.SetColumn(openAgency, 1); agencyHost.Children.Add(openAgency);
         left.Children.Add(CardFieldLayout.CreateRow("Πρακτορείο", agencyHost));
+        AddPolicyPartnerChoice(left, data);
         Text(left, "branch", "Κλάδος", data.Branch);
         Text(left, "product", "Προϊόν / πακέτο", data.Product);
         CustomerChoice(right, customers);
+        AddPolicyHolderChoice(right, customers, data);
         Choice[] VehicleItems(Guid? customerId) =>
             [new Choice(null, "Χωρίς όχημα"),
              .. vehicles.Where(item => item.CustomerId == customerId)
@@ -473,42 +524,13 @@ public sealed partial class BusinessRecordCardWindow : Window
             _record.Status ?? (_record.Id == Guid.Empty ? "Σε εξέλιξη" : "Ενεργό"));
         Date(right, "issue", "Ημερομηνία έκδοσης", data.IssueDate);
         Date(right, "start", "Έναρξη κάλυψης", data.StartDate);
+        AddPolicyDurationChoice(right, data);
         Date(right, "end", "Λήξη κάλυψης", data.EndDate);
-        Text(right, "gross", "Μικτά ασφάλιστρα", data.GrossPremium?.ToString("N2"));
         Text(right, "net", "Καθαρά ασφάλιστρα", data.NetPremium?.ToString("N2"));
+        Text(right, "gross", "Μικτά ασφάλιστρα", data.GrossPremium?.ToString("N2"));
+        AddPolicyBalanceBadge(right, data);
         AddTab("Καρτέλα ασφάλισης", main);
-        var extra = TwoColumns(out var extraLeft, out _);
-        Text(extraLeft, "notes", "Σημειώσεις", _record.Notes, multiline: true);
-        AddTab("Πρόσθετα στοιχεία", extra);
-        AddTab("Όχημα", new TextBlock { Text = data.VehicleId is null
-            ? "Δεν έχει συνδεθεί όχημα."
-            : vehicles.FirstOrDefault(item => item.Id == data.VehicleId)?.Title ?? "Το όχημα δεν βρέθηκε.",
-            Margin = new Thickness(22), FontSize = 16 });
-        var coverage = TwoColumns(out var coverageLeft, out _);
-        var cover = Text(coverageLeft, "coverage", "Καλύψεις / όροι", data.CoverageNotes);
-        cover.AcceptsReturn = true; cover.TextWrapping = TextWrapping.Wrap; cover.Height = 190;
-        AddTab("Καλύψεις", coverage);
-        var finance = new StackPanel { Margin = new Thickness(22), Spacing = 10 };
-        _policyFinanceSummary = new TextBlock { FontSize = 16 };
-        _policyCommissionSummary = new TextBlock { FontSize = 15,
-            TextWrapping = TextWrapping.Wrap };
-        finance.Children.Add(_policyFinanceSummary);
-        finance.Children.Add(_policyCommissionSummary);
-        UpdatePolicyFinanceSummary(data);
-        var movements = transactions.OrderByDescending(item => item.OccurredAtUtc)
-            .Select(item => $"{item.OccurredAtUtc.ToLocalTime():dd/MM/yyyy}  ·  " +
-                $"{(item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή")}  ·  " +
-                $"{item.Amount:N2} {item.Currency}  ·  {item.PaymentMethod}").ToArray();
-        finance.Children.Add(new TextBlock { Text = "Συνδεδεμένες κινήσεις",
-            FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        finance.Children.Add(new ListView { ItemsSource = movements.Length > 0 ? movements :
-            ["Δεν υπάρχουν συνδεδεμένες κινήσεις."], Height = 220 });
-        AddTab("Οικονομικά", finance);
-        _historyText = new TextBlock { Text = _record.Id == Guid.Empty
-            ? "Η ιστορία θα ξεκινήσει μετά την αποθήκευση της αίτησης."
-            : $"Δημιουργία: {_record.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\nΤελευταία ενημέρωση: {_record.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}",
-            Margin = new Thickness(22), FontSize = 15 };
-        AddTab("Ιστορικό", _historyText);
+        BuildPolicyExtendedTabs(customers, vehicles, data);
     }
 
     private void BuildVehicleTabs(IReadOnlyList<CustomerListItem> customers,
@@ -619,21 +641,40 @@ public sealed partial class BusinessRecordCardWindow : Window
                     throw new InvalidOperationException("Χρησιμοποιήστε «Μετατροπή σε ασφαλιστήριο».");
                 var data = new PolicyCardData
                 {
-                    PartnerId = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PartnerId,
-                    PartnerCommissionPercent = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PartnerCommissionPercent,
-                    OfficeCommissionPercent = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).OfficeCommissionPercent,
-                    CommissionRuleId = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).CommissionRuleId,
+                    PartnerId = (_policyPartnerChoice?.SelectedItem as Choice)?.Id,
+                    PartnerCommissionPercent = _policyData.PartnerId == (_policyPartnerChoice?.SelectedItem as Choice)?.Id
+                        ? _policyData.PartnerCommissionPercent : null,
+                    OfficeCommissionPercent = _policyData.OfficeCommissionPercent,
+                    CommissionRuleId = _policyData.CommissionRuleId,
                     ApplicationNumber = Value("application"), NoticeNumber = Value("notice"),
-                    PolicyNumber = Value("policy"), Insurer = _insurerSuggest?.Text.Trim(),
+                    PolicyNumber = Value("policy"), RenewalNumber = Value("renewalnumber"),
+                    PreviousPolicyId = _policyData.PreviousPolicyId,
+                    HolderCustomerId = (_policyHolderChoice?.SelectedItem as Choice)?.Id,
+                    Insurer = _insurerSuggest?.Text.Trim(),
                     Agency = Value("agency"), Branch = Value("branch"), Product = Value("product"),
                     VehicleId = (_vehicleChoice?.SelectedItem as Choice)?.Id,
                     IssueDate = DateValue("issue"), StartDate = DateValue("start"), EndDate = DateValue("end"),
+                    RenewalDate = DateValue("renewal"), CompanyRenewalDate = DateValue("companyrenewal"),
+                    CoverageDurationMonths = (_policyDurationChoice?.SelectedItem as DurationChoice)?.Months,
                     GrossPremium = DecimalValue(Value("gross"), "Μικτά ασφάλιστρα"),
                     NetPremium = DecimalValue(Value("net"), "Καθαρά ασφάλιστρα"),
-                    CoverageNotes = Value("coverage")
+                    InsuredValue = DecimalValue(Value("insuredvalue"), "Ασφαλιστική αξία"),
+                    DiscountPercent = DecimalValue(Value("discountpercent"), "Έκπτωση (%)"),
+                    DiscountAmount = DecimalValue(Value("discountamount"), "Έκπτωση (€)"),
+                    DiscountReason = Value("discountreason"),
+                    PreviousInsurer = Value("previousinsurer"), RenewalNotes = Value("renewalnotes"),
+                    PayInInstallments = _payInInstallments?.IsChecked == true,
+                    CoverageNotes = Value("coverage"),
+                    Coverages = _policyData.Coverages,
+                    InsuredObjects = _policyData.InsuredObjects,
+                    Endorsements = _policyData.Endorsements,
+                    GreenCards = _policyData.GreenCards,
+                    Installments = _policyData.Installments
                 };
                 if (data.StartDate > data.EndDate)
                     throw new ArgumentException("Η λήξη κάλυψης πρέπει να είναι μετά την έναρξη.");
+                if (data.DiscountPercent is > 100)
+                    throw new ArgumentException("Η έκπτωση δεν μπορεί να ξεπερνά το 100%.");
                 var number = type switch
                 {
                     "Αίτηση" => data.ApplicationNumber,
@@ -700,7 +741,14 @@ public sealed partial class BusinessRecordCardWindow : Window
             var id = await _records.SaveAsync(_record);
             _record = await _records.GetAsync(id) ?? _record;
             if (_section == "policies")
-                UpdatePolicyFinanceSummary(BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson));
+            {
+                _policyData = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson);
+                UpdatePolicyFinanceSummary(_policyData);
+                UpdatePolicyTransactionButtons();
+                await RefreshPolicyAttachmentsAsync();
+                if (_policyClaimsPager is not null)
+                    await RefreshPolicyClaimsAsync(_policyClaimsPager);
+            }
             else
             {
                 if (_newVehiclePolicyButton is not null) _newVehiclePolicyButton.IsEnabled = true;
@@ -746,16 +794,29 @@ public sealed partial class BusinessRecordCardWindow : Window
     private void UpdatePolicyFinanceSummary(PolicyCardData data)
     {
         if (_policyFinanceSummary is null || _policyCommissionSummary is null) return;
-        _policyFinanceSummary.Text = $"Μικτά: {data.GrossPremium?.ToString("N2") ?? "—"} €  ·  " +
-            $"Καθαρά: {data.NetPremium?.ToString("N2") ?? "—"} €";
-        if (data.OfficeCommissionPercent is decimal officeRate)
-        {
-            var officeAmount = decimal.Round((data.GrossPremium ?? 0) * officeRate / 100m, 2);
-            _policyCommissionSummary.Text =
-                $"Προμήθεια γραφείου: {officeRate:N2} % ({officeAmount:N2} €)  ·  " +
-                $"Προς απόδοση στην ασφαλιστική: {((data.GrossPremium ?? 0) - officeAmount):N2} €";
-        }
-        else _policyCommissionSummary.Text = "Δεν έχει εφαρμοστεί κανόνας προμήθειας γραφείου.";
+        var symbol = AllInsurance.Application.Settings.TransactionSettingsService.Symbol(_policyCurrency);
+        var gross = data.GrossPremium ?? 0;
+        var receipts = _policyTransactions.Where(item => item.Type == "receipt").Sum(item => item.Amount);
+        var payments = _policyTransactions.Where(item => item.Type == "payment").Sum(item => item.Amount);
+        _policyFinanceSummary.Text = $"Καθαρά: {data.NetPremium?.ToString("N2") ?? "—"} {symbol}  ·  " +
+            $"Μικτά: {data.GrossPremium?.ToString("N2") ?? "—"} {symbol}  ·  " +
+            $"Εισπράχθηκε: {receipts:N2} {symbol}  ·  " +
+            $"Πληρωμές προς πελάτη: {payments:N2} {symbol}";
+        var office = data.OfficeCommissionPercent is decimal officeRate
+            ? $"Εισερχόμενη προμήθεια έδρας: {officeRate:N2}% " +
+              $"({decimal.Round(gross * officeRate / 100m, 2):N2} {symbol})"
+            : "Εισερχόμενη προμήθεια έδρας: χωρίς κανόνα";
+        var partner = data.PartnerId is null ? "Χωρίς συνεργάτη" :
+            data.PartnerCommissionPercent is decimal partnerRate
+                ? $"Εξερχόμενη προμήθεια συνεργάτη: {partnerRate:N2}% " +
+                  $"({decimal.Round(gross * partnerRate / 100m, 2):N2} {symbol})"
+                : "Εξερχόμενη προμήθεια συνεργάτη: χωρίς κανόνα";
+        _policyCommissionSummary.Text = office + "  ·  " + partner +
+            (data.OfficeCommissionPercent is decimal rate
+                ? $"  ·  Εκτιμώμενη απόδοση στην εταιρεία: " +
+                  $"{(gross - decimal.Round(gross * rate / 100m, 2)):N2} {symbol}"
+                : "");
+        UpdatePolicyBalance(data);
     }
 
     private async Task ConvertAsync()

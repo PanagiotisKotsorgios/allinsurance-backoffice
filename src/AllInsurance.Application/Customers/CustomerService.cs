@@ -177,6 +177,11 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         if (vehiclePeople.Any(json => (BusinessRecordDetails.Read<VehicleCardData>(json).People ?? [])
             .Any(person => person.CustomerId == id)))
             throw new InvalidOperationException("Ο πελάτης συνδέεται με όχημα ως ιδιοκτήτης ή οδηγός.");
+        var policyLinks = await db.BusinessRecords.AsNoTracking()
+            .Where(item => item.SectionKey == "policies" && item.DetailsJson != null)
+            .Select(item => item.DetailsJson).ToListAsync(cancellationToken);
+        if (policyLinks.Any(json => BusinessRecordDetails.Read<PolicyCardData>(json).HolderCustomerId == id))
+            throw new InvalidOperationException("Ο πελάτης είναι κάτοχος ασφαλιστηρίου. Αφαιρέστε πρώτα τη σύνδεση.");
         db.Customers.Remove(customer);
         await db.SaveChangesAsync(cancellationToken);
         var folder = Path.Combine(_fileRoot, id.ToString("N"));
@@ -349,10 +354,22 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             CreatedByUserId = session.Current!.UserId
         };
         db.CustomerTransactions.Add(transaction);
+        var transactionReference = string.IsNullOrWhiteSpace(transaction.Reference)
+            ? string.Empty : $" · Αρ. συναλλαγής: {transaction.Reference}";
         CustomerActivityLog.Add(db, customerId,
             type == "receipt" ? "Είσπραξη" : "Πληρωμή",
             $"{(type == "receipt" ? "Είσπραξη" : "Πληρωμή")} {amount:N2} {currency} με {method}" +
-            (policyTitle is null ? "." : $" για {policyTitle}."), session.Current!.DisplayName);
+            (policyTitle is null ? "." : $" για {policyTitle}.") + transactionReference,
+            session.Current!.DisplayName);
+        if (businessRecordId is Guid linkedPolicyId)
+            db.BusinessRecordActivities.Add(new BusinessRecordActivity
+            {
+                Id = Guid.NewGuid(), RecordId = linkedPolicyId,
+                Action = type == "receipt" ? "Είσπραξη" : "Πληρωμή προς πελάτη",
+                Description = $"{amount:N2} {currency} με {method} για {policyTitle}." +
+                    transactionReference,
+                ActorName = session.Current!.DisplayName, OccurredAtUtc = transaction.OccurredAtUtc
+            });
         await db.SaveChangesAsync(cancellationToken);
         return transaction;
     }

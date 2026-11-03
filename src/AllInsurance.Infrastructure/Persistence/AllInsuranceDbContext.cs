@@ -19,6 +19,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<CustomerActivity> CustomerActivities => Set<CustomerActivity>();
     public DbSet<BusinessRecord> BusinessRecords => Set<BusinessRecord>();
     public DbSet<BusinessRecordActivity> BusinessRecordActivities => Set<BusinessRecordActivity>();
+    public DbSet<BusinessRecordAttachment> BusinessRecordAttachments => Set<BusinessRecordAttachment>();
     public DbSet<PartnerPayout> PartnerPayouts => Set<PartnerPayout>();
     public DbSet<PartnerActivity> PartnerActivities => Set<PartnerActivity>();
     public DbSet<CommissionRule> CommissionRules => Set<CommissionRule>();
@@ -218,7 +219,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(record => record.Status).HasMaxLength(100);
             entity.Property(record => record.Notes).HasMaxLength(2000);
             entity.Property(record => record.DocumentType).HasMaxLength(40);
-            entity.Property(record => record.DetailsJson).HasMaxLength(12000);
+            entity.Property(record => record.DetailsJson).HasMaxLength(100000);
             entity.HasIndex(record => new { record.SectionKey, record.Title });
             entity.HasIndex(record => record.CustomerId);
             entity.HasOne(record => record.Customer).WithMany(customer => customer.BusinessRecords)
@@ -260,6 +261,18 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(item => item.Description).IsRequired().HasMaxLength(4000);
             entity.Property(item => item.ActorName).IsRequired().HasMaxLength(200);
             entity.HasIndex(item => new { item.RecordId, item.OccurredAtUtc });
+            entity.HasOne(item => item.Record).WithMany()
+                .HasForeignKey(item => item.RecordId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BusinessRecordAttachment>(entity =>
+        {
+            entity.ToTable("BusinessRecordAttachments");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.FileName).IsRequired().HasMaxLength(260);
+            entity.Property(item => item.RelativePath).IsRequired().HasMaxLength(320);
+            entity.Property(item => item.UploadedBy).IsRequired().HasMaxLength(200);
+            entity.HasIndex(item => new { item.RecordId, item.UploadedAtUtc });
             entity.HasOne(item => item.Record).WithMany()
                 .HasForeignKey(item => item.RecordId).OnDelete(DeleteBehavior.Cascade);
         });

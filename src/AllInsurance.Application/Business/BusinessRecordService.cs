@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AllInsurance.Application.Business;
 
-public sealed class BusinessRecordService(IApplicationDbContextFactory factory, ISessionService session)
+public sealed partial class BusinessRecordService(IApplicationDbContextFactory factory, ISessionService session)
     : IBusinessRecordService
 {
     private static readonly HashSet<string> Sections =
@@ -63,7 +63,7 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         record.Status = Normalize(record.Status, 100);
         record.Notes = Normalize(record.Notes, 2000);
         record.DocumentType = Normalize(record.DocumentType, 40);
-        record.DetailsJson = Normalize(record.DetailsJson, 50000);
+        record.DetailsJson = Normalize(record.DetailsJson, 100000);
         if (record.SectionKey == "policies" && record.DocumentType is not null &&
             record.DocumentType is not ("Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο"))
             throw new ArgumentException("Μη έγκυρος τύπος εγγράφου ασφάλισης.");
@@ -170,6 +170,47 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
                 details.AgencyId = await db.BusinessRecords.AsNoTracking()
                     .Where(item => item.SectionKey == "agencies" && item.Title == details.Agency)
                     .Select(item => (Guid?)item.Id).FirstOrDefaultAsync(cancellationToken);
+            if (details.AgencyId is Guid linkedAgencyId)
+            {
+                var agencyJson = await db.BusinessRecords.AsNoTracking()
+                    .Where(item => item.Id == linkedAgencyId).Select(item => item.DetailsJson)
+                    .SingleAsync(cancellationToken);
+                var agencyCompanyId = WorkspaceCardData.Read(agencyJson).CompanyId;
+                if (agencyCompanyId is Guid companyId)
+                {
+                    if (details.CompanyId is Guid chosenCompanyId && chosenCompanyId != companyId)
+                        throw new ArgumentException("Το πρακτορείο ανήκει σε διαφορετική ασφαλιστική εταιρεία.");
+                    details.CompanyId = companyId;
+                    details.Insurer = await db.BusinessRecords.AsNoTracking()
+                        .Where(item => item.Id == companyId).Select(item => item.Title)
+                        .SingleAsync(cancellationToken);
+                }
+            }
+            if (details.HolderCustomerId is Guid holderId &&
+                !await db.Customers.AnyAsync(item => item.Id == holderId, cancellationToken))
+                throw new ArgumentException("Ο κάτοχος του ασφαλιστηρίου δεν υπάρχει.");
+            if (details.PreviousPolicyId is Guid previousId)
+            {
+                if (previousId == record.Id || !await db.BusinessRecords.AnyAsync(item =>
+                    item.Id == previousId && item.SectionKey == "policies" &&
+                    item.CustomerId == record.CustomerId, cancellationToken))
+                    throw new ArgumentException("Το προηγούμενο ασφαλιστήριο πρέπει να ανήκει στον ίδιο πελάτη.");
+            }
+            if (details.StartDate > details.EndDate || details.CoverageDurationMonths is < 1 or > 60 ||
+                details.InsuredValue is < 0 || details.DiscountPercent is < 0 or > 100 ||
+                details.DiscountAmount is < 0 || details.Coverages?.Any(item =>
+                    string.IsNullOrWhiteSpace(item.Name) || item.SumInsured is < 0 ||
+                    item.Deductible is < 0 || item.Premium is < 0) == true ||
+                details.InsuredObjects?.Any(item => string.IsNullOrWhiteSpace(item.Description) ||
+                    item.InsuredValue is < 0) == true ||
+                details.Installments?.Any(item => item.Number < 1 || item.Amount <= 0) == true ||
+                details.Installments?.GroupBy(item => item.Number).Any(group => group.Count() > 1) == true)
+                throw new ArgumentException("Ελέγξτε τις ημερομηνίες, τις εκπτώσεις και τα οικονομικά στοιχεία του ασφαλιστηρίου.");
+            details.Coverages ??= [];
+            details.InsuredObjects ??= [];
+            details.Endorsements ??= [];
+            details.GreenCards ??= [];
+            details.Installments ??= [];
             var vehicleId = details.VehicleId;
             if (vehicleId is Guid id && !await db.BusinessRecords.AnyAsync(item =>
                 item.Id == id && item.SectionKey == "vehicles" && item.CustomerId == record.CustomerId,
@@ -179,6 +220,13 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
                 !await db.BusinessRecords.AnyAsync(item => item.Id == explicitPartner &&
                     item.SectionKey == "partners", cancellationToken))
                 throw new ArgumentException("Ο συνεργάτης του ασφαλιστηρίου δεν υπάρχει.");
+            if (details.PartnerId is Guid selectedPartner && details.PartnerCommissionPercent is null)
+            {
+                var partnerJson = await db.BusinessRecords.AsNoTracking()
+                    .Where(item => item.Id == selectedPartner).Select(item => item.DetailsJson)
+                    .SingleAsync(cancellationToken);
+                details.PartnerCommissionPercent = PartnerProfileData.Read(partnerJson).DefaultCommissionPercent;
+            }
             if (record.DocumentType is null or "Ασφαλιστήριο" &&
                 details.PartnerId is null && record.CustomerId is Guid linkedCustomer)
             {
@@ -390,6 +438,8 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var record = await db.BusinessRecords.SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
             ?? throw new InvalidOperationException("Η εγγραφή δεν υπάρχει.");
+        var attachmentsToRemove = await db.BusinessRecordAttachments.AsNoTracking()
+            .Where(item => item.RecordId == id).ToListAsync(cancellationToken);
         var linkedDetails = await db.BusinessRecords.AsNoTracking()
             .Where(item => item.Id != id && item.DetailsJson != null)
             .Select(item => new { item.SectionKey, item.DetailsJson }).ToListAsync(cancellationToken);
@@ -423,6 +473,9 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         if (record.SectionKey == "policies" &&
             await db.CustomerTransactions.AnyAsync(item => item.BusinessRecordId == id, cancellationToken))
             throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένες οικονομικές κινήσεις και δεν μπορεί να διαγραφεί.");
+        if (record.SectionKey == "policies" && linkedDetails.Any(item => item.SectionKey == "policies" &&
+            BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).PreviousPolicyId == id))
+            throw new InvalidOperationException("Το ασφαλιστήριο έχει επόμενη ανανέωση και δεν μπορεί να διαγραφεί.");
         if (record.SectionKey == "vehicles")
         {
             var claims = await db.BusinessRecords.AsNoTracking()
@@ -445,6 +498,11 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
                 $"Διαγράφηκε η εγγραφή {record.Title}.", session.Current!.DisplayName);
         db.BusinessRecords.Remove(record);
         await db.SaveChangesAsync(cancellationToken);
+        foreach (var attachment in attachmentsToRemove)
+        {
+            var path = GetAttachmentPath(attachment);
+            if (File.Exists(path)) File.Delete(path);
+        }
     }
 
     private void RequireSession()

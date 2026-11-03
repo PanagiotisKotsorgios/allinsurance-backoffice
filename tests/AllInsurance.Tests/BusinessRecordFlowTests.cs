@@ -7,6 +7,72 @@ namespace AllInsurance.Tests;
 public sealed class BusinessRecordFlowTests
 {
     [Fact]
+    public async Task PolicyRelationsCollectionsPaymentsAndPdfArePersisted()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var customerId = await customers.SaveAsync(new Customer
+        { LastName = "Policy", FirstName = "Test", TaxNumber = "100000093" });
+        var companyId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "companies", Title = "Test insurer" });
+        var otherCompanyId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "companies", Title = "Other insurer" });
+        var agencyId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "agencies", Title = "Test agency",
+            DetailsJson = new WorkspaceCardData { CompanyId = companyId }.Write() });
+        var invalid = new BusinessRecord
+        { SectionKey = "policies", Title = "BAD-1", CustomerId = customerId,
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            { AgencyId = agencyId, CompanyId = otherCompanyId }) };
+        await Assert.ThrowsAsync<ArgumentException>(() => records.SaveAsync(invalid));
+        var policyId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "policies", Title = "POL-2026", CustomerId = customerId,
+            DocumentType = "Ασφαλιστήριο",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            {
+                CompanyId = companyId, AgencyId = agencyId, HolderCustomerId = customerId,
+                PolicyNumber = "POL-2026", NetPremium = 80, GrossPremium = 100,
+                CoverageDurationMonths = 12, StartDate = new DateTime(2026, 11, 3),
+                EndDate = new DateTime(2027, 11, 3), PayInInstallments = true,
+                Coverages = [new PolicyCoverage { Name = "Αστική ευθύνη", SumInsured = 10000 }],
+                InsuredObjects = [new PolicyInsuredObject { Description = "Όχημα" }],
+                Installments = [new PolicyInstallment { Number = 1, Amount = 100 }]
+            }) });
+        var saved = BusinessRecordDetails.Read<PolicyCardData>((await records.GetAsync(policyId))!.DetailsJson);
+        Assert.Equal(companyId, saved.CompanyId);
+        Assert.Equal(agencyId, saved.AgencyId);
+        Assert.Single(saved.Coverages);
+        Assert.Single(saved.InsuredObjects);
+        Assert.Single(saved.Installments);
+        await customers.AddTransactionAsync(customerId, "receipt", 40m, "Policy payment",
+            "Μετρητά", "PAY-1", policyId);
+        Assert.Contains(await records.GetActivitiesAsync(policyId), activity =>
+            activity.Description.Contains("PAY-1"));
+        var source = Path.Combine(Path.GetTempPath(), $"policy-test-{Guid.NewGuid():N}.pdf");
+        await File.WriteAllTextAsync(source, "test attachment");
+        try
+        {
+            var attachment = await records.AddAttachmentAsync(policyId, source);
+            Assert.True(File.Exists(records.GetAttachmentPath(attachment)));
+            Assert.Single(await records.GetAttachmentsAsync(policyId));
+            await records.DeleteAttachmentAsync(policyId, attachment.Id);
+            Assert.Empty(await records.GetAttachmentsAsync(policyId));
+        }
+        finally { File.Delete(source); }
+        var renewalId = await records.SaveAsync(new BusinessRecord
+        { SectionKey = "policies", Title = "RENEW-1", CustomerId = customerId,
+            DocumentType = "Αίτηση",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            { ApplicationNumber = "RENEW-1", PreviousPolicyId = policyId }) });
+        Assert.Equal(policyId, BusinessRecordDetails.Read<PolicyCardData>(
+            (await records.GetAsync(renewalId))!.DetailsJson).PreviousPolicyId);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(policyId));
+    }
+
+    [Fact]
     public async Task CompanyAgencyAndClaimLinksSurviveRenamesAndHaveHistory()
     {
         await using var environment = new TestEnvironment();

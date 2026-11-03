@@ -34,6 +34,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
     private readonly WorkspaceSection _section;
     private readonly Guid? _recordId;
     private readonly Guid? _initialVehicleId;
+    private readonly Guid? _initialPolicyId;
     private readonly nint _ownerHandle;
     private BusinessRecord _record;
     private WorkspaceCardData _data = new();
@@ -72,6 +73,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
 
     public WorkspaceRecordCardWindow(string sectionKey, Guid? recordId = null,
         bool beginEditing = false, Guid? customerId = null, Guid? vehicleId = null,
+        Guid? policyId = null,
         nint ownerHandle = default)
     {
         _section = WorkspaceSections.All.FirstOrDefault(item => item.Key == sectionKey)
@@ -80,6 +82,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
             throw new ArgumentException("Η ενότητα έχει διαφορετική καρτέλα.");
         _recordId = recordId;
         _initialVehicleId = vehicleId;
+        _initialPolicyId = policyId;
         _editing = recordId is null || beginEditing;
         _ownerHandle = ownerHandle == default ? App.MainWindowHandle() : ownerHandle;
         _record = new BusinessRecord { SectionKey = sectionKey, Title = "",
@@ -127,7 +130,11 @@ public sealed partial class WorkspaceRecordCardWindow : Window
             if (_record.SectionKey != _section.Key)
                 throw new InvalidOperationException("Η εγγραφή ανήκει σε άλλη ενότητα.");
             _data = WorkspaceCardData.Read(_record.DetailsJson);
-            if (_record.Id == Guid.Empty) _data.VehicleId ??= _initialVehicleId;
+            if (_record.Id == Guid.Empty)
+            {
+                _data.VehicleId ??= _initialVehicleId;
+                _data.PolicyId ??= _initialPolicyId;
+            }
             _customers = (await _customerService.SearchAsync()).ToArray();
             foreach (var section in new[] { "companies", "agencies", "partners", "policies",
                 "vehicles", "claims", "updates", "bridges" })

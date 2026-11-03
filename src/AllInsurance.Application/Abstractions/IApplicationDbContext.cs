@@ -19,6 +19,7 @@ public interface IApplicationDbContext : IAsyncDisposable
     DbSet<CustomerActivity> CustomerActivities { get; }
     DbSet<BusinessRecord> BusinessRecords { get; }
     DbSet<BusinessRecordActivity> BusinessRecordActivities { get; }
+    DbSet<BusinessRecordAttachment> BusinessRecordAttachments { get; }
     DbSet<PartnerPayout> PartnerPayouts { get; }
     DbSet<PartnerActivity> PartnerActivities { get; }
     DbSet<CommissionRule> CommissionRules { get; }
