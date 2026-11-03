@@ -31,16 +31,16 @@ public partial class RecoveryCodeViewModel : ObservableObject
 
     public string Heading => _display.Flow switch
     {
-        RecoveryCodeFlow.AdministratorSetup => "Your recovery code",
-        RecoveryCodeFlow.PasswordRecovery => "Your new recovery code",
-        RecoveryCodeFlow.ForcedPasswordChange => "Your recovery code",
-        RecoveryCodeFlow.OwnCodeRotation => "Your new recovery code",
+        RecoveryCodeFlow.AdministratorSetup => "Ο κωδικός ανάκτησής σας",
+        RecoveryCodeFlow.PasswordRecovery => "Ο νέος κωδικός ανάκτησής σας",
+        RecoveryCodeFlow.ForcedPasswordChange => "Ο κωδικός ανάκτησής σας",
+        RecoveryCodeFlow.OwnCodeRotation => "Ο νέος κωδικός ανάκτησής σας",
         _ => throw new ArgumentOutOfRangeException()
     };
 
     public string ContinueLabel => _display.Flow == RecoveryCodeFlow.ForcedPasswordChange
-        ? "Continue to All Insurance"
-        : "Continue to sign in";
+        ? "Συνέχεια στην εφαρμογή"
+        : "Συνέχεια στη σύνδεση";
 
     public RecoveryCodeViewModel(
         RecoveryCodeDisplayState state,
@@ -63,7 +63,7 @@ public partial class RecoveryCodeViewModel : ObservableObject
         var dataPackage = new DataPackage();
         dataPackage.SetText(Code);
         Clipboard.SetContent(dataPackage);
-        StatusMessage = "Recovery code copied.";
+        StatusMessage = "Ο κωδικός ανάκτησης αντιγράφηκε.";
     }
 
     [RelayCommand]
@@ -72,7 +72,7 @@ public partial class RecoveryCodeViewModel : ObservableObject
         StatusMessage = string.Empty;
         if (!Acknowledged)
         {
-            StatusMessage = "Confirm that you have stored this recovery code before continuing.";
+            StatusMessage = "Επιβεβαιώστε ότι αποθηκεύσατε τον κωδικό ανάκτησης πριν συνεχίσετε.";
             return;
         }
 
@@ -87,13 +87,13 @@ public partial class RecoveryCodeViewModel : ObservableObject
 
             _state.Clear();
             _navigation.NavigateTo(flow == RecoveryCodeFlow.ForcedPasswordChange
-                ? AppRoute.EmptyWorkspace
-                : _session.IsAuthenticated ? AppRoute.EmptyWorkspace : AppRoute.Login);
+                ? AppRoute.Workspace
+                : _session.IsAuthenticated ? AppRoute.Workspace : AppRoute.Login);
         }
         catch (UnauthorizedAccessException exception)
         {
             _logger.LogWarning(exception, "Recovery code acknowledgment was rejected.");
-            StatusMessage = "This password-change session is no longer valid. Close the app and sign in again.";
+            StatusMessage = "Η αλλαγή κωδικού δεν είναι πλέον έγκυρη. Κλείστε την εφαρμογή και συνδεθείτε ξανά.";
         }
         finally
         {

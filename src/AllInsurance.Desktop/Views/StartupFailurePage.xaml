@@ -3,17 +3,21 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Background="{ThemeResource PageBackgroundBrush}">
-    <Grid MinHeight="650">
-        <Border Width="500" Padding="32" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
-            <StackPanel Spacing="16">
-                <TextBlock Text="ALL INSURANCE" Foreground="{ThemeResource BrandAccentBrush}"
-                           FontSize="13" FontWeight="Bold" />
-                <TextBlock Text="The local database could not be initialized" FontSize="28"
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid>
+        <Border MaxWidth="500" Margin="12" Padding="20" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12"
+                HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <StackPanel Spacing="10">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Image Source="ms-appx:///Assets/logo-99.jpg" Width="44" Height="44" AutomationProperties.Name="Λογότυπο AllInsurance Backoffice Software" />
+                    <TextBlock Text="AllInsurance Backoffice Software" Foreground="{ThemeResource BrandAccentBrush}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="Δεν ήταν δυνατή η αρχικοποίηση της βάσης δεδομένων" FontSize="28"
                            FontWeight="SemiBold" TextWrapping="Wrap" />
-                <TextBlock Text="Check that your Windows account can access its Local AppData folder and that the disk has free space. Close and reopen the application to retry. If the problem continues, preserve the local database and contact your system administrator."
+                <TextBlock Text="Ελέγξτε ότι ο λογαριασμός Windows έχει πρόσβαση στον τοπικό φάκελο δεδομένων και ότι υπάρχει ελεύθερος χώρος στον δίσκο. Κλείστε και ανοίξτε ξανά την εφαρμογή. Αν το πρόβλημα συνεχιστεί, διατηρήστε τη βάση δεδομένων και επικοινωνήστε με τον διαχειριστή σας."
                            Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
-    </Grid>
+        </Grid>
+    </ScrollViewer>
 </Page>

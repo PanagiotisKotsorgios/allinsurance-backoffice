@@ -13,7 +13,7 @@ public sealed class AuthenticationService(
     ISessionManager session,
     AuthenticationPolicyOptions policy) : IAuthenticationService
 {
-    public const string GenericSignInFailure = "Sign in failed. Check your credentials or try again later.";
+    public const string GenericSignInFailure = "Η σύνδεση απέτυχε. Ελέγξτε τα στοιχεία σας ή δοκιμάστε ξανά αργότερα.";
 
     public async Task<SignInResult> SignInAsync(
         string username,
@@ -90,7 +90,7 @@ public sealed class AuthenticationService(
     {
         ValidatePassword(newPassword, confirmation);
         var userId = session.PendingPasswordChangeUserId
-            ?? throw new UnauthorizedAccessException("There is no pending password-change session.");
+            ?? throw new UnauthorizedAccessException("Δεν υπάρχει εκκρεμής αλλαγή κωδικού πρόσβασης.");
 
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -101,7 +101,7 @@ public sealed class AuthenticationService(
         if (user is null || !user.IsActive || !user.MustChangePassword)
         {
             session.EndSession();
-            throw new UnauthorizedAccessException("The password-change session is no longer valid.");
+            throw new UnauthorizedAccessException("Η αλλαγή κωδικού πρόσβασης δεν είναι πλέον έγκυρη.");
         }
 
         var now = clock.UtcNow;
@@ -135,7 +135,7 @@ public sealed class AuthenticationService(
     public async Task AcknowledgeRequiredPasswordChangeAsync(CancellationToken cancellationToken = default)
     {
         var userId = session.PendingPasswordChangeUserId
-            ?? throw new UnauthorizedAccessException("There is no pending password-change session.");
+            ?? throw new UnauthorizedAccessException("Δεν υπάρχει εκκρεμής αλλαγή κωδικού πρόσβασης.");
 
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -146,7 +146,7 @@ public sealed class AuthenticationService(
         if (user is null || !user.IsActive || !user.MustChangePassword)
         {
             session.EndSession();
-            throw new UnauthorizedAccessException("The password-change session is no longer valid.");
+            throw new UnauthorizedAccessException("Η αλλαγή κωδικού πρόσβασης δεν είναι πλέον έγκυρη.");
         }
 
         user.MustChangePassword = false;
@@ -178,7 +178,7 @@ public sealed class AuthenticationService(
             cancellationToken);
         if (user is null || !passwordHasher.Verify(user.PasswordHash, currentPassword))
         {
-            throw new InvalidOperationException("The current password is incorrect.");
+            throw new InvalidOperationException("Ο τρέχων κωδικός πρόσβασης είναι λανθασμένος.");
         }
 
         var now = clock.UtcNow;
@@ -257,7 +257,7 @@ public sealed class AuthenticationService(
 
         if (!string.Equals(password, confirmation, StringComparison.Ordinal))
         {
-            throw new ArgumentException("The password entries do not match.", nameof(confirmation));
+            throw new ArgumentException("Οι κωδικοί πρόσβασης δεν ταιριάζουν.", nameof(confirmation));
         }
     }
 }

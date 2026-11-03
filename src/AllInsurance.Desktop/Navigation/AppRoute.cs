@@ -7,7 +7,7 @@ public enum AppRoute
     Login,
     ForgotPassword,
     ForcedPasswordChange,
-    EmptyWorkspace,
+    Workspace,
     RepairRequired,
     StartupFailure
 }

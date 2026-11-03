@@ -9,12 +9,12 @@ public static class PasswordPolicy
     {
         if (string.IsNullOrWhiteSpace(password) || password.Length < MinimumLength)
         {
-            return $"Use a password or passphrase with at least {MinimumLength} characters.";
+            return $"Χρησιμοποιήστε κωδικό πρόσβασης με τουλάχιστον {MinimumLength} χαρακτήρες.";
         }
 
         if (password.Length > MaximumLength)
         {
-            return $"Passwords cannot exceed {MaximumLength} characters.";
+            return $"Ο κωδικός πρόσβασης δεν μπορεί να ξεπερνά τους {MaximumLength} χαρακτήρες.";
         }
 
         return null;

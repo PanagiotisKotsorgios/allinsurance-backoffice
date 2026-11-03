@@ -11,7 +11,7 @@ public sealed class RecoveryService(
     IClock clock,
     AuthenticationPolicyOptions policy) : IRecoveryService
 {
-    private const string GenericFailure = "Password reset failed. Check your details or try again later.";
+    private const string GenericFailure = "Η επαναφορά κωδικού απέτυχε. Ελέγξτε τα στοιχεία σας ή δοκιμάστε ξανά αργότερα.";
 
     public async Task<RecoveryResult> ResetPasswordAsync(
         string username,
@@ -98,7 +98,7 @@ public sealed class RecoveryService(
 
         if (!string.Equals(password, confirmation, StringComparison.Ordinal))
         {
-            throw new ArgumentException("The password entries do not match.", nameof(confirmation));
+            throw new ArgumentException("Οι κωδικοί πρόσβασης δεν ταιριάζουν.", nameof(confirmation));
         }
     }
 

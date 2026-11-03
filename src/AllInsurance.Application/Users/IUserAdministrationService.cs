@@ -4,6 +4,7 @@ namespace AllInsurance.Application.Users;
 
 public interface IUserAdministrationService
 {
+    Task<IReadOnlyList<UserAccountSummary>> GetUsersAsync(CancellationToken cancellationToken = default);
     Task<Guid> CreateUserAsync(
         string username,
         string displayName,
@@ -21,3 +22,11 @@ public interface IUserAdministrationService
         int limit = 100,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record UserAccountSummary(
+    Guid Id,
+    string Username,
+    string DisplayName,
+    bool IsActive,
+    bool MustChangePassword,
+    IReadOnlyList<string> Roles);

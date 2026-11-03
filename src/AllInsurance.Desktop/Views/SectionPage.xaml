@@ -1,0 +1,46 @@
+<Page
+    x:Class="AllInsurance.Desktop.Views.SectionPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{ThemeResource PageBackgroundBrush}">
+    <ScrollViewer x:Name="PageScroller" SizeChanged="Scroller_SizeChanged"
+                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="PageContent" MaxWidth="1100" Margin="24" Spacing="18" HorizontalAlignment="Center">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="24">
+                <StackPanel Spacing="12">
+                    <Border x:Name="IconBackground" Width="74" Height="74" CornerRadius="16" HorizontalAlignment="Left">
+                        <Image x:Name="SectionIcon" Width="48" Height="48"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock x:Name="SectionTitle" FontSize="30" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock x:Name="SectionDescription" FontSize="15" TextWrapping="Wrap"
+                               Foreground="{ThemeResource SecondaryTextBrush}" />
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="Αναζήτηση" FontSize="18" FontWeight="SemiBold" />
+                    <TextBox x:Name="SearchInput" MaxWidth="460" HorizontalAlignment="Stretch"
+                             AutomationProperties.Name="Αναζήτηση εγγραφών" />
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="ColumnHeaders" Orientation="Horizontal" Spacing="24" />
+                    </ScrollViewer>
+                    <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,26,0,20">
+                        <StackPanel HorizontalAlignment="Center" Spacing="8">
+                            <TextBlock x:Name="EmptyTitle" Text="Δεν υπάρχουν καταχωρήσεις ακόμη"
+                                       FontSize="18" FontWeight="SemiBold" TextAlignment="Center" />
+                            <TextBlock x:Name="EmptyDescription" Text="Οι πληροφορίες θα εμφανίζονται εδώ όταν προστεθούν."
+                                       Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" TextAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Σχετικές ενότητες" FontSize="18" FontWeight="SemiBold" />
+                    <StackPanel x:Name="HighlightsPanel" Spacing="8" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

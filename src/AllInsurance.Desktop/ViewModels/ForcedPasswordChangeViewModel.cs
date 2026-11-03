@@ -33,7 +33,7 @@ public partial class ForcedPasswordChangeViewModel(
         ErrorMessage = string.Empty;
         if (!string.Equals(NewPassword, Confirmation, StringComparison.Ordinal))
         {
-            ErrorMessage = "The password entries do not match.";
+            ErrorMessage = "Οι κωδικοί πρόσβασης δεν ταιριάζουν.";
             return;
         }
 
@@ -53,7 +53,7 @@ public partial class ForcedPasswordChangeViewModel(
         }
         catch (ArgumentException exception)
         {
-            ErrorMessage = exception.Message;
+            ErrorMessage = exception.Message.Split(Environment.NewLine)[0];
         }
         catch (UnauthorizedAccessException exception)
         {
@@ -62,12 +62,12 @@ public partial class ForcedPasswordChangeViewModel(
         catch (DbUpdateException exception)
         {
             logger.LogError(exception, "Required password change could not be saved.");
-            ErrorMessage = "The local database could not save the password change. Try again.";
+            ErrorMessage = "Δεν ήταν δυνατή η αποθήκευση του νέου κωδικού. Δοκιμάστε ξανά.";
         }
         catch (SqliteException exception)
         {
             logger.LogError(exception, "SQLite failed during required password change.");
-            ErrorMessage = "Password change is temporarily unavailable because the local database could not be reached.";
+            ErrorMessage = "Η αλλαγή κωδικού δεν είναι διαθέσιμη επειδή δεν ήταν δυνατή η πρόσβαση στη βάση δεδομένων.";
         }
         finally
         {

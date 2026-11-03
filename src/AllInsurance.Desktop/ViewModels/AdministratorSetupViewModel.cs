@@ -39,7 +39,7 @@ public partial class AdministratorSetupViewModel(
         ErrorMessage = string.Empty;
         if (!string.Equals(Password, Confirmation, StringComparison.Ordinal))
         {
-            ErrorMessage = "The password entries do not match.";
+            ErrorMessage = "Οι κωδικοί πρόσβασης δεν ταιριάζουν.";
             return;
         }
 
@@ -54,7 +54,7 @@ public partial class AdministratorSetupViewModel(
         }
         catch (ArgumentException exception)
         {
-            ErrorMessage = exception.Message;
+            ErrorMessage = exception.Message.Split(Environment.NewLine)[0];
         }
         catch (InvalidOperationException exception)
         {
@@ -63,12 +63,12 @@ public partial class AdministratorSetupViewModel(
         catch (DbUpdateException exception)
         {
             logger.LogError(exception, "Initial administrator could not be saved.");
-            ErrorMessage = "The local database could not save the administrator. Check its access and try again.";
+            ErrorMessage = "Δεν ήταν δυνατή η αποθήκευση του διαχειριστή. Ελέγξτε την πρόσβαση στη βάση δεδομένων και δοκιμάστε ξανά.";
         }
         catch (SqliteException exception)
         {
             logger.LogError(exception, "SQLite rejected initial administrator setup.");
-            ErrorMessage = "The local database is unavailable. Check its access and try again.";
+            ErrorMessage = "Η τοπική βάση δεδομένων δεν είναι διαθέσιμη. Ελέγξτε την πρόσβαση και δοκιμάστε ξανά.";
         }
         finally
         {

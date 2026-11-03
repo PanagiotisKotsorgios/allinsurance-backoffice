@@ -3,19 +3,23 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Background="{ThemeResource PageBackgroundBrush}">
-    <Grid MinHeight="650">
-        <Border Width="500" Padding="32" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12"
-                HorizontalAlignment="Center" VerticalAlignment="Center">
-            <StackPanel Spacing="16">
-                <TextBlock Text="ALL INSURANCE" Foreground="{ThemeResource BrandAccentBrush}"
-                           FontSize="13" FontWeight="Bold" />
-                <TextBlock Text="Administrator recovery required" FontSize="28"
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid>
+        <Border MaxWidth="500" Margin="12" Padding="20" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12"
+                HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <StackPanel Spacing="10">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Image Source="ms-appx:///Assets/logo-99.jpg" Width="44" Height="44" AutomationProperties.Name="Λογότυπο AllInsurance Backoffice Software" />
+                    <TextBlock Text="AllInsurance Backoffice Software" Foreground="{ThemeResource BrandAccentBrush}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="Απαιτείται ανάκτηση διαχειριστή" FontSize="28"
                            FontWeight="SemiBold" TextWrapping="Wrap" />
-                <TextBlock Text="This existing database has no active administrator. The application will not create another administrator automatically."
+                <TextBlock Text="Η υπάρχουσα βάση δεδομένων δεν έχει ενεργό διαχειριστή. Η εφαρμογή δεν θα δημιουργήσει αυτόματα νέο λογαριασμό."
                            Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
-                <TextBlock Text="Restore a protected backup or contact your authorized system administrator for identity-verified recovery. Do not delete the database or use an undocumented master password."
+                <TextBlock Text="Επαναφέρετε ασφαλές αντίγραφο της βάσης ή επικοινωνήστε με τον εξουσιοδοτημένο διαχειριστή για ανάκτηση μετά από επαλήθευση ταυτότητας. Μη διαγράψετε τη βάση δεδομένων."
                            Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
-    </Grid>
+        </Grid>
+    </ScrollViewer>
 </Page>

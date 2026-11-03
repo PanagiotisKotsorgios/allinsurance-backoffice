@@ -1,0 +1,45 @@
+<Page
+    x:Class="AllInsurance.Desktop.Views.UserManagementPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{ThemeResource PageBackgroundBrush}">
+    <ScrollViewer x:Name="PageScroller" SizeChanged="Scroller_SizeChanged"
+                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="PageContent" MaxWidth="1100" Margin="24" Spacing="18" HorizontalAlignment="Center">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="24">
+                <StackPanel Spacing="8">
+                    <Image Source="ms-appx:///Assets/Icons/users.svg" Width="32" Height="32" HorizontalAlignment="Left" />
+                    <TextBlock Text="Διαχείριση χρηστών" FontSize="30" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Text="Δημιουργία χρηστών, προσωρινοί κωδικοί και ρόλοι πρόσβασης."
+                               Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+                <StackPanel Spacing="14">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Νέος χρήστης" Click="Create_Click" />
+                            <Button Content="Ανανέωση" Click="Refresh_Click" />
+                            <Button Content="Προσωρινός κωδικός" Click="Reset_Click" />
+                            <Button Content="Ρόλοι" Click="Roles_Click" />
+                            <Button Content="Απενεργοποίηση" Click="Deactivate_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock x:Name="StatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />
+                    <ListView x:Name="UsersList" MinHeight="200" SelectionMode="Single"
+                              AutomationProperties.Name="Λίστα χρηστών">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Spacing="3" Padding="4">
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="16" />
+                                    <TextBlock Text="{Binding SecondaryLine}" TextWrapping="Wrap"
+                                               Foreground="{ThemeResource SecondaryTextBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

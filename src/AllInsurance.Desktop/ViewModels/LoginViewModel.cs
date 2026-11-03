@@ -37,7 +37,7 @@ public partial class LoginViewModel(
             switch (result.Status)
             {
                 case SignInStatus.Authenticated:
-                    navigation.NavigateTo(AppRoute.EmptyWorkspace);
+                    navigation.NavigateTo(AppRoute.Workspace);
                     break;
                 case SignInStatus.PasswordChangeRequired:
                     navigation.NavigateTo(AppRoute.ForcedPasswordChange);
@@ -50,12 +50,12 @@ public partial class LoginViewModel(
         catch (DbUpdateException exception)
         {
             logger.LogError(exception, "Sign-in state could not be saved.");
-            ErrorMessage = "Sign-in is temporarily unavailable because the local database could not be updated.";
+            ErrorMessage = "Η σύνδεση δεν είναι διαθέσιμη επειδή δεν ήταν δυνατή η ενημέρωση της τοπικής βάσης δεδομένων.";
         }
         catch (SqliteException exception)
         {
             logger.LogError(exception, "SQLite failed during sign-in.");
-            ErrorMessage = "Sign-in is temporarily unavailable because the local database could not be reached.";
+            ErrorMessage = "Η σύνδεση δεν είναι διαθέσιμη επειδή δεν ήταν δυνατή η πρόσβαση στην τοπική βάση δεδομένων.";
         }
         finally
         {

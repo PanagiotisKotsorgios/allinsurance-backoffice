@@ -12,6 +12,26 @@ public sealed class UserAdministrationService(
     IClock clock,
     ISessionManager session) : IUserAdministrationService
 {
+    public async Task<IReadOnlyList<UserAccountSummary>> GetUsersAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await EnsurePermissionAsync(db, Permission.ManageUsers, cancellationToken);
+        var users = await db.Users
+            .AsNoTracking()
+            .Include(user => user.UserRoles)
+            .ThenInclude(membership => membership.Role)
+            .OrderBy(user => user.DisplayName)
+            .ToListAsync(cancellationToken);
+        return users.Select(user => new UserAccountSummary(
+            user.Id,
+            user.Username,
+            user.DisplayName,
+            user.IsActive,
+            user.MustChangePassword,
+            user.UserRoles.Select(membership => membership.Role.Name).OrderBy(name => name).ToArray()))
+            .ToArray();
+    }
+
     public async Task<Guid> CreateUserAsync(
         string username,
         string displayName,
@@ -31,7 +51,7 @@ public sealed class UserAdministrationService(
             .ToArray();
         if (requestedRoles.Length == 0)
         {
-            throw new ArgumentException("At least one role must be assigned.", nameof(roleNames));
+            throw new ArgumentException("Πρέπει να οριστεί τουλάχιστον ένας ρόλος.", nameof(roleNames));
         }
 
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
@@ -39,7 +59,7 @@ public sealed class UserAdministrationService(
         await EnsurePermissionAsync(db, Permission.ManageUsers, cancellationToken);
         if (await db.Users.AnyAsync(user => user.NormalizedUsername == normalizedUsername, cancellationToken))
         {
-            throw new InvalidOperationException("That username is already in use.");
+            throw new InvalidOperationException("Αυτό το όνομα χρήστη χρησιμοποιείται ήδη.");
         }
 
         var roles = await db.Roles
@@ -47,7 +67,7 @@ public sealed class UserAdministrationService(
             .ToListAsync(cancellationToken);
         if (roles.Count != requestedRoles.Length)
         {
-            throw new ArgumentException("One or more requested roles do not exist.", nameof(roleNames));
+            throw new ArgumentException("Ένας ή περισσότεροι ρόλοι δεν υπάρχουν.", nameof(roleNames));
         }
 
         var now = clock.UtcNow;
@@ -89,7 +109,7 @@ public sealed class UserAdministrationService(
             .Include(candidate => candidate.UserRoles)
             .ThenInclude(membership => membership.Role)
             .SingleOrDefaultAsync(candidate => candidate.Id == userId, cancellationToken)
-            ?? throw new InvalidOperationException("The user does not exist.");
+            ?? throw new InvalidOperationException("Ο χρήστης δεν υπάρχει.");
         if (!user.IsActive)
         {
             return;
@@ -97,7 +117,7 @@ public sealed class UserAdministrationService(
 
         if (HasAdministratorRole(user) && await CountOtherActiveAdministratorsAsync(db, user.Id, cancellationToken) == 0)
         {
-            throw new InvalidOperationException("The last active administrator cannot be deactivated.");
+            throw new InvalidOperationException("Ο τελευταίος ενεργός διαχειριστής δεν μπορεί να απενεργοποιηθεί.");
         }
 
         user.IsActive = false;
@@ -127,11 +147,11 @@ public sealed class UserAdministrationService(
             .Include(candidate => candidate.UserRoles)
             .ThenInclude(membership => membership.Role)
             .SingleOrDefaultAsync(candidate => candidate.Id == userId, cancellationToken)
-            ?? throw new InvalidOperationException("The user does not exist.");
+            ?? throw new InvalidOperationException("Ο χρήστης δεν υπάρχει.");
         var role = await db.Roles.SingleOrDefaultAsync(
             candidate => candidate.NormalizedName == normalizedRoleName,
             cancellationToken)
-            ?? throw new InvalidOperationException("The role does not exist.");
+            ?? throw new InvalidOperationException("Ο ρόλος δεν υπάρχει.");
 
         if (user.UserRoles.Any(membership => membership.RoleId == role.Id))
         {
@@ -167,7 +187,7 @@ public sealed class UserAdministrationService(
             .Include(candidate => candidate.UserRoles)
             .ThenInclude(membership => membership.Role)
             .SingleOrDefaultAsync(candidate => candidate.Id == userId, cancellationToken)
-            ?? throw new InvalidOperationException("The user does not exist.");
+            ?? throw new InvalidOperationException("Ο χρήστης δεν υπάρχει.");
         var membership = user.UserRoles.SingleOrDefault(candidate =>
             candidate.Role.NormalizedName == normalizedRoleName);
         if (membership is null)
@@ -179,7 +199,7 @@ public sealed class UserAdministrationService(
             membership.Role.NormalizedName == "ADMINISTRATOR" &&
             await CountOtherActiveAdministratorsAsync(db, user.Id, cancellationToken) == 0)
         {
-            throw new InvalidOperationException("The last active administrator cannot lose the Administrator role.");
+            throw new InvalidOperationException("Ο τελευταίος ενεργός διαχειριστής δεν μπορεί να χάσει τον ρόλο διαχειριστή.");
         }
 
         db.UserRoles.Remove(membership);
@@ -208,10 +228,10 @@ public sealed class UserAdministrationService(
             .Include(candidate => candidate.UserRoles)
             .ThenInclude(membership => membership.Role)
             .SingleOrDefaultAsync(candidate => candidate.Id == userId, cancellationToken)
-            ?? throw new InvalidOperationException("The user does not exist.");
+            ?? throw new InvalidOperationException("Ο χρήστης δεν υπάρχει.");
         if (HasAdministratorRole(user))
         {
-            throw new InvalidOperationException("Administrator credentials cannot be reset through employee reset.");
+            throw new InvalidOperationException("Ο κωδικός διαχειριστή δεν μπορεί να επαναφερθεί από την επαναφορά υπαλλήλου.");
         }
 
         var now = clock.UtcNow;
@@ -239,7 +259,7 @@ public sealed class UserAdministrationService(
     {
         if (limit is < 1 or > 500)
         {
-            throw new ArgumentOutOfRangeException(nameof(limit), "Event limit must be between 1 and 500.");
+            throw new ArgumentOutOfRangeException(nameof(limit), "Το πλήθος συμβάντων πρέπει να είναι από 1 έως 500.");
         }
 
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
@@ -290,7 +310,7 @@ public sealed class UserAdministrationService(
         CancellationToken cancellationToken)
     {
         var current = session.Current
-            ?? throw new UnauthorizedAccessException("The current user is not authorized to perform this operation.");
+            ?? throw new UnauthorizedAccessException("Δεν έχετε δικαίωμα για αυτή την ενέργεια.");
         var user = await db.Users
             .Include(candidate => candidate.UserRoles)
             .ThenInclude(membership => membership.Role)
@@ -298,13 +318,13 @@ public sealed class UserAdministrationService(
         if (user is null)
         {
             session.EndSession();
-            throw new UnauthorizedAccessException("The current user is not authorized to perform this operation.");
+            throw new UnauthorizedAccessException("Δεν έχετε δικαίωμα για αυτή την ενέργεια.");
         }
 
         session.RefreshRoles(user.Id, user.UserRoles.Select(membership => membership.Role.Name));
         if (session.Current is null || !session.Current.Permissions.Contains(permission))
         {
-            throw new UnauthorizedAccessException("The current user is not authorized to perform this operation.");
+            throw new UnauthorizedAccessException("Δεν έχετε δικαίωμα για αυτή την ενέργεια.");
         }
     }
 
@@ -312,12 +332,12 @@ public sealed class UserAdministrationService(
     {
         if (username.Length is < 3 or > 100)
         {
-            throw new ArgumentException("Username must be between 3 and 100 characters.", nameof(username));
+            throw new ArgumentException("Το όνομα χρήστη πρέπει να έχει από 3 έως 100 χαρακτήρες.", nameof(username));
         }
 
         if (displayName.Length is < 1 or > 200)
         {
-            throw new ArgumentException("Full name must be between 1 and 200 characters.", nameof(displayName));
+            throw new ArgumentException("Το ονοματεπώνυμο πρέπει να έχει από 1 έως 200 χαρακτήρες.", nameof(displayName));
         }
     }
 

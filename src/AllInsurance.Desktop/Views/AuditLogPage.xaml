@@ -1,0 +1,36 @@
+<Page
+    x:Class="AllInsurance.Desktop.Views.AuditLogPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{ThemeResource PageBackgroundBrush}">
+    <ScrollViewer x:Name="PageScroller" SizeChanged="Scroller_SizeChanged"
+                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="PageContent" MaxWidth="1100" Margin="24" Spacing="18" HorizontalAlignment="Center">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="24">
+                <StackPanel Spacing="8">
+                    <Image Source="ms-appx:///Assets/Icons/audit.svg" Width="32" Height="32" HorizontalAlignment="Left" />
+                    <TextBlock Text="Αρχείο ελέγχου" FontSize="30" FontWeight="SemiBold" />
+                    <TextBlock Text="Πρόσφατα συμβάντα ασφάλειας και διαχείρισης λογαριασμών."
+                               Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+                <StackPanel Spacing="12">
+                    <Button Content="Ανανέωση" Click="Refresh_Click" HorizontalAlignment="Left" />
+                    <TextBlock x:Name="StatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />
+                    <ListView x:Name="EventsList" MinHeight="200" AutomationProperties.Name="Συμβάντα ελέγχου">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Spacing="3" Padding="4">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="16" />
+                                    <TextBlock Text="{Binding SecondaryLine}" TextWrapping="Wrap"
+                                               Foreground="{ThemeResource SecondaryTextBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

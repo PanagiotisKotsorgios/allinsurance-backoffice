@@ -157,6 +157,24 @@ public sealed class AuthenticationFlowTests
     }
 
     [Fact]
+    public async Task OnlyAdministratorCanListUserAccounts()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        await environment.UserAdministrationService.CreateUserAsync(
+            "employee.one", "Employee One", "Temporary passphrase 2026!", ["Employee"]);
+
+        var accounts = await environment.UserAdministrationService.GetUsersAsync();
+        Assert.Equal(2, accounts.Count);
+        Assert.Contains(accounts, account => account.Username == "employee.one" && account.MustChangePassword);
+
+        environment.Session.EndSession();
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            environment.UserAdministrationService.GetUsersAsync());
+    }
+
+    [Fact]
     public async Task RecoveryRotatesCodeAtomicallyAndRejectsReuse()
     {
         await using var environment = new TestEnvironment();

@@ -7,6 +7,7 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableMsixTooling>false</EnableMsixTooling>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationIcon>Assets\allinsurance.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +17,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\logo-99.jpg" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\allinsurance.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Icons\*.svg" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Sections\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\Icons\LICENSE-lucide.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

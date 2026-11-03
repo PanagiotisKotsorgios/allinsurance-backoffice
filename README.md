@@ -1,6 +1,6 @@
 # allinsurance-backoffice
 
-All Insurance Back Office is a Windows desktop prototype for Phase 01 (core foundation and authentication). The current implementation is native WinUI 3, uses a local SQLite database, and keeps application services independently testable.
+AllInsurance Backoffice Software is a Windows desktop application with Phase 01 authentication and a Phase 02 Greek workspace UI. It is native WinUI 3, uses a local SQLite database, and keeps application services independently testable.
 
 ## Requirements
 
@@ -17,11 +17,17 @@ dotnet restore AllInsurance.slnx
 dotnet run --project src\AllInsurance.Desktop\AllInsurance.Desktop.csproj
 ```
 
+To create or refresh a desktop shortcut with the supplied logo:
+
+```powershell
+.\scripts\create-desktop-shortcut.ps1
+```
+
 On the first launch, create the administrator and save the one-time recovery code before continuing to sign in. If setup is interrupted before account creation, it resumes on the next launch. No default administrator or password is provisioned. The database is stored per Windows user at `%LOCALAPPDATA%\AllInsurance\Data\allinsurance.db`.
 
-The login flow supports local authentication, five-attempt/15-minute lockout, temporary-password replacement, and offline recovery-code rotation. A successful sign-in opens only a plain white workspace. Closing the window ends the in-memory session.
+The login flow supports local authentication, five-attempt/15-minute lockout, temporary-password replacement, and offline recovery-code rotation. A successful sign-in maximizes the Greek workspace with ten business sections and the supplied colorful section icons. The top bar provides navigation, administrator user management, audit log, system settings, keyboard shortcuts, and KALYPSIS SOFTWARE SOLUTIONS help and contact details. A footer displays database connection status and the active user. Closing the window ends the in-memory session.
 
-The authentication lockout values can be changed in `src\AllInsurance.Desktop\appsettings.json`. Application services enforce authorization; user/role administration has no management UI in this phase.
+The authentication lockout values can be changed in `src\AllInsurance.Desktop\appsettings.json`. Application services enforce authorization on user and role management. The business section screens have search layouts and empty states; record persistence is planned after the corresponding data rules are defined. See [Phase 02 analysis](Software%20Analysis/02%20-%20Workspace%20UI/README.md).
 
 ## Build and tests
 

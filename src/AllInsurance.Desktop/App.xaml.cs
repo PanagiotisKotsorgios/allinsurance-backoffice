@@ -4,6 +4,7 @@ using AllInsurance.Application.Authorization;
 using AllInsurance.Application.Users;
 using AllInsurance.Desktop.Navigation;
 using AllInsurance.Desktop.Security;
+using AllInsurance.Desktop.Settings;
 using AllInsurance.Infrastructure;
 using AllInsurance.Desktop.ViewModels;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,9 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     public App()
     {
+        var greekCulture = CultureInfo.GetCultureInfo("el-GR");
+        CultureInfo.DefaultThreadCurrentCulture = greekCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = greekCulture;
         InitializeComponent();
         UnhandledException += (_, args) =>
         {
@@ -65,6 +69,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                 services.AddSingleton<ISessionManager>(provider => provider.GetRequiredService<SessionService>());
                 services.AddSingleton<ISessionService>(provider => provider.GetRequiredService<SessionService>());
                 services.AddSingleton<RecoveryCodeDisplayState>();
+                services.AddSingleton<WorkspacePreferences>();
                 services.AddSingleton<NavigationService>();
                 services.AddTransient<IAdministratorSetupService, AdministratorSetupService>();
                 services.AddTransient<IAuthenticationService, AuthenticationService>();
@@ -80,6 +85,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         await _host.StartAsync();
 
         _mainWindow = new MainWindow();
+        _mainWindow.ApplyTheme(Services.GetRequiredService<WorkspacePreferences>().Theme);
         _mainWindow.Closed += async (_, _) =>
         {
             Services.GetRequiredService<ISessionService>().EndSession();
@@ -110,6 +116,12 @@ public partial class App : Microsoft.UI.Xaml.Application
             _mainWindow.HideStartupProgress();
         }
     }
+
+    public static void ApplyTheme(Microsoft.UI.Xaml.ElementTheme theme) =>
+        ((App)Current)._mainWindow?.ApplyTheme(theme);
+
+    public static void MaximizeWorkspace() =>
+        ((App)Current)._mainWindow?.MaximizeWorkspace();
 
     private static int ReadPolicyValue(string? value, int defaultValue, string settingName)
     {

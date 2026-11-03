@@ -16,7 +16,7 @@ public sealed class NavigationService(
     public void NavigateTo(AppRoute route)
     {
         var frame = _frame ?? throw new InvalidOperationException("The application window is not ready.");
-        if (route == AppRoute.EmptyWorkspace && !session.IsAuthenticated)
+        if (route == AppRoute.Workspace && !session.IsAuthenticated)
         {
             throw new UnauthorizedAccessException("The workspace is only available after authentication.");
         }
@@ -38,7 +38,7 @@ public sealed class NavigationService(
             AppRoute.Login => typeof(LoginPage),
             AppRoute.ForgotPassword => typeof(ForgotPasswordPage),
             AppRoute.ForcedPasswordChange => typeof(ForcedPasswordChangePage),
-            AppRoute.EmptyWorkspace => typeof(EmptyWorkspacePage),
+            AppRoute.Workspace => typeof(WorkspacePage),
             AppRoute.RepairRequired => typeof(RepairRequiredPage),
             AppRoute.StartupFailure => typeof(StartupFailurePage),
             _ => throw new ArgumentOutOfRangeException(nameof(route))

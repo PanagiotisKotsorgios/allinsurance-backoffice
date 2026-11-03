@@ -39,7 +39,7 @@ public partial class ForgotPasswordViewModel(
         ErrorMessage = string.Empty;
         if (!string.Equals(NewPassword, Confirmation, StringComparison.Ordinal))
         {
-            ErrorMessage = "The password entries do not match.";
+            ErrorMessage = "Οι κωδικοί πρόσβασης δεν ταιριάζουν.";
             return;
         }
 
@@ -67,17 +67,17 @@ public partial class ForgotPasswordViewModel(
         }
         catch (ArgumentException exception)
         {
-            ErrorMessage = exception.Message;
+            ErrorMessage = exception.Message.Split(Environment.NewLine)[0];
         }
         catch (DbUpdateException exception)
         {
             logger.LogError(exception, "Password recovery could not be saved.");
-            ErrorMessage = "The local database could not complete password recovery. Try again.";
+            ErrorMessage = "Δεν ήταν δυνατή η επαναφορά κωδικού στη βάση δεδομένων. Δοκιμάστε ξανά.";
         }
         catch (SqliteException exception)
         {
             logger.LogError(exception, "SQLite failed during password recovery.");
-            ErrorMessage = "Password recovery is temporarily unavailable because the local database could not be reached.";
+            ErrorMessage = "Η επαναφορά κωδικού δεν είναι διαθέσιμη επειδή δεν ήταν δυνατή η πρόσβαση στη βάση δεδομένων.";
         }
         finally
         {

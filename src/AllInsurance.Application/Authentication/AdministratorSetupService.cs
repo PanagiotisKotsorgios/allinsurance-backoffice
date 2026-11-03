@@ -32,22 +32,22 @@ public sealed class AdministratorSetupService(
             .AnyAsync(entry => entry.Key == "first_run_pending" && entry.Value == "true", cancellationToken);
         if (!firstRunMarker)
         {
-            throw new InvalidOperationException("Administrator setup is not available for this installation.");
+            throw new InvalidOperationException("Η δημιουργία διαχειριστή δεν είναι διαθέσιμη σε αυτή την εγκατάσταση.");
         }
 
         if (await db.Users.AnyAsync(cancellationToken))
         {
-            throw new InvalidOperationException("This installation already contains user accounts.");
+            throw new InvalidOperationException("Υπάρχουν ήδη λογαριασμοί χρηστών σε αυτή την εγκατάσταση.");
         }
 
         if (!await db.Roles.AnyAsync(role => role.Id == AdministratorRoleId, cancellationToken))
         {
-            throw new InvalidOperationException("The Administrator role is missing. Database repair is required.");
+            throw new InvalidOperationException("Λείπει ο ρόλος διαχειριστή. Απαιτείται επιδιόρθωση της βάσης δεδομένων.");
         }
 
         if (await db.Users.AnyAsync(user => user.NormalizedUsername == normalizedUsername, cancellationToken))
         {
-            throw new InvalidOperationException("That username is already in use.");
+            throw new InvalidOperationException("Αυτό το όνομα χρήστη χρησιμοποιείται ήδη.");
         }
 
         var now = clock.UtcNow;
@@ -100,12 +100,12 @@ public sealed class AdministratorSetupService(
     {
         if (username.Length is < 3 or > 100)
         {
-            throw new ArgumentException("Username must be between 3 and 100 characters.", nameof(username));
+            throw new ArgumentException("Το όνομα χρήστη πρέπει να έχει από 3 έως 100 χαρακτήρες.", nameof(username));
         }
 
         if (displayName.Length is < 1 or > 200)
         {
-            throw new ArgumentException("Full name must be between 1 and 200 characters.", nameof(displayName));
+            throw new ArgumentException("Το ονοματεπώνυμο πρέπει να έχει από 1 έως 200 χαρακτήρες.", nameof(displayName));
         }
     }
 
@@ -119,7 +119,7 @@ public sealed class AdministratorSetupService(
 
         if (!string.Equals(password, confirmation, StringComparison.Ordinal))
         {
-            throw new ArgumentException("The password entries do not match.", nameof(confirmation));
+            throw new ArgumentException("Οι κωδικοί πρόσβασης δεν ταιριάζουν.", nameof(confirmation));
         }
     }
 }
