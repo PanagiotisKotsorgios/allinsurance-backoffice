@@ -25,6 +25,7 @@ public sealed partial class SectionPage : Page
     private PartnerCardWindow? _partnerCard;
     private CustomerChoice[] _customerChoices = [];
     private string[] _partnerCategories = [];
+    private HashSet<Guid> _vehiclesWithActivePolicy = [];
     private int _requestVersion;
     private BusinessRecordRow[] _filtered = [];
     private readonly int[] _columnOrder = [0, 1, 2, 3, 4, 5, 6];
@@ -64,20 +65,10 @@ public sealed partial class SectionPage : Page
         SectionDescription.Text = section.Description;
         AddButton.Label = "Προσθήκη " + Singular(section.Title);
         SearchInput.PlaceholderText = section.SearchHint;
-        if (section.Key is "partners" or "vehicles")
-        {
-            IconBackground.Visibility = Visibility.Collapsed;
-            Grid.SetColumn(HeadingPanel, 0);
-            Grid.SetColumnSpan(HeadingPanel, 2);
-        }
-        if (section.Key == "partners")
-        {
-            CustomerFilter.Title = "Κατηγορία συνεργάτη";
-            CityFilter.Visibility = Visibility.Visible;
-            PersonTypeFilter.Visibility = Visibility.Visible;
-            FromFilter.Visibility = Visibility.Collapsed;
-            UntilFilter.Visibility = Visibility.Collapsed;
-        }
+        IconBackground.Visibility = Visibility.Collapsed;
+        Grid.SetColumn(HeadingPanel, 0);
+        Grid.SetColumnSpan(HeadingPanel, 2);
+        ConfigureFilterBar();
         TitleHeader.Text = section.Columns[0];
         PartyHeader.Text = section.Columns.Length > 1 ? section.Columns[1] : "Στοιχεία";
         StatusFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
@@ -127,19 +118,15 @@ public sealed partial class SectionPage : Page
             var records = await _records.SearchAsync(_section.Key);
             if (version != _requestVersion) return;
             _checkedRecordIds.RemoveWhere(id => !records.Any(record => record.Id == id));
-            StatusFilter.SetOptions(records.Select(item => string.IsNullOrWhiteSpace(item.Status)
-                ? "Χωρίς κατάσταση" : item.Status));
-            CustomerFilter.SetOptions(_section.Key == "partners"
-                ? _partnerCategories.Concat(records.Select(item =>
-                    PartnerProfileData.Read(item.DetailsJson).Category ?? "Χωρίς κατηγορία"))
-                : _customerChoices.Select(item => item.Name));
-            if (_section.Key == "partners")
+            if (_section.Key == "vehicles")
             {
-                CityFilter.SetOptions(records.Select(item =>
-                    PartnerProfileData.Read(item.DetailsJson).City ?? "Χωρίς πόλη"));
-                PersonTypeFilter.SetOptions(records.Select(item =>
-                    PartnerProfileData.Read(item.DetailsJson).PersonType ?? "Χωρίς τύπο"));
+                var policies = await _records.SearchAsync("policies");
+                if (version != _requestVersion) return;
+                _vehiclesWithActivePolicy = policies.Where(IsActivePolicy)
+                    .Select(item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).VehicleId)
+                    .OfType<Guid>().ToHashSet();
             }
+            ConfigureFilterOptions(records);
             IEnumerable<BusinessRecord> filtered = records;
             var term = SearchInput.Text.Trim();
             if (term.Length > 0)
@@ -155,26 +142,16 @@ public sealed partial class SectionPage : Page
                         PartnerProfileData.Read(item.DetailsJson).Category,
                         PartnerProfileData.Read(item.DetailsJson).City
                     }.Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true)));
-            filtered = filtered.Where(item => StatusFilter.SelectedValues.Contains(
-                string.IsNullOrWhiteSpace(item.Status) ? "Χωρίς κατάσταση" : item.Status));
-            filtered = filtered.Where(item => CustomerFilter.SelectedValues.Contains(
-                _section.Key == "partners"
-                    ? PartnerProfileData.Read(item.DetailsJson).Category ?? "Χωρίς κατηγορία"
-                    : item.Customer is null ? "Χωρίς πελάτη" :
-                        $"{item.Customer.LastName} {item.Customer.FirstName}".Trim()));
-            if (_section.Key == "partners")
-                filtered = filtered.Where(item =>
-                    CityFilter.SelectedValues.Contains(PartnerProfileData.Read(item.DetailsJson).City ?? "Χωρίς πόλη") &&
-                    PersonTypeFilter.SelectedValues.Contains(PartnerProfileData.Read(item.DetailsJson).PersonType ?? "Χωρίς τύπο"));
+            filtered = filtered.Where(PassesSectionFilters);
             if (FromFilter.Date is DateTimeOffset fromDate)
             {
                 var from = fromDate.Date;
-                filtered = filtered.Where(item => item.EventDate >= from);
+                filtered = filtered.Where(item => FilterDate(item) >= from);
             }
             if (UntilFilter.Date is DateTimeOffset untilDate)
             {
                 var until = untilDate.Date;
-                filtered = filtered.Where(item => item.EventDate < until.AddDays(1));
+                filtered = filtered.Where(item => FilterDate(item) < until.AddDays(1));
             }
             _filtered = filtered.Select(item => new BusinessRecordRow(item)).ToArray();
             SortRecords();
@@ -193,8 +170,10 @@ public sealed partial class SectionPage : Page
     }
 
     private async void Filter_Changed(object sender, TextChangedEventArgs e) => await RefreshAsync();
-    private async void DateFilter_Changed(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) =>
-        await RefreshAsync();
+    private async void DateFilter_Changed(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
+    { UpdateDateRangeLabel(); await RefreshAsync(); }
+    private async void DateBasis_Changed(object sender, SelectionChangedEventArgs e)
+    { UpdateDateRangeLabel(); await RefreshAsync(); }
     private void ClearFilters_Click(object sender, RoutedEventArgs e)
     {
         SearchInput.Text = "";
@@ -202,6 +181,7 @@ public sealed partial class SectionPage : Page
         CustomerFilter.SelectAll();
         CityFilter.SelectAll();
         PersonTypeFilter.SelectAll();
+        if (_section.Key == "policies") DateBasisFilter.SelectedIndex = 0;
         FromFilter.Date = null;
         UntilFilter.Date = null;
     }

@@ -14,6 +14,7 @@ public sealed class PolicyCardData
     public string? Branch { get; set; }
     public string? Product { get; set; }
     public Guid? VehicleId { get; set; }
+    public DateTime? IssueDate { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public decimal? GrossPremium { get; set; }

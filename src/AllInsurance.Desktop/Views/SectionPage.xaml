@@ -6,7 +6,7 @@
     Background="{ThemeResource PageBackgroundBrush}">
     <ScrollViewer x:Name="PageScroller" SizeChanged="Scroller_SizeChanged"
                   VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel x:Name="PageContent" MaxWidth="1380" Margin="24" Spacing="16"
+        <StackPanel x:Name="PageContent" MaxWidth="1380" Margin="24" Spacing="12"
                     HorizontalAlignment="Center">
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="24">
                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
@@ -41,18 +41,29 @@
                 <StackPanel Spacing="12">
                     <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
                     <TextBox x:Name="SearchInput" Height="42" MinHeight="42" TextChanged="Filter_Changed" />
-                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="50">
-                            <controls:MultiSelectFilter x:Name="StatusFilter" Title="Κατάσταση" Width="210" Height="42" />
-                            <controls:MultiSelectFilter x:Name="CustomerFilter" Title="Πελάτης" Width="210" Height="42" />
-                            <controls:MultiSelectFilter x:Name="CityFilter" Title="Πόλη / περιοχή" Width="210" Height="42" Visibility="Collapsed" />
-                            <controls:MultiSelectFilter x:Name="PersonTypeFilter" Title="Τύπος προσώπου" Width="210" Height="42" Visibility="Collapsed" />
-                            <CalendarDatePicker x:Name="FromFilter" Width="210" Height="42"
-                                                PlaceholderText="Από ημερομηνία" DateChanged="DateFilter_Changed" />
-                            <CalendarDatePicker x:Name="UntilFilter" Width="210" Height="42"
-                                                PlaceholderText="Έως ημερομηνία" DateChanged="DateFilter_Changed" />
-                            <controls:ActionButton Kind="Clear" Label="Καθαρισμός φίλτρων"
-                                                   Width="210" Height="42" Click="ClearFilters_Click" />
-                    </VariableSizedWrapGrid>
+                    <Grid x:Name="FilterBar" ColumnSpacing="8" Height="42">
+                        <controls:MultiSelectFilter x:Name="StatusFilter" Title="Κατάσταση" Height="42" />
+                        <controls:MultiSelectFilter x:Name="CustomerFilter" Title="Πελάτης" Height="42" />
+                        <controls:MultiSelectFilter x:Name="CityFilter" Title="Πόλη / περιοχή" Height="42" />
+                        <controls:MultiSelectFilter x:Name="PersonTypeFilter" Title="Τύπος προσώπου" Height="42" />
+                        <controls:ActionButton x:Name="DateRangeFilter" Kind="Choice" Label="Ημερομηνία" Height="42">
+                            <controls:ActionButton.Flyout>
+                                <Flyout>
+                                    <StackPanel Width="260" Spacing="10" Padding="8">
+                                        <TextBlock Text="Εύρος ημερομηνιών" FontWeight="SemiBold" />
+                                        <ComboBox x:Name="DateBasisFilter" Height="38" HorizontalAlignment="Stretch"
+                                                  SelectionChanged="DateBasis_Changed" />
+                                        <CalendarDatePicker x:Name="FromFilter" Height="42" HorizontalAlignment="Stretch"
+                                                            PlaceholderText="Από" DateChanged="DateFilter_Changed" />
+                                        <CalendarDatePicker x:Name="UntilFilter" Height="42" HorizontalAlignment="Stretch"
+                                                            PlaceholderText="Έως" DateChanged="DateFilter_Changed" />
+                                    </StackPanel>
+                                </Flyout>
+                            </controls:ActionButton.Flyout>
+                        </controls:ActionButton>
+                        <controls:ActionButton x:Name="ClearFiltersButton" Kind="Clear" Label="Καθαρισμός φίλτρων"
+                                               Height="42" Click="ClearFilters_Click" />
+                    </Grid>
                 </StackPanel>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">

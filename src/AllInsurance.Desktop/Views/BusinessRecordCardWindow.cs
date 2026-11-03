@@ -468,8 +468,10 @@ public sealed partial class BusinessRecordCardWindow : Window
             _vehicleChoice.ItemsSource = available;
             _vehicleChoice.SelectedItem = available.FirstOrDefault(item => item.Id == selectedVehicle) ?? available[0];
         };
-        _statusChoice = Choices(right, "Κατάσταση", ["Σε εξέλιξη", "Ενεργό", "Ανενεργό", "Ολοκληρωμένο"],
+        _statusChoice = Choices(right, "Κατάσταση", ["Σε εξέλιξη", "Ενεργό", "Πιθανό", "Ληγμένο",
+            "Ακυρωμένο", "Ανανεωμένο", "Πρόσθετη πράξη", "Πρόσθετη πράξη ακύρωσης", "Ανενεργό", "Ολοκληρωμένο"],
             _record.Status ?? (_record.Id == Guid.Empty ? "Σε εξέλιξη" : "Ενεργό"));
+        Date(right, "issue", "Ημερομηνία έκδοσης", data.IssueDate);
         Date(right, "start", "Έναρξη κάλυψης", data.StartDate);
         Date(right, "end", "Λήξη κάλυψης", data.EndDate);
         Text(right, "gross", "Μικτά ασφάλιστρα", data.GrossPremium?.ToString("N2"));
@@ -625,7 +627,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                     PolicyNumber = Value("policy"), Insurer = _insurerSuggest?.Text.Trim(),
                     Agency = Value("agency"), Branch = Value("branch"), Product = Value("product"),
                     VehicleId = (_vehicleChoice?.SelectedItem as Choice)?.Id,
-                    StartDate = DateValue("start"), EndDate = DateValue("end"),
+                    IssueDate = DateValue("issue"), StartDate = DateValue("start"), EndDate = DateValue("end"),
                     GrossPremium = DecimalValue(Value("gross"), "Μικτά ασφάλιστρα"),
                     NetPremium = DecimalValue(Value("net"), "Καθαρά ασφάλιστρα"),
                     CoverageNotes = Value("coverage")
