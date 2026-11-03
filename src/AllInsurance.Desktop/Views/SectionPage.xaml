@@ -56,11 +56,15 @@
                                AutomationProperties.LiveSetting="Assertive" />
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Disabled">
-                        <StackPanel Width="1172" HorizontalAlignment="Left">
+                        <StackPanel Width="1212" HorizontalAlignment="Left">
                             <Border Background="{ThemeResource TableHeaderBackgroundBrush}" CornerRadius="8"
                                     BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
                                     Padding="0">
-                                <Grid x:Name="RecordsHeader" ColumnDefinitions="240,140,190,130,130,240,100"
+                                <Grid ColumnDefinitions="40,*">
+                                    <CheckBox x:Name="SelectAllRecords" VerticalAlignment="Center"
+                                              HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των εγγραφών της σελίδας"
+                                              Checked="SelectAllRecords_Changed" Unchecked="SelectAllRecords_Changed" />
+                                <Grid x:Name="RecordsHeader" Grid.Column="1" ColumnDefinitions="240,140,190,130,130,240,100"
                                       ColumnSpacing="0">
                                     <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="TitleHeader" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κωδικός" FontWeight="SemiBold" /></Border>
@@ -70,10 +74,11 @@
                                     <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Πελάτης" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="10,8"><TextBlock Text="Εγγραφή" FontWeight="SemiBold" /></Border>
                                 </Grid>
+                                </Grid>
                             </Border>
                             <ListView x:Name="RecordsList" Height="440" Padding="0"
                                       BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,1,1"
-                                      SelectionMode="Multiple">
+                                      SelectionMode="Multiple" SelectionChanged="Records_SelectionChanged">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
                                         <Grid ColumnDefinitions="240,140,190,130,130,240,100" Loaded="RecordRow_Loaded"

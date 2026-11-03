@@ -25,6 +25,7 @@ public sealed partial class SectionPage : Page
     private readonly double[] _columnWidths = [240, 140, 190, 130, 130, 240, 100];
     private int _sortColumn = 0;
     private bool _sortDescending;
+    private bool _updatingSelectAll;
     private int _page = 1;
     private const int PageSize = 25;
 
@@ -133,6 +134,19 @@ public sealed partial class SectionPage : Page
         FromFilter.Date = null;
         UntilFilter.Date = null;
     }
+    private void Records_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _updatingSelectAll = true;
+        SelectAllRecords.IsChecked = RecordsList.Items.Count > 0 &&
+            RecordsList.SelectedItems.Count == RecordsList.Items.Count;
+        _updatingSelectAll = false;
+    }
+    private void SelectAllRecords_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_updatingSelectAll || RecordsList is null) return;
+        if (SelectAllRecords.IsChecked == true) RecordsList.SelectAll();
+        else RecordsList.SelectedItems.Clear();
+    }
     private void Previous_Click(object sender, RoutedEventArgs e)
     {
         if (_page > 1) { _page--; ApplyPage(); }
@@ -172,7 +186,7 @@ public sealed partial class SectionPage : Page
             if (args.InRecycleQueue || args.Item is not BusinessRecordRow row || args.ItemContainer is null) return;
             args.ItemContainer.Padding = new Thickness(0);
             args.ItemContainer.Margin = new Thickness(0);
-            args.ItemContainer.Width = 1170;
+            args.ItemContainer.Width = 1210;
             args.ItemContainer.Height = 39;
             args.ItemContainer.HorizontalContentAlignment = HorizontalAlignment.Stretch;
         };

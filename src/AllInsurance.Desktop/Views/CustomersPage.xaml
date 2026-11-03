@@ -60,7 +60,11 @@
                             <Border Background="{ThemeResource TableHeaderBackgroundBrush}" Padding="0"
                                     BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
                                     CornerRadius="8">
-                                <Grid x:Name="TableHeader" ColumnSpacing="0">
+                                <Grid ColumnDefinitions="40,*">
+                                    <CheckBox x:Name="SelectAllCustomers" VerticalAlignment="Center"
+                                              HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των πελατών της σελίδας"
+                                              Checked="SelectAllCustomers_Changed" Unchecked="SelectAllCustomers_Changed" />
+                                <Grid x:Name="TableHeader" Grid.Column="1" ColumnSpacing="0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="125" /><ColumnDefinition Width="130" />
                                         <ColumnDefinition Width="155" /><ColumnDefinition Width="155" />
@@ -78,6 +82,7 @@
                                     <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κινητό" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Πόλη" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="9" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,0" Padding="10,8"><TextBlock Text="Υπόλοιπο" FontWeight="SemiBold" /></Border>
+                                </Grid>
                                 </Grid>
                             </Border>
                             <ListView x:Name="CustomersList" IsItemClickEnabled="True" Padding="0"

@@ -19,6 +19,7 @@ public sealed partial class CustomersPage : Page
     private CustomerListItem[] _filtered = [];
     private CustomerListItem[] _allItems = [];
     private bool _loading;
+    private bool _updatingSelectAll;
     private string _sortKey = "LastName";
     private bool _sortDescending;
     private int _page = 1;
@@ -139,6 +140,16 @@ public sealed partial class CustomersPage : Page
     {
         var count = CustomersList.SelectedItems.Count;
         SelectedBadge.Text = count == 1 ? "1 επιλεγμένος" : $"{count} επιλεγμένοι";
+        _updatingSelectAll = true;
+        SelectAllCustomers.IsChecked = CustomersList.Items.Count > 0 &&
+            count == CustomersList.Items.Count;
+        _updatingSelectAll = false;
+    }
+    private void SelectAllCustomers_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_updatingSelectAll || CustomersList is null) return;
+        if (SelectAllCustomers.IsChecked == true) CustomersList.SelectAll();
+        else CustomersList.SelectedItems.Clear();
     }
     private CustomerListItem? SelectedCustomer() =>
         CustomersList.SelectedItems.Count == 1 &&
@@ -185,7 +196,7 @@ public sealed partial class CustomersPage : Page
 
     private ListViewItem CustomerRow(CustomerListItem item)
     {
-        var row = new Grid { ColumnSpacing = 0, Width = TableStack.Width - 2, Height = 39 };
+        var row = new Grid { ColumnSpacing = 0, Width = TableStack.Width - 42, Height = 39 };
         var values = new[] { item.Code, item.CustomerKind, item.LastName,
             item.FirstName, item.CompanyName, item.TaxNumber,
             item.PrimaryEmail, item.PrimaryMobile, item.City, item.BalanceDisplay };
@@ -253,7 +264,7 @@ public sealed partial class CustomersPage : Page
                 ? Visibility.Visible : Visibility.Collapsed;
         }
         TableStack.Width = columns.Where(column => CustomerColumns.IsVisible(column.Key))
-            .Sum(column => column.Width) + 2;
+            .Sum(column => column.Width) + 42;
         var page = _page;
         _page = page;
         ApplyPage();
