@@ -83,7 +83,7 @@ public sealed partial class WorkspaceRecordCardWindow
         var rows = source.Where(predicate).ToArray();
         var search = new TextBox { PlaceholderText = "Αναζήτηση αριθμού, τίτλου ή κατάστασης...",
             Height = 38, MinHeight = 38, HorizontalAlignment = HorizontalAlignment.Stretch };
-        panel.Children.Add(search);
+        panel.Children.Add(SearchFieldVisual.Wrap(search));
         var widths = new[] { 350, 210, 180, 170 };
         var captions = new[] { "Εγγραφή", "Κωδικός", "Κατάσταση", "Ημερομηνία" };
         var total = widths.Sum();
@@ -180,7 +180,7 @@ public sealed partial class WorkspaceRecordCardWindow
                 $"Ανενεργοί: {_customers.Count(item => !item.IsActive)}" });
             var search = new TextBox { PlaceholderText = "Αναζήτηση ονόματος ή ΑΦΜ...",
                 Height = 38, MinHeight = 38 };
-            panel.Children.Add(search);
+            panel.Children.Add(SearchFieldVisual.Wrap(search));
             var list = new ListView { Height = 320 };
             panel.Children.Add(list);
             var pager = new TablePagination(list);

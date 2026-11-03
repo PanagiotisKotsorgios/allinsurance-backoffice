@@ -15,7 +15,7 @@ public sealed partial class CustomerCardWindow
         var search = new TextBox { Height = 40, MinHeight = 40,
             PlaceholderText = "Αναζήτηση ενέργειας, περιγραφής ή χρήστη...",
             HorizontalAlignment = HorizontalAlignment.Stretch };
-        root.Children.Add(search);
+        root.Children.Add(SearchFieldVisual.Wrap(search));
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 205, ItemHeight = 46 };
         var action = new ComboBox { Width = 195, Height = 40, SelectedIndex = 0 };

@@ -11,8 +11,19 @@
                     <TextBlock Text="Πρόσφατα σφάλματα της εφαρμογής. Επιλέξτε μία εγγραφή για τις τεχνικές λεπτομέρειες."
                                TextWrapping="Wrap" Foreground="{ThemeResource SecondaryTextBrush}" />
                     <TextBlock x:Name="PathText" TextWrapping="Wrap" />
-                    <TextBox x:Name="SearchInput" PlaceholderText="Αναζήτηση σφάλματος ή ενότητας..."
-                             Height="42" MinHeight="42" TextChanged="Search_Changed" />
+                    <Border Height="46" CornerRadius="9" BorderBrush="#7C91A7"
+                            BorderThickness="1.5" Padding="1">
+                    <Grid>
+                        <TextBox x:Name="SearchInput" PlaceholderText="Αναζήτηση σφάλματος ή ενότητας..."
+                                 Height="42" MinHeight="42" CornerRadius="7" BorderThickness="0"
+                                 Padding="42,0,12,0" VerticalContentAlignment="Center"
+                                 TextChanged="Search_Changed" />
+                        <FontIcon Glyph="&#xE721;" FontFamily="Segoe Fluent Icons" FontSize="20"
+                                  Width="24" Height="24" Margin="12,0,0,0"
+                                  HorizontalAlignment="Left" VerticalAlignment="Center"
+                                  IsHitTestVisible="False" />
+                    </Grid>
+                    </Border>
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />
                 </StackPanel>

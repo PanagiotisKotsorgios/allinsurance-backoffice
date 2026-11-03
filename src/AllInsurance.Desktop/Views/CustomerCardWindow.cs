@@ -319,7 +319,7 @@ public sealed partial class CustomerCardWindow : Window
         foreach (var field in new UIElement[] { stateFilter, fromFilter, untilFilter })
             filters.Children.Add(field);
         var filterGroup = new StackPanel { Spacing = 7 };
-        filterGroup.Children.Add(search);
+        filterGroup.Children.Add(SearchFieldVisual.Wrap(search));
         filterGroup.Children.Add(filters);
         Grid.SetRow(filterGroup, 1);
         root.Children.Add(filterGroup);

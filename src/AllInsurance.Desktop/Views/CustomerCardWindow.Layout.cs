@@ -287,7 +287,7 @@ public sealed partial class CustomerCardWindow
         var search = new TextBox { Height = 38, MinHeight = 38,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Αναζήτηση κίνησης..." };
-        root.Children.Add(search);
+        root.Children.Add(SearchFieldVisual.Wrap(search));
         var kind = new ComboBox { Width = 170, Height = 38,
             ItemsSource = new[] { "Όλες οι κινήσεις", "Εισπράξεις", "Πληρωμές" }, SelectedIndex = 0 };
         var from = new CalendarDatePicker { Width = 170, Height = 38,

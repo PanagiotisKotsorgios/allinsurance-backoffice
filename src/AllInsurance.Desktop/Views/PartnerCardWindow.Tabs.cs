@@ -329,7 +329,7 @@ public sealed partial class PartnerCardWindow
         var panel = new StackPanel { Spacing = 0 };
         var search = new TextBox { PlaceholderText = hint, Height = 40, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 8) };
-        panel.Children.Add(search);
+        panel.Children.Add(SearchFieldVisual.Wrap(search));
         var total = widths.Sum();
         var header = new Grid { Width = total,
             Background = new SolidColorBrush(IsDarkTheme() ? Color.FromArgb(255, 55, 65, 77)
