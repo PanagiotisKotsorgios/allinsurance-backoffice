@@ -35,7 +35,9 @@
                            TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />
                 <ProgressRing IsActive="{Binding IsBusy}" Width="24" Height="24"
                               HorizontalAlignment="Center" />
-                <controls:ActionButton Kind="Open" Label="Σύνδεση" Command="{Binding SignInCommand}" />
+                <controls:ActionButton Kind="Open" Label="Σύνδεση" Command="{Binding SignInCommand}"
+                                       Width="220" Height="54" MinHeight="54" FontSize="18"
+                                       HorizontalAlignment="Center" />
                 <HyperlinkButton Content="Ξεχάσατε τον κωδικό;" Command="{Binding OpenForgotPasswordCommand}"
                                  HorizontalAlignment="Center" />
             </StackPanel>

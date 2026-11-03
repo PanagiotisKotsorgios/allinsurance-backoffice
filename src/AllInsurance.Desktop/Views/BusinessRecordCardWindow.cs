@@ -71,7 +71,13 @@ public sealed partial class BusinessRecordCardWindow : Window
     private ComboBox? _vehicleChoice;
     private ComboBox? _typeChoice;
     private ComboBox? _statusChoice;
+    private ComboBox? _kteoStatusChoice;
+    private AutoSuggestBox? _insurerSuggest;
     private ActionButton? _convertButton;
+    private ActionButton? _newVehiclePolicyButton;
+    private ActionButton? _addVehicleClaimButton;
+    private TextBlock? _policyFinanceSummary;
+    private TextBlock? _policyCommissionSummary;
     private TextBlock? _historyText;
     private bool _conversionRequested;
     private sealed record Choice(Guid? Id, string Name);
@@ -79,7 +85,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     public event EventHandler? RecordSaved;
 
     public BusinessRecordCardWindow(string section, Guid? customerId = null, Guid? recordId = null,
-        nint ownerHandle = default)
+        nint ownerHandle = default, Guid? vehicleId = null)
     {
         if (section is not ("policies" or "vehicles"))
             throw new ArgumentException("Μη υποστηριζόμενη καρτέλα.");
@@ -88,7 +94,9 @@ public sealed partial class BusinessRecordCardWindow : Window
         _recordId = recordId;
         _ownerHandle = ownerHandle == default ? App.MainWindowHandle() : ownerHandle;
         _record = new BusinessRecord { SectionKey = section, Title = "",
-            CustomerId = customerId, DocumentType = section == "policies" ? "Αίτηση" : null };
+            CustomerId = customerId, DocumentType = section == "policies" ? "Αίτηση" : null,
+            DetailsJson = section == "policies" && vehicleId is Guid linkedVehicle
+                ? BusinessRecordDetails.Write(new PolicyCardData { VehicleId = linkedVehicle }) : null };
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
         _root.Background = new SolidColorBrush(IsDarkTheme()
             ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 246, 249, 252));
@@ -134,6 +142,9 @@ public sealed partial class BusinessRecordCardWindow : Window
                 (_fixedCustomerId is Guid fixedId && _record.CustomerId != fixedId))
                 throw new InvalidOperationException("Η εγγραφή δεν ανήκει σε αυτή την καρτέλα.");
             var customers = await _customers.SearchAsync();
+            var companies = _section == "policies"
+                ? (await _records.SearchAsync("companies")).ToArray()
+                : [];
             var vehicles = _section == "policies"
                 ? (await _records.SearchAsync("vehicles")).ToArray()
                 : [];
@@ -154,7 +165,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             _vehicleCustomers = customers;
             _vehiclePolicies = policies;
             _vehicleClaims = claims;
-            BuildUi(customers, vehicles, policies, transactions);
+            BuildUi(customers, vehicles, policies, transactions, companies);
         }
         catch (Exception exception)
         {
@@ -166,7 +177,7 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     private void BuildUi(IReadOnlyList<CustomerListItem> customers,
         IReadOnlyList<BusinessRecord> vehicles, IReadOnlyList<BusinessRecord> policies,
-        IReadOnlyList<CustomerTransaction> transactions)
+        IReadOnlyList<CustomerTransaction> transactions, IReadOnlyList<BusinessRecord> companies)
     {
         _root.Children.Clear();
         var gradient = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0),
@@ -224,7 +235,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         footer.Children.Add(actions);
         Grid.SetRow(footer, 3);
         _root.Children.Add(footer);
-        if (_section == "policies") BuildPolicyTabs(customers, vehicles, transactions);
+        if (_section == "policies") BuildPolicyTabs(customers, vehicles, transactions, companies);
         else BuildVehicleTabs(customers, policies);
         SelectTab(0);
         UpdateConvertButton();
@@ -277,7 +288,7 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     private TextBox Text(StackPanel panel, string key, string label, string? value = null)
     {
-        var field = new TextBox { Text = value ?? "", MinHeight = 28, Height = 28,
+        var field = new TextBox { Text = value ?? "", MinHeight = 34, Height = 34,
             FontSize = 13, HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         _text[key] = field;
@@ -288,7 +299,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     {
         var field = new CalendarDatePicker {
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 32, Height = 32,
+            MinHeight = 36, Height = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         _dates[key] = field;
@@ -298,7 +309,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     private ComboBox Choices(StackPanel panel, string label, IEnumerable<string> items, string? selected)
     {
         var field = new ComboBox { ItemsSource = items.ToArray(),
-            MinHeight = 28, Height = 28, HorizontalAlignment = HorizontalAlignment.Stretch };
+            MinHeight = 34, Height = 34, HorizontalAlignment = HorizontalAlignment.Stretch };
         field.SelectedItem = selected;
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         return field;
@@ -309,14 +320,15 @@ public sealed partial class BusinessRecordCardWindow : Window
         var items = customers.Select(item => new Choice(item.Id, item.FullName)).ToArray();
         _customerChoice = new ComboBox { ItemsSource = items, DisplayMemberPath = nameof(Choice.Name),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            IsEnabled = _fixedCustomerId is null, MinHeight = 28, Height = 28 };
+            IsEnabled = _fixedCustomerId is null, MinHeight = 34, Height = 34 };
         _customerChoice.SelectedItem = items.FirstOrDefault(item => item.Id == _record.CustomerId);
         panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *", _customerChoice));
         return _customerChoice;
     }
 
     private void BuildPolicyTabs(IReadOnlyList<CustomerListItem> customers,
-        IReadOnlyList<BusinessRecord> vehicles, IReadOnlyList<CustomerTransaction> transactions)
+        IReadOnlyList<BusinessRecord> vehicles, IReadOnlyList<CustomerTransaction> transactions,
+        IReadOnlyList<BusinessRecord> companies)
     {
         var data = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson);
         if (_record.DocumentType is null && _record.Id != Guid.Empty)
@@ -340,7 +352,19 @@ public sealed partial class BusinessRecordCardWindow : Window
         }
         _typeChoice.SelectionChanged += (_, _) => UpdateRequiredNumber();
         UpdateRequiredNumber();
-        Text(left, "insurer", "Ασφαλιστική εταιρεία", data.Insurer);
+        var insurerNames = companies.Select(item => item.Title).Distinct().ToArray();
+        _insurerSuggest = new AutoSuggestBox { Text = data.Insurer ?? "",
+            PlaceholderText = "Αναζήτηση ασφαλιστικής εταιρείας", MinHeight = 34,
+            HorizontalAlignment = HorizontalAlignment.Stretch };
+        _insurerSuggest.TextChanged += (_, args) =>
+        {
+            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            _insurerSuggest.ItemsSource = insurerNames.Where(name => name.Contains(
+                _insurerSuggest.Text, StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+        };
+        _insurerSuggest.SuggestionChosen += (_, args) =>
+            _insurerSuggest.Text = args.SelectedItem as string ?? _insurerSuggest.Text;
+        left.Children.Add(CardFieldLayout.CreateRow("Ασφαλιστική εταιρεία", _insurerSuggest));
         Text(left, "agency", "Πρακτορείο", data.Agency);
         Text(left, "branch", "Κλάδος", data.Branch);
         Text(left, "product", "Προϊόν / πακέτο", data.Product);
@@ -382,9 +406,12 @@ public sealed partial class BusinessRecordCardWindow : Window
         cover.AcceptsReturn = true; cover.TextWrapping = TextWrapping.Wrap; cover.Height = 190;
         AddTab("Καλύψεις", coverage);
         var finance = new StackPanel { Margin = new Thickness(22), Spacing = 10 };
-        finance.Children.Add(new TextBlock { Text =
-            $"Μικτά: {data.GrossPremium?.ToString("N2") ?? "—"} €  ·  Καθαρά: {data.NetPremium?.ToString("N2") ?? "—"} €",
-            FontSize = 16 });
+        _policyFinanceSummary = new TextBlock { FontSize = 16 };
+        _policyCommissionSummary = new TextBlock { FontSize = 15,
+            TextWrapping = TextWrapping.Wrap };
+        finance.Children.Add(_policyFinanceSummary);
+        finance.Children.Add(_policyCommissionSummary);
+        UpdatePolicyFinanceSummary(data);
         var movements = transactions.OrderByDescending(item => item.OccurredAtUtc)
             .Select(item => $"{item.OccurredAtUtc.ToLocalTime():dd/MM/yyyy}  ·  " +
                 $"{(item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή")}  ·  " +
@@ -416,6 +443,8 @@ public sealed partial class BusinessRecordCardWindow : Window
             if (data.Make is null && data.Model is null) data.Make = _record.Reference;
         }
         var main = TwoColumns(out var left, out var right);
+        left.Spacing = 5;
+        right.Spacing = 5;
         CustomerChoice(left, customers);
         Text(left, "registration", "Αριθμός κυκλοφορίας *", data.Registration);
         Text(left, "make", "Μάρκα / εργοστάσιο", data.Make);
@@ -451,6 +480,10 @@ public sealed partial class BusinessRecordCardWindow : Window
         Text(right, "market", "Εκτιμώμενη αξία (€)", data.EstimatedMarketValue?.ToString("N2"));
         Text(right, "co2", "Εκπομπές CO₂ (g/km)", data.Co2GramsPerKm?.ToString("N2"));
         Date(right, "nextkteo", "Επόμενο ΚΤΕΟ", data.NextKteoDate);
+        _kteoStatusChoice = Choices(right, "Κατάσταση ΚΤΕΟ",
+            ["Δεν απαιτείται", "Απαιτείται", "Σε ισχύ", "Ληγμένο"],
+            data.KteoStatus ?? (data.NextKteoDate is null ? "Δεν απαιτείται" :
+                data.NextKteoDate >= DateTime.Today ? "Σε ισχύ" : "Ληγμένο"));
         VehicleCheck(right, "alarm", "Συναγερμός", data.HasAlarm);
         VehicleCheck(right, "immobilizer", "Immobilizer", data.HasImmobilizer);
         VehicleCheck(right, "guarded", "Χώρος φύλαξης", data.IsGuarded);
@@ -506,8 +539,10 @@ public sealed partial class BusinessRecordCardWindow : Window
                 {
                     PartnerId = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PartnerId,
                     PartnerCommissionPercent = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PartnerCommissionPercent,
+                    OfficeCommissionPercent = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).OfficeCommissionPercent,
+                    CommissionRuleId = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).CommissionRuleId,
                     ApplicationNumber = Value("application"), NoticeNumber = Value("notice"),
-                    PolicyNumber = Value("policy"), Insurer = Value("insurer"),
+                    PolicyNumber = Value("policy"), Insurer = _insurerSuggest?.Text.Trim(),
                     Agency = Value("agency"), Branch = Value("branch"), Product = Value("product"),
                     VehicleId = (_vehicleChoice?.SelectedItem as Choice)?.Id,
                     StartDate = DateValue("start"), EndDate = DateValue("end"),
@@ -565,6 +600,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                     NextKteoDate = DateValue("nextkteo"), HasAlarm = VehicleChecked("alarm"),
                     HasImmobilizer = VehicleChecked("immobilizer"), IsGuarded = VehicleChecked("guarded"),
                     HasEmissionsCard = VehicleChecked("emissions"), KteoImagePath = _kteoImagePath,
+                    KteoStatus = _kteoStatusChoice?.SelectedItem as string,
                     People = _vehiclePeople.Select(person => new VehiclePerson
                     { CustomerId = person.CustomerId, Role = person.Role,
                         OwnershipPercent = person.OwnershipPercent,
@@ -581,6 +617,13 @@ public sealed partial class BusinessRecordCardWindow : Window
             }
             var id = await _records.SaveAsync(_record);
             _record = await _records.GetAsync(id) ?? _record;
+            if (_section == "policies")
+                UpdatePolicyFinanceSummary(BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson));
+            else
+            {
+                if (_newVehiclePolicyButton is not null) _newVehiclePolicyButton.IsEnabled = true;
+                if (_addVehicleClaimButton is not null) _addVehicleClaimButton.IsEnabled = true;
+            }
             if (_section == "policies" && _typeChoice is not null &&
                 _record.DocumentType is "Αίτηση" or "Ειδοποιητήριο")
             {
@@ -614,6 +657,21 @@ public sealed partial class BusinessRecordCardWindow : Window
         _convertButton.Visibility = _record.Id != Guid.Empty &&
             _record.DocumentType is "Αίτηση" or "Ειδοποιητήριο"
             ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void UpdatePolicyFinanceSummary(PolicyCardData data)
+    {
+        if (_policyFinanceSummary is null || _policyCommissionSummary is null) return;
+        _policyFinanceSummary.Text = $"Μικτά: {data.GrossPremium?.ToString("N2") ?? "—"} €  ·  " +
+            $"Καθαρά: {data.NetPremium?.ToString("N2") ?? "—"} €";
+        if (data.OfficeCommissionPercent is decimal officeRate)
+        {
+            var officeAmount = decimal.Round((data.GrossPremium ?? 0) * officeRate / 100m, 2);
+            _policyCommissionSummary.Text =
+                $"Προμήθεια γραφείου: {officeRate:N2} % ({officeAmount:N2} €)  ·  " +
+                $"Προς απόδοση στην ασφαλιστική: {((data.GrossPremium ?? 0) - officeAmount):N2} €";
+        }
+        else _policyCommissionSummary.Text = "Δεν έχει εφαρμοστεί κανόνας προμήθειας γραφείου.";
     }
 
     private async Task ConvertAsync()

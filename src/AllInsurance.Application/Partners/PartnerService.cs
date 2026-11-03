@@ -6,7 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace AllInsurance.Application.Partners;
 
 public sealed record PartnerProductionItem(Guid PolicyId, string Number, string CustomerName,
-    DateTime? StartDate, decimal GrossPremium, decimal CommissionPercent, decimal Commission);
+    DateTime? StartDate, DateTime RecordedAtUtc, decimal GrossPremium,
+    decimal CommissionPercent, decimal Commission);
 
 public sealed record PartnerSnapshot(IReadOnlyList<PartnerProductionItem> Production,
     IReadOnlyList<PartnerPayout> Payouts, decimal Earned, decimal Paid,
@@ -52,7 +53,8 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
                 return new PartnerProductionItem(item.Record.Id, item.Record.Title,
                     item.Record.Customer is null ? "—" :
                         $"{item.Record.Customer.LastName} {item.Record.Customer.FirstName}".Trim(),
-                    item.Details.StartDate ?? item.Record.EventDate, premium, rate,
+                    item.Details.StartDate ?? item.Record.EventDate,
+                    item.Record.CreatedAtUtc, premium, rate,
                     decimal.Round(premium * rate / 100m, 2, MidpointRounding.AwayFromZero));
             }).OrderByDescending(item => item.StartDate).ToArray();
         var payouts = await db.PartnerPayouts.AsNoTracking().Where(item => item.PartnerId == partnerId)

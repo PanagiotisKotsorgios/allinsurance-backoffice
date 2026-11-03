@@ -1,6 +1,7 @@
 using AllInsurance.Application.Abstractions;
 using AllInsurance.Application.Authorization;
 using AllInsurance.Application.Customers;
+using AllInsurance.Application.Commissions;
 using AllInsurance.Application.Partners;
 using AllInsurance.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -132,6 +133,30 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
                     }
                 }
             }
+            if (record.DocumentType is null or "Ασφαλιστήριο" &&
+                details.OfficeCommissionPercent is null &&
+                !string.IsNullOrWhiteSpace(details.Insurer))
+            {
+                string? vehicleUse = null;
+                if (details.VehicleId is Guid linkedVehicleId)
+                {
+                    var vehicleJson = await db.BusinessRecords.AsNoTracking()
+                        .Where(item => item.Id == linkedVehicleId)
+                        .Select(item => item.DetailsJson).SingleOrDefaultAsync(cancellationToken);
+                    vehicleUse = BusinessRecordDetails.Read<VehicleCardData>(vehicleJson).Use;
+                }
+                var rule = await new CommissionRuleService(factory, session).ResolveAsync(
+                    new CommissionMatch(details.Insurer, details.Branch, vehicleUse,
+                        details.CoverageNotes, details.Product), cancellationToken);
+                if (rule is not null)
+                {
+                    details.CommissionRuleId = rule.Id;
+                    details.OfficeCommissionPercent = rule.OfficePercent;
+                    if (details.PartnerId is not null)
+                        details.PartnerCommissionPercent = rule.PartnerPercent;
+                }
+            }
+            record.DetailsJson = BusinessRecordDetails.Write(details);
         }
         var now = DateTime.UtcNow;
         if (record.Id == Guid.Empty)

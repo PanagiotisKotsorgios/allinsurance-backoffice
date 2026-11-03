@@ -104,7 +104,7 @@ public sealed partial class BusinessRecordCardWindow
         };
         actions.Children.Add(attach); actions.Children.Add(view);
         content.Children.Add(fileName); content.Children.Add(actions);
-        panel.Children.Add(CardFieldLayout.CreateRow("Εικόνα ΚΤΕΟ", content));
+        panel.Children.Add(CardFieldLayout.CreateRow("Συνημμένο ΚΤΕΟ", content));
     }
 
     private void BuildPeopleTab()
@@ -198,6 +198,12 @@ public sealed partial class BusinessRecordCardWindow
         var panel = VehiclePanel();
         panel.Children.Add(new TextBlock { Text = "Αιτήσεις, ειδοποιητήρια και ασφαλιστήρια οχήματος",
             FontSize = 16 });
+        var add = new ActionButton { Kind = "Add", Label = "Νέα αίτηση ασφάλισης",
+            HorizontalAlignment = HorizontalAlignment.Left,
+            IsEnabled = _record.Id != Guid.Empty };
+        _newVehiclePolicyButton = add;
+        add.Click += async (_, _) => await OpenNewPolicyForVehicleAsync();
+        panel.Children.Add(add);
         _policiesList = VehicleTable(panel,
             ["Αριθμός / άνοιγμα", "Τύπος", "Κατάσταση", "Ημερομηνία", "Πελάτης"],
             [250, 210, 190, 170, 200]);
@@ -217,6 +223,22 @@ public sealed partial class BusinessRecordCardWindow
         _linkedPolicyCard = new BusinessRecordCardWindow("policies", recordId: id,
             ownerHandle: WindowNative.GetWindowHandle(this));
         _linkedPolicyCard.RecordSaved += async (_, _) => await RefreshVehiclePoliciesAsync();
+        _linkedPolicyCard.Closed += (_, _) => { _linkedPolicyCard = null; BringToFront(); };
+        _linkedPolicyCard.BringToFront();
+    }
+
+    private async Task OpenNewPolicyForVehicleAsync()
+    {
+        if (_record.Id == Guid.Empty || _record.CustomerId is not Guid ownerId)
+        { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Αποθηκεύστε πρώτα το όχημα και τον κύριο ιδιοκτήτη."); return; }
+        if (_linkedPolicyCard is not null) { _linkedPolicyCard.BringToFront(); return; }
+        _linkedPolicyCard = new BusinessRecordCardWindow("policies", customerId: ownerId,
+            ownerHandle: WindowNative.GetWindowHandle(this), vehicleId: _record.Id);
+        _linkedPolicyCard.RecordSaved += async (_, _) =>
+        {
+            await RefreshVehiclePoliciesAsync();
+            RecordSaved?.Invoke(this, EventArgs.Empty);
+        };
         _linkedPolicyCard.Closed += (_, _) => { _linkedPolicyCard = null; BringToFront(); };
         _linkedPolicyCard.BringToFront();
     }
@@ -242,6 +264,7 @@ public sealed partial class BusinessRecordCardWindow
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
         var add = new ActionButton { Kind = "Add", Label = "Προσθήκη ζημιάς",
             IsEnabled = _record.Id != Guid.Empty };
+        _addVehicleClaimButton = add;
         add.Click += async (_, _) => await EditClaimAsync(null);
         var edit = new ActionButton { Kind = "Edit", Label = "Επεξεργασία ζημιάς" };
         edit.Click += async (_, _) =>

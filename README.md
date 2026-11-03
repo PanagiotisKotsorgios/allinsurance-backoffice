@@ -41,6 +41,8 @@ The customer, partner, vehicle and policy cards share the same form layout, tab 
 
 The partner card now places cooperation details and multiple bank accounts in the main card, with extra identity and contact fields in an expandable section. Production is shown with financial movements; general receipts and payments update the partner balance. The vehicle card stores technical and equipment details, an optional local KTEO image, multiple owners and drivers with ownership shares, linked policy cards, and linked claims with add/edit/delete actions. See [partner and vehicle card expansion](Software%20Analysis/11%20-%20Partner%20and%20Vehicle%20Cards/README.md).
 
+The login action is larger and centered. The partner's financial tab now shows a dated ledger of earned commissions, payouts, receipts and running balance. A vehicle can open a new insurance application with its primary owner and vehicle already selected. Administrators can maintain initial commission rules by insurer, branch, vehicle use, coverage and package; the applicable percentages are snapshotted when a policy is issued. The settings screen also shows a preliminary insurer remittance estimate based on gross premium less the office commission. See [financial links and commission settings](Software%20Analysis/12%20-%20Financial%20Links%20and%20Commission%20Settings/README.md).
+
 ## Build and tests
 
 ```powershell

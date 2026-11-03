@@ -19,6 +19,8 @@ public sealed class PolicyCardData
     public string? CoverageNotes { get; set; }
     public Guid? PartnerId { get; set; }
     public decimal? PartnerCommissionPercent { get; set; }
+    public decimal? OfficeCommissionPercent { get; set; }
+    public Guid? CommissionRuleId { get; set; }
 }
 
 public sealed class VehicleCardData
@@ -62,6 +64,7 @@ public sealed class VehicleCardData
     public bool HasEmissionsCard { get; set; }
     public decimal? Co2GramsPerKm { get; set; }
     public string? KteoImagePath { get; set; }
+    public string? KteoStatus { get; set; }
     public DateTime? NextKteoDate { get; set; }
     public List<VehiclePerson> People { get; set; } = [];
 }

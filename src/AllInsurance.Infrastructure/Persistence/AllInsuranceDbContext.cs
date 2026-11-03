@@ -20,6 +20,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<BusinessRecord> BusinessRecords => Set<BusinessRecord>();
     public DbSet<PartnerPayout> PartnerPayouts => Set<PartnerPayout>();
     public DbSet<PartnerActivity> PartnerActivities => Set<PartnerActivity>();
+    public DbSet<CommissionRule> CommissionRules => Set<CommissionRule>();
     public DbSet<FilterOption> FilterOptions => Set<FilterOption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -247,6 +248,20 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.HasIndex(item => new { item.PartnerId, item.OccurredAtUtc });
             entity.HasOne(item => item.Partner).WithMany()
                 .HasForeignKey(item => item.PartnerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CommissionRule>(entity =>
+        {
+            entity.ToTable("CommissionRules");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Insurer).IsRequired().HasMaxLength(200);
+            entity.Property(item => item.Branch).HasMaxLength(120);
+            entity.Property(item => item.VehicleUse).HasMaxLength(120);
+            entity.Property(item => item.Coverage).HasMaxLength(200);
+            entity.Property(item => item.Package).HasMaxLength(200);
+            entity.Property(item => item.OfficePercent).HasPrecision(5, 2);
+            entity.Property(item => item.PartnerPercent).HasPrecision(5, 2);
+            entity.HasIndex(item => new { item.Insurer, item.IsActive });
         });
 
         modelBuilder.Entity<FilterOption>(entity =>

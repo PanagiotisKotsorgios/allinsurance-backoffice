@@ -35,6 +35,7 @@ public sealed partial class WorkspacePage : Page
         AuditMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ReadSecurityEvents);
         BackupMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
         ErrorLogMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
+        CommissionMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
         SessionText.Text = $"Συνεδρία: {_session.Current.DisplayName} ({_session.Current.Username})";
 
         for (var index = 0; index < WorkspaceSections.All.Count; index++)
@@ -248,6 +249,12 @@ public sealed partial class WorkspacePage : Page
 
     private void ShowSettings() { MainNavigation.SelectedItem = null; SectionHost.Content = new SettingsPage(); }
     private void ShowFilterOptions() { MainNavigation.SelectedItem = null; SectionHost.Content = new FilterOptionsPage(); }
+    private void ShowCommissions()
+    {
+        if (!CommissionMenuItem.IsEnabled) return;
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new CommissionSettingsPage();
+    }
     private void ShowShortcuts() { MainNavigation.SelectedItem = null; SectionHost.Content = new ShortcutsPage(); }
 
     private void Users_Click(object sender, RoutedEventArgs e) => ShowUsers();
@@ -257,6 +264,7 @@ public sealed partial class WorkspacePage : Page
     private void ErrorLog_Click(object sender, RoutedEventArgs e) => ShowErrorLog();
     private void Settings_Click(object sender, RoutedEventArgs e) => ShowSettings();
     private void FilterOptions_Click(object sender, RoutedEventArgs e) => ShowFilterOptions();
+    private void Commissions_Click(object sender, RoutedEventArgs e) => ShowCommissions();
     private void Shortcuts_Click(object sender, RoutedEventArgs e) => ShowShortcuts();
 
     private async void Guide_Click(object sender, RoutedEventArgs e) => await ShowInformationAsync(

@@ -59,6 +59,8 @@ public sealed partial class PartnerCardWindow : Window
     private readonly TextBlock _heading = new() { FontSize = 25, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         Foreground = new SolidColorBrush(Colors.White), TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _subtitle = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private readonly TextBlock _metadata = new() { Foreground = new SolidColorBrush(Colors.White),
+        FontSize = 11, Opacity = 0.82 };
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private string[] _categories = [];
@@ -69,7 +71,7 @@ public sealed partial class PartnerCardWindow : Window
     private string[] _genders = [];
     private string[] _taxOffices = [];
     private readonly List<PartnerBankAccount> _bankAccounts = [];
-    private ListView? _bankList;
+    private ComboBox? _bankChoice;
     private int _selectedTab;
 
     public event EventHandler? RecordSaved;
@@ -167,6 +169,8 @@ public sealed partial class PartnerCardWindow : Window
         bannerContent.Children.Add(identity);
         _subtitle.Margin = new Thickness(68, 2, 0, 0);
         bannerContent.Children.Add(_subtitle);
+        _metadata.Margin = new Thickness(68, 0, 0, 0);
+        bannerContent.Children.Add(_metadata);
         _root.Children.Add(new Border { Background = gradient, CornerRadius = new CornerRadius(16),
             Padding = new Thickness(24, 12, 24, 12), Margin = new Thickness(18, 8, 18, 4),
             Child = bannerContent });
@@ -208,6 +212,9 @@ public sealed partial class PartnerCardWindow : Window
         _headerState.Text = $"● {_record.Status ?? "Ενεργός συνεργάτης"}";
         _subtitle.Text = _record.Id == Guid.Empty ? "ΚΩΔΙΚΟΣ  Νέος   ·   ΑΦΜ  —" :
             $"ΚΩΔΙΚΟΣ  {_record.Reference ?? "—"}     ΑΦΜ  {_profile.TaxNumber ?? "—"}";
+        _metadata.Text = _record.Id == Guid.Empty ? "Η καταχώριση θα χρονοσημανθεί με την αποθήκευση." :
+            $"Καταχώριση: {_record.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}   ·   " +
+            $"Ενημέρωση: {_record.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}";
     }
 
     private void AddTab(string label, UIElement content)
