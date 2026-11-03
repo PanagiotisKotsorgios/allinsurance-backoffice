@@ -44,6 +44,7 @@ public sealed partial class BusinessRecordCardWindow
         _policyMovementsList = new ListView { Height = 210,
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1) };
+        TableRowStriping.Attach(_policyMovementsList);
         panel.Children.Add(_policyMovementsList);
         _policyMovementsPager = new TablePagination(_policyMovementsList);
         panel.Children.Add(_policyMovementsPager.Bar);
@@ -133,6 +134,7 @@ public sealed partial class BusinessRecordCardWindow
         _policyAttachmentList = new ListView { Height = 160,
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1) };
+        TableRowStriping.Attach(_policyAttachmentList);
         _policyAttachmentList.DoubleTapped += async (_, _) => await OpenPolicyFileAsync();
         panel.Children.Add(_policyAttachmentList);
         _policyAttachmentPager = new TablePagination(_policyAttachmentList);
@@ -211,6 +213,7 @@ public sealed partial class BusinessRecordCardWindow
         add.Click += async (_, _) => await OpenPolicyClaimAsync(null);
         panel.Children.Add(add);
         _policyClaimsList = new ListView { Height = 320 };
+        TableRowStriping.Attach(_policyClaimsList);
         panel.Children.Add(_policyClaimsList);
         var pager = new TablePagination(_policyClaimsList);
         _policyClaimsPager = pager;
@@ -296,6 +299,7 @@ public sealed partial class BusinessRecordCardWindow
         links.Children.Add(renew);
         panel.Children.Add(links);
         _policyHistoryList = new ListView { Height = 350 };
+        TableRowStriping.Attach(_policyHistoryList);
         panel.Children.Add(_policyHistoryList);
         var pager = new TablePagination(_policyHistoryList);
         panel.Children.Add(pager.Bar);

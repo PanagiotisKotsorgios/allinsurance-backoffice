@@ -35,6 +35,7 @@ public sealed partial class SectionPage
             insurer.SelectedIndex = 0;
             var count = new TextBlock { Margin = new Thickness(0, 4, 0, 4) };
             var list = new ListView { Height = 360, SelectionMode = ListViewSelectionMode.Single };
+            AllInsurance.Desktop.Controls.TableRowStriping.Attach(list);
             list.ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load("""
                 <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
                     <Grid ColumnDefinitions="155,190,170,110,95" Height="38">

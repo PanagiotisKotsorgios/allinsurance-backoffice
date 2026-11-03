@@ -17,6 +17,7 @@ public sealed partial class BackupPage : Page
         if (session.Current?.Permissions.Contains(Permission.ManageUsers) != true)
             throw new UnauthorizedAccessException("Απαιτούνται δικαιώματα διαχειριστή.");
         InitializeComponent();
+        TableRowStriping.Attach(BackupsList);
         FolderText.Text = "Φάκελος αντιγράφων: " + _backups.BackupFolder;
         Loaded += async (_, _) => await RefreshAsync();
     }

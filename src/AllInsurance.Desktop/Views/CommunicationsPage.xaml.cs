@@ -26,6 +26,7 @@ public sealed partial class CommunicationsPage : Page
     public CommunicationsPage()
     {
         InitializeComponent();
+        AllInsurance.Desktop.Controls.TableRowStriping.Attach(RecipientsList);
         ChannelChoice.SelectedIndex = 0;
         DocumentFilter.SelectedIndex = 0;
         FromDate.Date = new DateTimeOffset(DateTime.Today);

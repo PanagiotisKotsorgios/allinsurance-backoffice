@@ -51,6 +51,8 @@ public sealed partial class SectionPage : Page
         _customers = App.Services.GetRequiredService<ICustomerService>();
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         InitializeComponent();
+        TableRowStriping.Attach(RecordsList);
+        TableRowStriping.Attach(RelatedRecordsList);
         InitializeTableActions();
         TableColumnResizer.Attach(RecordsHeader, ResizeColumn,
             () => { try { SectionColumnOrder.SaveWidths(_section.Key, _columnWidths); }

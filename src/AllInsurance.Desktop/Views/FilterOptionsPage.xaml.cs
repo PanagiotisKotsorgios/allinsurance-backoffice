@@ -19,6 +19,7 @@ public sealed partial class FilterOptionsPage : Page
     public FilterOptionsPage()
     {
         InitializeComponent();
+        AllInsurance.Desktop.Controls.TableRowStriping.Attach(OptionsList);
         Loaded += async (_, _) =>
         {
             _ready = true;

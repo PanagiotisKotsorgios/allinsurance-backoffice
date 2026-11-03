@@ -16,6 +16,7 @@ public sealed partial class UserManagementPage : Page
     public UserManagementPage()
     {
         InitializeComponent();
+        AllInsurance.Desktop.Controls.TableRowStriping.Attach(UsersList);
         var session = App.Services.GetRequiredService<ISessionService>();
         if (session.Current?.Permissions.Contains(Permission.ManageUsers) != true)
         {

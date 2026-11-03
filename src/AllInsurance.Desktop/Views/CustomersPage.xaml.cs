@@ -32,6 +32,7 @@ public sealed partial class CustomersPage : Page
         _customers = App.Services.GetRequiredService<ICustomerService>();
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         InitializeComponent();
+        TableRowStriping.Attach(CustomersList);
         CustomersList.AddHandler(UIElement.DoubleTappedEvent,
             new DoubleTappedEventHandler(async (_, args) =>
             {

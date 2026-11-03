@@ -18,6 +18,7 @@ public sealed partial class ErrorLogPage : Page
         if (session.Current?.Permissions.Contains(Permission.ManageUsers) != true)
             throw new UnauthorizedAccessException("Απαιτούνται δικαιώματα διαχειριστή.");
         InitializeComponent();
+        AllInsurance.Desktop.Controls.TableRowStriping.Attach(ErrorsList);
         PathText.Text = "Αρχείο: " + LocalErrorLogStore.PathOnDisk;
         Loaded += (_, _) => Load();
     }

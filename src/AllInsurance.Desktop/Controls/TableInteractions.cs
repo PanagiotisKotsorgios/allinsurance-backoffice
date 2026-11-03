@@ -9,6 +9,7 @@ internal static class TableInteractions
     public static Action Attach(Grid header, ListView list, FrameworkElement? widthHost = null,
         double horizontalInset = 48)
     {
+        TableRowStriping.Attach(list);
         var count = header.ColumnDefinitions.Count;
         var order = Enumerable.Range(0, count).ToArray();
         var widths = header.ColumnDefinitions.Select(column => column.Width).ToArray();
@@ -48,6 +49,7 @@ internal static class TableInteractions
                     Apply(grid);
                     item.Width = grid.Width;
                 }
+            TableRowStriping.Refresh(list);
         }
 
         void Sort(int original, bool reverse)

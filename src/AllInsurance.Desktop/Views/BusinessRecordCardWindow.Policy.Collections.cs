@@ -47,6 +47,7 @@ public sealed partial class BusinessRecordCardWindow
             HorizontalAlignment = HorizontalAlignment.Left,
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1) };
+        TableRowStriping.Attach(list);
         panel.Children.Add(list);
         var pager = new TablePagination(list);
         panel.Children.Add(pager.Bar);

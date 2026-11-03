@@ -108,6 +108,7 @@ public sealed partial class WorkspaceRecordCardWindow
             HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(0),
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1) };
+        TableRowStriping.Attach(list);
         panel.Children.Add(list);
         var pager = new TablePagination(list);
         panel.Children.Add(pager.Bar);
@@ -182,6 +183,7 @@ public sealed partial class WorkspaceRecordCardWindow
                 Height = 38, MinHeight = 38 };
             panel.Children.Add(SearchFieldVisual.Wrap(search));
             var list = new ListView { Height = 320 };
+            TableRowStriping.Attach(list);
             panel.Children.Add(list);
             var pager = new TablePagination(list);
             panel.Children.Add(pager.Bar);
@@ -219,6 +221,7 @@ public sealed partial class WorkspaceRecordCardWindow
     {
         var panel = RelatedPanel();
         var list = new ListView { Height = 410, HorizontalAlignment = HorizontalAlignment.Stretch };
+        TableRowStriping.Attach(list);
         panel.Children.Add(list);
         var pager = new TablePagination(list);
         panel.Children.Add(pager.Bar);

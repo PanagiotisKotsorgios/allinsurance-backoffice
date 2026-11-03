@@ -25,6 +25,7 @@ public sealed partial class ReportsPage : Page
     public ReportsPage()
     {
         InitializeComponent();
+        AllInsurance.Desktop.Controls.TableRowStriping.Attach(ReportList);
         ReportType.SelectedIndex = 0;
         Loaded += async (_, _) => await LoadAsync();
     }

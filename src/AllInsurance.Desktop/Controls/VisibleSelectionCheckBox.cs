@@ -12,6 +12,7 @@ public sealed class VisibleSelectionCheckBox : Grid
         Width = 30,
         Height = 30,
         Opacity = 0,
+        UseSystemFocusVisuals = false,
         HorizontalAlignment = HorizontalAlignment.Center,
         VerticalAlignment = VerticalAlignment.Center
     };
@@ -20,8 +21,7 @@ public sealed class VisibleSelectionCheckBox : Grid
         Width = 24,
         Height = 24,
         CornerRadius = new CornerRadius(5),
-        BorderThickness = new Thickness(2),
-        BorderBrush = new SolidColorBrush(Color.FromArgb(255, 56, 162, 235)),
+        BorderThickness = new Thickness(1.5),
         HorizontalAlignment = HorizontalAlignment.Center,
         VerticalAlignment = VerticalAlignment.Center,
         IsHitTestVisible = false
@@ -56,15 +56,20 @@ public sealed class VisibleSelectionCheckBox : Grid
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_input, "Επιλογή εγγραφής");
         _input.Checked += (_, args) => { UpdateVisual(); Checked?.Invoke(this, args); };
         _input.Unchecked += (_, args) => { UpdateVisual(); Unchecked?.Invoke(this, args); };
+        ActualThemeChanged += (_, _) => UpdateVisual();
         UpdateVisual();
     }
 
     private void UpdateVisual()
     {
         var selected = _input.IsChecked == true;
+        var dark = ActualTheme == ElementTheme.Dark;
+        _square.BorderBrush = new SolidColorBrush(dark
+            ? selected ? Color.FromArgb(255, 125, 141, 155) : Color.FromArgb(255, 115, 131, 145)
+            : selected ? Color.FromArgb(255, 79, 96, 112) : Color.FromArgb(255, 111, 129, 145));
         _square.Background = selected
-            ? new SolidColorBrush(Color.FromArgb(255, 27, 115, 190))
-            : new SolidColorBrush(Color.FromArgb(255, 245, 250, 255));
+            ? new SolidColorBrush(dark ? Color.FromArgb(255, 101, 117, 130) : Color.FromArgb(255, 79, 96, 112))
+            : new SolidColorBrush(dark ? Color.FromArgb(255, 48, 57, 67) : Color.FromArgb(255, 224, 230, 236));
         _check.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
     }
 }

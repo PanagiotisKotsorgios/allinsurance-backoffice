@@ -18,6 +18,7 @@ public sealed partial class NameDaysPage : Page
     public NameDaysPage()
     {
         InitializeComponent();
+        AllInsurance.Desktop.Controls.TableRowStriping.Attach(PeopleList);
         TypeFilter.SelectedIndex = 0;
         ModeFilter.SelectedIndex = 0;
         FromDate.Date = new DateTimeOffset(DateTime.Today);

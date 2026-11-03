@@ -13,6 +13,7 @@ public sealed partial class ShortcutsPage : Page
     public ShortcutsPage()
     {
         InitializeComponent();
+        AllInsurance.Desktop.Controls.TableRowStriping.Attach(ShortcutsList);
         _preferences = App.Services.GetRequiredService<WorkspacePreferences>();
         EnabledChoice.IsChecked = _preferences.ShortcutsEnabled;
         var entries = WorkspaceSections.All.Select((section, index) => new ShortcutRow(

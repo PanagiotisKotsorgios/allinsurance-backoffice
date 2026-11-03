@@ -17,6 +17,7 @@ public sealed partial class AuditLogPage : Page
     public AuditLogPage()
     {
         InitializeComponent();
+        AllInsurance.Desktop.Controls.TableRowStriping.Attach(EventsList);
         var session = App.Services.GetRequiredService<ISessionService>();
         if (session.Current?.Permissions.Contains(Permission.ReadSecurityEvents) != true)
         {
