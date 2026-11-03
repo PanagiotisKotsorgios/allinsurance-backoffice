@@ -3,6 +3,7 @@ using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 
@@ -188,8 +189,19 @@ public sealed partial class CustomerCardWindow
             if (licenseStart.Date > DateTime.Today.AddYears(-licenseAge)) licenseAge--;
             AddReadOnly(status, "Ηλικία διπλώματος", $"{licenseAge} έτη");
         }
-        AddText(status, "Αρχικό υπόλοιπο (€)", () => _customer.OpeningBalance.ToString("N2"),
+        var openingBalance = AddText(status, "Αρχικό υπόλοιπο (€)", () => _customer.OpeningBalance.ToString("N2"),
             value => _customer.OpeningBalance = ParseAmount(value, allowNegative: true));
+        var defaultBackground = openingBalance.Background;
+        var defaultForeground = openingBalance.Foreground;
+        void UpdateOpeningBalanceStyle()
+        {
+            var hasBalance = decimal.TryParse(openingBalance.Text, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.GetCultureInfo("el-GR"), out var amount) && amount != 0;
+            openingBalance.Background = hasBalance ? new SolidColorBrush(Color.FromArgb(255, 198, 40, 40)) : defaultBackground;
+            openingBalance.Foreground = hasBalance ? new SolidColorBrush(Microsoft.UI.Colors.White) : defaultForeground;
+        }
+        openingBalance.TextChanged += (_, _) => UpdateOpeningBalanceStyle();
+        UpdateOpeningBalanceStyle();
         var officeControl = AddBool(status, "Ανήκει στο γραφείο", () => _customer.BelongsToOffice,
             value => _customer.BelongsToOffice = value);
         if (_editing)
@@ -224,8 +236,8 @@ public sealed partial class CustomerCardWindow
     private void BuildFinanceTab()
     {
         var root = new StackPanel { Margin = new Thickness(20), Spacing = 12 };
-        root.Children.Add(new TextBlock { Text = $"Τρέχον υπόλοιπο: {CustomerService.Balance(_customer):N2} €",
-            FontSize = 22, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        var balance = CustomerService.Balance(_customer);
+        root.Children.Add(BalanceVisual.Create(balance, $"Τρέχον υπόλοιπο: {balance:N2} €", 22));
         root.Children.Add(new TextBlock { Text = "Οικονομικές κινήσεις", FontSize = 17,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         var search = new TextBox { Width = 240, Height = 38, MinHeight = 38,
@@ -238,7 +250,7 @@ public sealed partial class CustomerCardWindow
             ItemWidth = 250, ItemHeight = 46 };
         foreach (var field in new UIElement[] { search, from, until }) filters.Children.Add(field);
         root.Children.Add(filters);
-        var header = new Grid { ColumnSpacing = 0, Padding = new Thickness(8),
+        var header = new Grid { ColumnSpacing = 0, Width = 940,
             Background = new SolidColorBrush(Color.FromArgb(36, 77, 129, 174)) };
         foreach (var width in new[] { 180, 150, 130, 480 })
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
@@ -249,14 +261,35 @@ public sealed partial class CustomerCardWindow
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
             var cell = new Border { Child = caption,
                 BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
-                BorderThickness = index == 0 ? new Thickness(0) : new Thickness(1, 0, 0, 0),
-                Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0) };
+                BorderThickness = index == captions.Length - 1 ? new Thickness(0) : new Thickness(0, 0, 1, 0),
+                Padding = new Thickness(10, 8, 10, 8) };
             Grid.SetColumn(cell, index);
             header.Children.Add(cell);
         }
-        root.Children.Add(header);
-        var list = new ListView { Height = 300 };
+        root.Children.Add(new Border { Child = header, Width = 942, HorizontalAlignment = HorizontalAlignment.Left,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
+            BorderThickness = new Thickness(1) });
+        var list = new ListView { Height = 300, Width = 942, HorizontalAlignment = HorizontalAlignment.Left,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
+            BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0) };
         root.Children.Add(list);
+        list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
+        {
+            if (FindCardRow(args.OriginalSource)?.Tag is CustomerTransaction transaction)
+                await ShowTransactionAsync(transaction);
+        }), true);
+        list.AddHandler(UIElement.RightTappedEvent, new RightTappedEventHandler((_, args) =>
+        {
+            if (FindCardRow(args.OriginalSource) is not ListViewItem { Tag: CustomerTransaction transaction } row)
+                return;
+            list.SelectedItem = row;
+            var menu = new MenuFlyout();
+            var open = new MenuFlyoutItem { Text = "Προβολή κίνησης" };
+            open.Click += async (_, _) => await ShowTransactionAsync(transaction);
+            menu.Items.Add(open);
+            menu.ShowAt(row);
+            args.Handled = true;
+        }), true);
         var applyColumnLayout = TableInteractions.Attach(header, list);
         void refresh()
         {
@@ -271,7 +304,7 @@ public sealed partial class CustomerCardWindow
                     StringComparison.CurrentCultureIgnoreCase) == true ||
                     item.Amount.ToString("N2").Contains(term, StringComparison.CurrentCultureIgnoreCase)))
             {
-                var row = new Grid { ColumnSpacing = 0, Padding = new Thickness(8) };
+                var row = new Grid { ColumnSpacing = 0, Width = 940, Height = 39 };
                 foreach (var width in new[] { 180, 150, 130, 480 })
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 var values = new[] { item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
@@ -282,18 +315,15 @@ public sealed partial class CustomerCardWindow
                     var text = new TextBlock { Text = values[index], TextTrimming = TextTrimming.CharacterEllipsis };
                     var cell = new Border { Child = text,
                         BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
-                        BorderThickness = index == 0 ? new Thickness(0, 0, 0, 1) : new Thickness(1, 0, 0, 1),
-                        Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0) };
+                        BorderThickness = index == values.Length - 1 ? new Thickness(0, 0, 0, 1) :
+                            new Thickness(0, 0, 1, 1),
+                        Padding = new Thickness(10, 5, 10, 5) };
                     Grid.SetColumn(cell, index);
                     row.Children.Add(cell);
                 }
-                var listItem = new ListViewItem { Content = row };
-                listItem.DoubleTapped += async (_, _) => await ShowTransactionAsync(item);
-                var menu = new MenuFlyout();
-                var open = new MenuFlyoutItem { Text = "Προβολή κίνησης" };
-                open.Click += async (_, _) => await ShowTransactionAsync(item);
-                menu.Items.Add(open);
-                listItem.ContextFlyout = menu;
+                var listItem = new ListViewItem { Content = row, Tag = item, Width = 940, Height = 39,
+                    Padding = new Thickness(0), Margin = new Thickness(0),
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch };
                 list.Items.Add(listItem);
             }
             applyColumnLayout();

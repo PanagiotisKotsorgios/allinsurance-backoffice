@@ -8,6 +8,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using WinRT.Interop;
@@ -15,6 +16,7 @@ using Windows.Graphics;
 using System.Globalization;
 using System.IO;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Windows.Storage.Pickers;
 using Windows.Foundation;
 using Windows.UI;
@@ -23,6 +25,26 @@ namespace AllInsurance.Desktop.Views;
 
 public sealed partial class CustomerCardWindow : Window
 {
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(nint window, int command);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint window);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(nint window, nint insertAfter, int x, int y,
+        int width, int height, uint flags);
+
+    public void BringToFront()
+    {
+        Activate();
+        var window = WindowNative.GetWindowHandle(this);
+        ShowWindow(window, 9); // SW_RESTORE
+        const uint flags = 0x0001 | 0x0002 | 0x0040; // SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW
+        SetWindowPos(window, new nint(-1), 0, 0, 0, 0, flags); // HWND_TOPMOST
+        SetWindowPos(window, new nint(-2), 0, 0, 0, 0, flags); // HWND_NOTOPMOST
+        SetForegroundWindow(window);
+    }
     private readonly ICustomerService _service = App.Services.GetRequiredService<ICustomerService>();
     private readonly IFilterOptionService _filterService = App.Services.GetRequiredService<IFilterOptionService>();
     private readonly Guid? _customerId;
@@ -246,7 +268,7 @@ public sealed partial class CustomerCardWindow : Window
         AddButton(commands, "Διαγραφή επιλεγμένου", async () => await DeleteDetailAsync(category));
         Grid.SetRow(commands, 0);
         root.Children.Add(commands);
-        var headers = new Grid { ColumnSpacing = 0, Padding = new Thickness(8, 10, 8, 10),
+        var headers = new Grid { ColumnSpacing = 0, Width = 980,
             Background = new SolidColorBrush(Color.FromArgb(36, 77, 129, 174)) };
         foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
             headers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
@@ -258,17 +280,34 @@ public sealed partial class CustomerCardWindow : Window
             var caption = new TextBlock { Text = names[index], FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
             var cell = new Border { Child = caption,
                 BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
-                BorderThickness = index == 0 ? new Thickness(0) : new Thickness(1, 0, 0, 0),
-                Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0) };
+                BorderThickness = index == names.Length - 1 ? new Thickness(0) : new Thickness(0, 0, 1, 0),
+                Padding = new Thickness(10, 8, 10, 8) };
             Grid.SetColumn(cell, index);
             headers.Children.Add(cell);
         }
-        Grid.SetRow(headers, 2);
-        root.Children.Add(headers);
+        var headerFrame = new Border { Child = headers, Width = 982, HorizontalAlignment = HorizontalAlignment.Left,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
+            BorderThickness = new Thickness(1) };
+        Grid.SetRow(headerFrame, 2);
+        root.Children.Add(headerFrame);
         var list = new ListView { SelectionMode = ListViewSelectionMode.Single,
-            Height = 410,
+            Height = 410, Width = 982, HorizontalAlignment = HorizontalAlignment.Left,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
+            BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0),
             Tag = category };
         _detailLists[category] = list;
+        list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
+        {
+            if (FindCardRow(args.OriginalSource) is ListViewItem row && row.Tag is not null)
+                await OpenDetailRowAsync(category, row, row.Tag);
+        }), true);
+        list.AddHandler(UIElement.RightTappedEvent, new RightTappedEventHandler((_, args) =>
+        {
+            if (FindCardRow(args.OriginalSource) is not ListViewItem row || row.Tag is null) return;
+            list.SelectedItem = row;
+            CreateDetailMenu(category, row, row.Tag).ShowAt(row);
+            args.Handled = true;
+        }), true);
         var applyColumnLayout = TableInteractions.Attach(headers, list);
         void refresh()
         {
@@ -318,7 +357,7 @@ public sealed partial class CustomerCardWindow : Window
 
     private ListViewItem DetailListItem(string category, object source, params string?[] cells)
     {
-        var row = new Grid { ColumnSpacing = 0, Padding = new Thickness(6, 8, 6, 8) };
+        var row = new Grid { ColumnSpacing = 0, Width = 980, Height = 39 };
         foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
         for (var index = 0; index < cells.Length; index++)
@@ -326,30 +365,47 @@ public sealed partial class CustomerCardWindow : Window
             var text = new TextBlock { Text = cells[index] ?? "—", TextTrimming = TextTrimming.CharacterEllipsis };
             var cell = new Border { Child = text,
                 BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
-                BorderThickness = index == 0 ? new Thickness(0, 0, 0, 1) : new Thickness(1, 0, 0, 1),
-                Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0) };
+                BorderThickness = index == cells.Length - 1 ? new Thickness(0, 0, 0, 1) :
+                    new Thickness(0, 0, 1, 1),
+                Padding = new Thickness(10, 5, 10, 5) };
             Grid.SetColumn(cell, index);
             row.Children.Add(cell);
         }
-        var result = new ListViewItem { Content = row, Tag = source };
-        result.DoubleTapped += async (_, _) => await OpenDetailRowAsync(category, result, source);
+        var result = new ListViewItem { Content = row, Tag = source, Width = 980, Height = 39,
+            Padding = new Thickness(0), Margin = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        return result;
+    }
+
+    private MenuFlyout CreateDetailMenu(string category, ListViewItem row, object source)
+    {
         var menu = new MenuFlyout();
         var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
-        open.Click += async (_, _) => await OpenDetailRowAsync(category, result, source);
+        open.Click += async (_, _) => await OpenDetailRowAsync(category, row, source);
         menu.Items.Add(open);
         if (source is CustomerDetail)
         {
             var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
             delete.Click += async (_, _) =>
             {
-                _detailLists[category].SelectedItem = result;
+                _detailLists[category].SelectedItem = row;
                 await DeleteDetailAsync(category);
             };
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(delete);
         }
-        result.ContextFlyout = menu;
-        return result;
+        return menu;
+    }
+
+    private static ListViewItem? FindCardRow(object source)
+    {
+        var current = source as DependencyObject;
+        while (current is not null)
+        {
+            if (current is ListViewItem { Tag: not null }) return (ListViewItem)current;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return null;
     }
 
     private async Task OpenDetailRowAsync(string category, ListViewItem row, object source)
@@ -504,11 +560,15 @@ public sealed partial class CustomerCardWindow : Window
         var linked = _customer.BusinessRecords.Count;
         var receipts = _customer.Transactions.Where(item => item.Type == "receipt").Sum(item => item.Amount);
         var payments = _customer.Transactions.Where(item => item.Type == "payment").Sum(item => item.Amount);
+        var balance = CustomerService.Balance(_customer);
+        var summary = new StackPanel { Spacing = 10 };
+        summary.Children.Add(new TextBlock { Text = $"Σχετικά στοιχεία: {details}\n" +
+            $"Συνδεδεμένες εγγραφές: {linked}\nΕισπράξεις: {receipts:N2} €\n" +
+            $"Πληρωμές: {payments:N2} €" });
+        summary.Children.Add(BalanceVisual.Create(balance, $"Τρέχον υπόλοιπο: {balance:N2} €", 16));
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
             Title = "Στατιστικά πελάτη",
-            Content = $"Σχετικά στοιχεία: {details}\nΣυνδεδεμένες εγγραφές: {linked}\n" +
-                $"Εισπράξεις: {receipts:N2} €\nΠληρωμές: {payments:N2} €\n" +
-                $"Τρέχον υπόλοιπο: {CustomerService.Balance(_customer):N2} €",
+            Content = summary,
             CloseButtonText = "Κλείσιμο" };
         await DialogButtonStyles.ShowAsync(dialog);
     }
@@ -569,7 +629,7 @@ public sealed partial class CustomerCardWindow : Window
         Margin = new Thickness(0, 2, 0, 2)
     });
 
-    private void AddText(StackPanel form, string label, Func<string?> getter,
+    private TextBox AddText(StackPanel form, string label, Func<string?> getter,
         Action<string?> setter, bool multiline = false)
     {
         var input = new TextBox { Text = getter() ?? "", MinHeight = multiline ? 72 : 28,
@@ -581,6 +641,7 @@ public sealed partial class CustomerCardWindow : Window
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
         _readFields.Add(() => setter(input.Text.Trim()));
+        return input;
     }
 
     private CheckBox AddBool(StackPanel form, string label, Func<bool> getter, Action<bool> setter)

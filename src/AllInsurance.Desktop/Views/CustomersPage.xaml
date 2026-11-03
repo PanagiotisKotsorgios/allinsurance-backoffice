@@ -52,15 +52,12 @@
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock x:Name="DemoNotice" Visibility="Collapsed" FontWeight="SemiBold"
-                               Foreground="{ThemeResource BrandAccentBrush}"
-                               Text="Προεπισκόπηση: δοκιμαστικές γραμμές για έλεγχο της διάταξης. Δεν έχουν αποθηκευτεί." />
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Disabled">
                         <StackPanel x:Name="TableStack" Width="1590" HorizontalAlignment="Left">
-                            <Border Background="{ThemeResource TableHeaderBackgroundBrush}" Padding="12,10"
+                            <Border Background="{ThemeResource TableHeaderBackgroundBrush}" Padding="0"
                                     BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
                                     CornerRadius="8">
                                 <Grid x:Name="TableHeader" ColumnSpacing="0">
@@ -71,21 +68,21 @@
                                         <ColumnDefinition Width="220" /><ColumnDefinition Width="145" />
                                         <ColumnDefinition Width="140" /><ColumnDefinition Width="100" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Κωδικός" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1" Text="Είδος" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="2" Text="Επώνυμο" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="3" Text="Όνομα" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="4" Text="Επωνυμία" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="5" Text="ΑΦΜ" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="6" Text="Email" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="7" Text="Κινητό" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="8" Text="Πόλη" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="9" Text="Υπόλοιπο" FontWeight="SemiBold" />
+                                    <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κωδικός" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Είδος" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Επώνυμο" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Όνομα" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Επωνυμία" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="ΑΦΜ" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Email" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κινητό" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Πόλη" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="9" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,0" Padding="10,8"><TextBlock Text="Υπόλοιπο" FontWeight="SemiBold" /></Border>
                                 </Grid>
                             </Border>
                             <ListView x:Name="CustomersList" IsItemClickEnabled="True" Padding="0"
                                       BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,1,1"
-                                      SelectionMode="Single"
+                                      SelectionMode="Multiple"
                                       SelectionChanged="Customers_SelectionChanged"
                                       Height="460" AutomationProperties.Name="Πίνακας πελατών">
 

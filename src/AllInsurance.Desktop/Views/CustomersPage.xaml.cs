@@ -4,6 +4,8 @@ using AllInsurance.Desktop.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using System.Globalization;
 
 namespace AllInsurance.Desktop.Views;
@@ -17,7 +19,6 @@ public sealed partial class CustomersPage : Page
     private CustomerListItem[] _filtered = [];
     private CustomerListItem[] _allItems = [];
     private bool _loading;
-    private bool _showingDemo;
     private string _sortKey = "LastName";
     private bool _sortDescending;
     private int _page = 1;
@@ -28,6 +29,21 @@ public sealed partial class CustomersPage : Page
         _customers = App.Services.GetRequiredService<ICustomerService>();
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         InitializeComponent();
+        CustomersList.AddHandler(UIElement.DoubleTappedEvent,
+            new DoubleTappedEventHandler(async (_, args) =>
+            {
+                if (FindCustomerAt(args.OriginalSource) is CustomerListItem customer)
+                    await OpenCardAsync(customer.Id);
+            }), true);
+        CustomersList.AddHandler(UIElement.RightTappedEvent,
+            new RightTappedEventHandler((_, args) =>
+            {
+                if (FindCustomerAt(args.OriginalSource) is not CustomerListItem customer) return;
+                if (FindCustomerContainer(args.OriginalSource) is not ListViewItem row) return;
+                row.IsSelected = true;
+                CreateCustomerMenu(customer).ShowAt(row);
+                args.Handled = true;
+            }), true);
         InitializeHeaderActions();
         ApplyColumnLayout();
         StatusFilter.SetOptions(["Ενεργοί", "Ανενεργοί"]);
@@ -55,10 +71,7 @@ public sealed partial class CustomersPage : Page
             var cities = await _filters.ChoicesAsync("Πόλεις");
             var partners = await _filters.ChoicesAsync("Συνεργάτες");
             if (version != _requestVersion) return;
-            _showingDemo = items.Count == 0;
-            _allItems = _showingDemo ? DemoRows.Customers() : items.ToArray();
-            DemoNotice.Visibility = _showingDemo ? Visibility.Visible : Visibility.Collapsed;
-            CustomersList.IsHitTestVisible = !_showingDemo;
+            _allItems = items.ToArray();
             _loading = true;
             KindFilter.SetOptions(new[] { "Φυσικό πρόσωπο", "Επιχείρηση" }
                 .Concat(items.Select(item => item.CustomerKind)));
@@ -114,8 +127,7 @@ public sealed partial class CustomersPage : Page
         _filtered = rows.ToArray();
         _page = 1;
         ApplyPage();
-        StatusText.Text = _showingDemo ? "Προεπισκόπηση κενής λίστας" :
-            $"{_filtered.Length} από {_allItems.Length} πελάτες";
+        StatusText.Text = $"{_filtered.Length} από {_allItems.Length} πελάτες";
     }
 
     private static bool ContainsGreek(string source, string term) =>
@@ -123,10 +135,28 @@ public sealed partial class CustomersPage : Page
             CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0;
 
     private void Filter_Changed(object sender, TextChangedEventArgs e) => ApplyFilters();
-    private void Customers_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        SelectedBadge.Text = CustomersList.SelectedItem is null ? "0 επιλεγμένοι" : "1 επιλεγμένος";
+    private void Customers_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var count = CustomersList.SelectedItems.Count;
+        SelectedBadge.Text = count == 1 ? "1 επιλεγμένος" : $"{count} επιλεγμένοι";
+    }
     private CustomerListItem? SelectedCustomer() =>
-        CustomersList.SelectedItem is ListViewItem { Tag: CustomerListItem item } ? item : null;
+        CustomersList.SelectedItems.Count == 1 &&
+        CustomersList.SelectedItems[0] is ListViewItem { Tag: CustomerListItem item } ? item : null;
+    private CustomerListItem[] SelectedCustomers() => CustomersList.SelectedItems
+        .OfType<ListViewItem>().Select(row => row.Tag).OfType<CustomerListItem>().ToArray();
+    private static ListViewItem? FindCustomerContainer(object source)
+    {
+        var current = source as DependencyObject;
+        while (current is not null)
+        {
+            if (current is ListViewItem { Tag: CustomerListItem }) return (ListViewItem)current;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return null;
+    }
+    private static CustomerListItem? FindCustomerAt(object source) =>
+        FindCustomerContainer(source)?.Tag as CustomerListItem;
     private void Previous_Click(object sender, RoutedEventArgs e)
     {
         if (_page > 1) { _page--; ApplyPage(); }
@@ -149,20 +179,20 @@ public sealed partial class CustomersPage : Page
         CustomersList.Items.Clear();
         foreach (var customer in _filtered.Skip((_page - 1) * PageSize).Take(PageSize))
             CustomersList.Items.Add(CustomerRow(customer));
-        TotalBadge.Text = _showingDemo ? "Δοκιμαστική προβολή" : $"{_filtered.Length} εγγραφές";
-        PageText.Text = _showingDemo ? "Δοκιμαστικές γραμμές" :
-            $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
+        TotalBadge.Text = $"{_filtered.Length} εγγραφές";
+        PageText.Text = $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
     }
 
     private ListViewItem CustomerRow(CustomerListItem item)
     {
-        var row = new Grid { ColumnSpacing = 0, Padding = new Thickness(12, 9, 12, 9) };
+        var row = new Grid { ColumnSpacing = 0, Width = TableStack.Width - 2, Height = 39 };
         var values = new[] { item.Code, item.CustomerKind, item.LastName,
             item.FirstName, item.CompanyName, item.TaxNumber,
             item.PrimaryEmail, item.PrimaryMobile, item.City, item.BalanceDisplay };
-        for (var index = 0; index < CustomerColumns.Ordered.Length; index++)
+        var ordered = CustomerColumns.Ordered;
+        for (var index = 0; index < ordered.Length; index++)
         {
-            var column = CustomerColumns.Ordered[index];
+            var column = ordered[index];
             var originalIndex = Array.FindIndex(CustomerColumns.All, item => item.Key == column.Key);
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = CustomerColumns.Width(column.Key) });
             if (!CustomerColumns.IsVisible(column.Key)) continue;
@@ -175,32 +205,39 @@ public sealed partial class CustomersPage : Page
                 Child = text,
                 BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(
                     Windows.UI.Color.FromArgb(255, 130, 149, 168)),
-                BorderThickness = index == 0 ? new Thickness(0, 0, 0, 1) : new Thickness(1, 0, 0, 1),
-                Padding = index == 0 ? new Thickness(0) : new Thickness(8, 0, 0, 0)
+                BorderThickness = index == ordered.Length - 1 ? new Thickness(0, 0, 0, 1) :
+                    new Thickness(0, 0, 1, 1),
+                Padding = new Thickness(10, 5, 10, 5)
             };
+            if (column.Key == "Balance" && item.Balance != 0)
+            {
+                cell.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Windows.UI.Color.FromArgb(255, 198, 40, 40));
+                text.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+            }
             Grid.SetColumn(cell, index);
             row.Children.Add(cell);
         }
         var result = new ListViewItem { Content = row, Tag = item, Padding = new Thickness(0),
-            Margin = new Thickness(0), Width = TableStack.Width,
+            Margin = new Thickness(0), Width = TableStack.Width - 2, Height = 39,
             HorizontalContentAlignment = HorizontalAlignment.Stretch };
-        if (!_showingDemo)
-        {
-            result.DoubleTapped += async (_, _) => await OpenCardAsync(item.Id);
-            var menu = new MenuFlyout();
-            var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
-            open.Click += async (_, _) => await OpenCardAsync(item.Id);
-            var edit = new MenuFlyoutItem { Text = "Επεξεργασία" };
-            edit.Click += async (_, _) => await OpenCardAsync(item.Id, true);
-            var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
-            delete.Click += async (_, _) => await DeleteCustomerAsync(item);
-            menu.Items.Add(open);
-            menu.Items.Add(edit);
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(delete);
-            result.ContextFlyout = menu;
-        }
         return result;
+    }
+
+    private MenuFlyout CreateCustomerMenu(CustomerListItem item)
+    {
+        var menu = new MenuFlyout();
+        var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
+        open.Click += async (_, _) => await OpenCardAsync(item.Id);
+        var edit = new MenuFlyoutItem { Text = "Επεξεργασία" };
+        edit.Click += async (_, _) => await OpenCardAsync(item.Id, true);
+        var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
+        delete.Click += async (_, _) => await DeleteCustomerAsync(item);
+        menu.Items.Add(open);
+        menu.Items.Add(edit);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(delete);
+        return menu;
     }
 
     private void ApplyColumnLayout()
@@ -216,7 +253,7 @@ public sealed partial class CustomersPage : Page
                 ? Visibility.Visible : Visibility.Collapsed;
         }
         TableStack.Width = columns.Where(column => CustomerColumns.IsVisible(column.Key))
-            .Sum(column => column.Width) + 24;
+            .Sum(column => column.Width) + 2;
         var page = _page;
         _page = page;
         ApplyPage();
@@ -288,7 +325,7 @@ public sealed partial class CustomersPage : Page
     private async void Open_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedCustomer() is CustomerListItem item) await OpenCardAsync(item.Id, true);
-        else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε πελάτη από τη λίστα.");
+        else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε έναν πελάτη από τη λίστα.");
     }
 
     private async Task OpenCardAsync(Guid? id, bool edit = false)
@@ -297,7 +334,7 @@ public sealed partial class CustomersPage : Page
         {
             if (_card is not null)
             {
-                _card.Activate();
+                _card.BringToFront();
                 return;
             }
             _card = new CustomerCardWindow(id, edit);
@@ -306,7 +343,7 @@ public sealed partial class CustomersPage : Page
                 _card = null;
                 await RefreshAsync();
             };
-            _card.Activate();
+            _card.BringToFront();
         }
         catch (Exception exception)
         {
@@ -317,12 +354,28 @@ public sealed partial class CustomersPage : Page
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedCustomer() is not CustomerListItem item)
+        var selected = SelectedCustomers();
+        if (selected.Length == 0)
         {
             await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε πελάτη από τη λίστα.");
             return;
         }
-        await DeleteCustomerAsync(item);
+        if (selected.Length == 1) { await DeleteCustomerAsync(selected[0]); return; }
+        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Μαζική διαγραφή πελατών",
+            Content = $"Να διαγραφούν οι {selected.Length} επιλεγμένοι πελάτες και τα σχετικά στοιχεία τους;",
+            PrimaryButtonText = "Διαγραφή", CloseButtonText = "Ακύρωση",
+            DefaultButton = ContentDialogButton.Close };
+        if (await DialogButtonStyles.ShowAsync(dialog, destructive: true) != ContentDialogResult.Primary) return;
+        try
+        {
+            foreach (var customer in selected) await _customers.DeleteAsync(customer.Id);
+            await RefreshAsync();
+        }
+        catch (Exception exception)
+        {
+            await RefreshAsync();
+            await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
+        }
     }
 
     private async Task DeleteCustomerAsync(CustomerListItem item)

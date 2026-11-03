@@ -23,6 +23,11 @@ internal static class TableInteractions
                 grid.ColumnDefinitions[position].Width = widths[original];
                 var cell = (FrameworkElement)grid.Children[original];
                 Grid.SetColumn(cell, position);
+                if (cell is Border border)
+                    border.BorderThickness = ReferenceEquals(grid, header)
+                        ? position == count - 1 ? new Thickness(0) : new Thickness(0, 0, 1, 0)
+                        : position == count - 1 ? new Thickness(0, 0, 0, 1) :
+                            new Thickness(0, 0, 1, 1);
             }
         }
 

@@ -5,6 +5,7 @@ using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.UI;
@@ -20,7 +21,6 @@ public sealed partial class SectionPage : Page
     private CustomerChoice[] _customerChoices = [];
     private int _requestVersion;
     private BusinessRecordRow[] _filtered = [];
-    private bool _showingDemo;
     private readonly int[] _columnOrder = [0, 1, 2, 3, 4, 5, 6];
     private readonly double[] _columnWidths = [240, 140, 190, 130, 130, 240, 100];
     private int _sortColumn = 0;
@@ -79,12 +79,8 @@ public sealed partial class SectionPage : Page
         var version = ++_requestVersion;
         try
         {
-            var storedRecords = await _records.SearchAsync(_section.Key);
+            var records = await _records.SearchAsync(_section.Key);
             if (version != _requestVersion) return;
-            _showingDemo = storedRecords.Count == 0;
-            var records = _showingDemo ? DemoRows.Section(_section) : storedRecords.ToArray();
-            DemoNotice.Visibility = _showingDemo ? Visibility.Visible : Visibility.Collapsed;
-            RecordsList.IsHitTestVisible = !_showingDemo;
             StatusFilter.SetOptions(records.Select(item => string.IsNullOrWhiteSpace(item.Status)
                 ? "Χωρίς κατάσταση" : item.Status));
             CustomerFilter.SetOptions(_customerChoices.Select(item => item.Name));
@@ -114,8 +110,7 @@ public sealed partial class SectionPage : Page
             SortRecords();
             _page = 1;
             ApplyPage();
-            StatusText.Text = _showingDemo ? "Προεπισκόπηση κενής λίστας" :
-                $"{_filtered.Length} από {records.Length} καταχωρίσεις";
+            StatusText.Text = $"{_filtered.Length} από {records.Count} καταχωρίσεις";
             if (_section.Key is "vehicles" or "policies" or "claims")
             {
                 var related = await _customers.GetRelatedRecordsAsync(_section.Key, SearchInput.Text);
@@ -151,37 +146,35 @@ public sealed partial class SectionPage : Page
         var pages = Math.Max(1, (int)Math.Ceiling(_filtered.Length / (double)PageSize));
         _page = Math.Clamp(_page, 1, pages);
         RecordsList.ItemsSource = _filtered.Skip((_page - 1) * PageSize).Take(PageSize).ToArray();
-        TotalBadge.Text = _showingDemo ? "Δοκιμαστική προβολή" : $"{_filtered.Length} εγγραφές";
-        PageText.Text = _showingDemo ? "Δοκιμαστικές γραμμές" :
-            $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
+        TotalBadge.Text = $"{_filtered.Length} εγγραφές";
+        PageText.Text = $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
     }
 
     private void InitializeTableActions()
     {
-        RecordsList.DoubleTapped += async (_, args) =>
+        RecordsList.AddHandler(UIElement.DoubleTappedEvent,
+            new DoubleTappedEventHandler(async (_, args) =>
         {
-            if (_showingDemo) return;
-            Microsoft.UI.Xaml.DependencyObject? source = args.OriginalSource as Microsoft.UI.Xaml.DependencyObject;
-            while (source is not null && source is not ListViewItem)
-                source = VisualTreeHelper.GetParent(source);
-            if (source is ListViewItem { Content: BusinessRecordRow row })
+            if (FindRecordContainer(args.OriginalSource) is ListViewItem { Content: BusinessRecordRow row })
                 await EditRecordAsync(row.Record);
-        };
+        }), true);
+        RecordsList.AddHandler(UIElement.RightTappedEvent,
+            new RightTappedEventHandler((_, args) =>
+            {
+                if (FindRecordContainer(args.OriginalSource) is not ListViewItem { Content: BusinessRecordRow row } container)
+                    return;
+                container.IsSelected = true;
+                CreateRecordMenu(row).ShowAt(container);
+                args.Handled = true;
+            }), true);
         RecordsList.ContainerContentChanging += (_, args) =>
         {
             if (args.InRecycleQueue || args.Item is not BusinessRecordRow row || args.ItemContainer is null) return;
             args.ItemContainer.Padding = new Thickness(0);
             args.ItemContainer.Margin = new Thickness(0);
+            args.ItemContainer.Width = 1170;
+            args.ItemContainer.Height = 39;
             args.ItemContainer.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            var menu = new MenuFlyout();
-            var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
-            open.Click += async (_, _) => await EditRecordAsync(row.Record);
-            var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
-            delete.Click += async (_, _) => await DeleteRecordAsync(row);
-            menu.Items.Add(open);
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(delete);
-            args.ItemContainer.ContextFlyout = menu;
         };
         for (var index = 0; index < _columnOrder.Length; index++)
         {
@@ -204,6 +197,30 @@ public sealed partial class SectionPage : Page
             menu.Items.Add(right);
             header.ContextFlyout = menu;
         }
+    }
+
+    private static ListViewItem? FindRecordContainer(object source)
+    {
+        var current = source as DependencyObject;
+        while (current is not null)
+        {
+            if (current is ListViewItem { Content: BusinessRecordRow }) return (ListViewItem)current;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return null;
+    }
+
+    private MenuFlyout CreateRecordMenu(BusinessRecordRow row)
+    {
+        var menu = new MenuFlyout();
+        var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
+        open.Click += async (_, _) => await EditRecordAsync(row.Record);
+        var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
+        delete.Click += async (_, _) => await DeleteRecordAsync(row);
+        menu.Items.Add(open);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        menu.Items.Add(delete);
+        return menu;
     }
 
     private void SortBy(int column, bool descending)
@@ -265,14 +282,17 @@ public sealed partial class SectionPage : Page
             var cell = (FrameworkElement)grid.Children[original];
             Grid.SetColumn(cell, position);
             if (cell is Border border)
-                border.BorderThickness = position == 0 ? new Thickness(0, 0, 0, 1) :
-                    new Thickness(1, 0, 0, 1);
+                border.BorderThickness = ReferenceEquals(grid, RecordsHeader)
+                    ? position == _columnOrder.Length - 1 ? new Thickness(0) : new Thickness(0, 0, 1, 0)
+                    : position == _columnOrder.Length - 1 ? new Thickness(0, 0, 0, 1) :
+                        new Thickness(0, 0, 1, 1);
         }
     }
     private async void Add_Click(object sender, RoutedEventArgs e) => await EditRecordAsync(null);
     private async void Edit_Click(object sender, RoutedEventArgs e)
     {
-        if (RecordsList.SelectedItem is BusinessRecordRow row) await EditRecordAsync(row.Record);
+        if (RecordsList.SelectedItems.Count == 1 &&
+            RecordsList.SelectedItems[0] is BusinessRecordRow row) await EditRecordAsync(row.Record);
         else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
     }
     private async Task EditRecordAsync(BusinessRecord? existing)
@@ -324,12 +344,28 @@ public sealed partial class SectionPage : Page
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
     {
-        if (RecordsList.SelectedItem is not BusinessRecordRow row)
+        var selected = RecordsList.SelectedItems.OfType<BusinessRecordRow>().ToArray();
+        if (selected.Length == 0)
         {
             await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
             return;
         }
-        await DeleteRecordAsync(row);
+        if (selected.Length == 1) { await DeleteRecordAsync(selected[0]); return; }
+        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Μαζική διαγραφή εγγραφών",
+            Content = $"Να διαγραφούν οι {selected.Length} επιλεγμένες εγγραφές;",
+            PrimaryButtonText = "Διαγραφή", CloseButtonText = "Ακύρωση",
+            DefaultButton = ContentDialogButton.Close };
+        if (await DialogButtonStyles.ShowAsync(dialog, destructive: true) != ContentDialogResult.Primary) return;
+        try
+        {
+            foreach (var row in selected) await _records.DeleteAsync(row.Record.Id);
+            await RefreshAsync();
+        }
+        catch (Exception exception)
+        {
+            await RefreshAsync();
+            await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
+        }
     }
 
     private async Task DeleteRecordAsync(BusinessRecordRow row)

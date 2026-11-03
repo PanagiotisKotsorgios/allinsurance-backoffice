@@ -52,54 +52,51 @@
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="20">
                 <StackPanel Spacing="12">
-                    <TextBlock x:Name="DemoNotice" Visibility="Collapsed" FontWeight="SemiBold"
-                               Foreground="{ThemeResource BrandAccentBrush}"
-                               Text="Προεπισκόπηση: δοκιμαστικές γραμμές για έλεγχο της διάταξης. Δεν έχουν αποθηκευτεί." />
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Disabled">
-                        <StackPanel Width="1194" HorizontalAlignment="Left">
+                        <StackPanel Width="1172" HorizontalAlignment="Left">
                             <Border Background="{ThemeResource TableHeaderBackgroundBrush}" CornerRadius="8"
                                     BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
-                                    Padding="12,10">
+                                    Padding="0">
                                 <Grid x:Name="RecordsHeader" ColumnDefinitions="240,140,190,130,130,240,100"
                                       ColumnSpacing="0">
-                                    <TextBlock x:Name="TitleHeader" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="1" Text="Κωδικός" FontWeight="SemiBold" />
-                                    <TextBlock x:Name="PartyHeader" Grid.Column="2" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="3" Text="Κατάσταση" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="4" Text="Ημερομηνία" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="5" Text="Πελάτης" FontWeight="SemiBold" />
-                                    <TextBlock Grid.Column="6" Text="Εγγραφή" FontWeight="SemiBold" />
+                                    <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="TitleHeader" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κωδικός" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="PartyHeader" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κατάσταση" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Ημερομηνία" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Πελάτης" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="10,8"><TextBlock Text="Εγγραφή" FontWeight="SemiBold" /></Border>
                                 </Grid>
                             </Border>
                             <ListView x:Name="RecordsList" Height="440" Padding="0"
                                       BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,1,1"
-                                      SelectionMode="Single">
+                                      SelectionMode="Multiple">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
                                         <Grid ColumnDefinitions="240,140,190,130,130,240,100" Loaded="RecordRow_Loaded"
-                                              ColumnSpacing="0" Padding="12,9">
-                                            <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1">
+                                              ColumnSpacing="0" Width="1170" Height="39">
+                                            <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                             </Border>
-                                            <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                            <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding Reference}" />
                                             </Border>
-                                            <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                            <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding RelatedParty}" TextTrimming="CharacterEllipsis" />
                                             </Border>
-                                            <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                            <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding Status}" />
                                             </Border>
-                                            <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                            <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding EventDateDisplay}" />
                                             </Border>
-                                            <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                            <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" />
                                             </Border>
-                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,0,1" Padding="8,0,0,0">
+                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
                                                 <TextBlock Text="{Binding CreatedDisplay}" />
                                             </Border>
                                         </Grid>
