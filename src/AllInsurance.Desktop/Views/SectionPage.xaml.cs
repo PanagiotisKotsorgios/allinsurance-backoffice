@@ -26,6 +26,8 @@ public sealed partial class SectionPage : Page
     private int _sortColumn = 0;
     private bool _sortDescending;
     private bool _updatingSelectAll;
+    private bool _syncingChecks;
+    private readonly HashSet<Guid> _checkedRecordIds = [];
     private int _page = 1;
     private const int PageSize = 25;
 
@@ -82,6 +84,7 @@ public sealed partial class SectionPage : Page
         {
             var records = await _records.SearchAsync(_section.Key);
             if (version != _requestVersion) return;
+            _checkedRecordIds.RemoveWhere(id => !records.Any(record => record.Id == id));
             StatusFilter.SetOptions(records.Select(item => string.IsNullOrWhiteSpace(item.Status)
                 ? "Χωρίς κατάσταση" : item.Status));
             CustomerFilter.SetOptions(_customerChoices.Select(item => item.Name));
@@ -136,16 +139,31 @@ public sealed partial class SectionPage : Page
     }
     private void Records_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        UpdateCheckedState();
+    }
+    private void UpdateCheckedState()
+    {
+        if (SelectAllRecords is null) return;
         _updatingSelectAll = true;
-        SelectAllRecords.IsChecked = RecordsList.Items.Count > 0 &&
-            RecordsList.SelectedItems.Count == RecordsList.Items.Count;
+        SelectAllRecords.IsChecked = _filtered.Length > 0 &&
+            _filtered.All(row => _checkedRecordIds.Contains(row.Record.Id));
         _updatingSelectAll = false;
     }
     private void SelectAllRecords_Changed(object sender, RoutedEventArgs e)
     {
         if (_updatingSelectAll || RecordsList is null) return;
-        if (SelectAllRecords.IsChecked == true) RecordsList.SelectAll();
-        else RecordsList.SelectedItems.Clear();
+        if (SelectAllRecords.IsChecked == true)
+            foreach (var row in _filtered) _checkedRecordIds.Add(row.Record.Id);
+        else
+            foreach (var row in _filtered) _checkedRecordIds.Remove(row.Record.Id);
+        ApplyPage();
+    }
+    private void RecordCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_syncingChecks || sender is not CheckBox { Tag: Guid id } box) return;
+        if (box.IsChecked == true) _checkedRecordIds.Add(id);
+        else _checkedRecordIds.Remove(id);
+        UpdateCheckedState();
     }
     private void Previous_Click(object sender, RoutedEventArgs e)
     {
@@ -160,6 +178,7 @@ public sealed partial class SectionPage : Page
         var pages = Math.Max(1, (int)Math.Ceiling(_filtered.Length / (double)PageSize));
         _page = Math.Clamp(_page, 1, pages);
         RecordsList.ItemsSource = _filtered.Skip((_page - 1) * PageSize).Take(PageSize).ToArray();
+        UpdateCheckedState();
         TotalBadge.Text = $"{_filtered.Length} εγγραφές";
         PageText.Text = $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
     }
@@ -169,6 +188,7 @@ public sealed partial class SectionPage : Page
         RecordsList.AddHandler(UIElement.DoubleTappedEvent,
             new DoubleTappedEventHandler(async (_, args) =>
         {
+            if (IsInsideCheckBox(args.OriginalSource)) return;
             if (FindRecordContainer(args.OriginalSource) is ListViewItem { Content: BusinessRecordRow row })
                 await EditRecordAsync(row.Record);
         }), true);
@@ -222,6 +242,17 @@ public sealed partial class SectionPage : Page
             current = VisualTreeHelper.GetParent(current);
         }
         return null;
+    }
+    private static bool IsInsideCheckBox(object source)
+    {
+        var current = source as DependencyObject;
+        while (current is not null)
+        {
+            if (current is CheckBox) return true;
+            if (current is ListViewItem) return false;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return false;
     }
 
     private MenuFlyout CreateRecordMenu(BusinessRecordRow row)
@@ -284,19 +315,27 @@ public sealed partial class SectionPage : Page
 
     private void RecordRow_Loaded(object sender, RoutedEventArgs e)
     {
-        if (sender is Grid grid) ApplyColumnOrder(grid);
+        if (sender is not Grid grid) return;
+        ApplyColumnOrder(grid);
+        if (grid.DataContext is not BusinessRecordRow row ||
+            grid.Children[0] is not Border { Child: CheckBox check }) return;
+        _syncingChecks = true;
+        check.IsChecked = _checkedRecordIds.Contains(row.Record.Id);
+        _syncingChecks = false;
     }
 
     private void ApplyColumnOrder(Grid grid)
     {
+        var isHeader = ReferenceEquals(grid, RecordsHeader);
         for (var position = 0; position < _columnOrder.Length; position++)
         {
             var original = _columnOrder[position];
-            grid.ColumnDefinitions[position].Width = new GridLength(_columnWidths[original]);
-            var cell = (FrameworkElement)grid.Children[original];
-            Grid.SetColumn(cell, position);
+            var offset = isHeader ? 0 : 1;
+            grid.ColumnDefinitions[position + offset].Width = new GridLength(_columnWidths[original]);
+            var cell = (FrameworkElement)grid.Children[original + offset];
+            Grid.SetColumn(cell, position + offset);
             if (cell is Border border)
-                border.BorderThickness = ReferenceEquals(grid, RecordsHeader)
+                border.BorderThickness = isHeader
                     ? position == _columnOrder.Length - 1 ? new Thickness(0) : new Thickness(0, 0, 1, 0)
                     : position == _columnOrder.Length - 1 ? new Thickness(0, 0, 0, 1) :
                         new Thickness(0, 0, 1, 1);
@@ -358,7 +397,9 @@ public sealed partial class SectionPage : Page
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
     {
-        var selected = RecordsList.SelectedItems.OfType<BusinessRecordRow>().ToArray();
+        var selected = _filtered.Where(row => _checkedRecordIds.Contains(row.Record.Id)).ToArray();
+        if (selected.Length == 0 && RecordsList.SelectedItem is BusinessRecordRow focused)
+            selected = [focused];
         if (selected.Length == 0)
         {
             await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
@@ -420,10 +461,11 @@ public sealed partial class SectionPage : Page
         if (RelatedRecordsList.SelectedItem is not CustomerRelatedRecord row) return;
         try
         {
-            if (_card is not null) { _card.Activate(); return; }
+            if (_card is not null) { _card.BringToFront(); return; }
             _card = new CustomerCardWindow(row.CustomerId);
             _card.Closed += async (_, _) => { _card = null; await RefreshAsync(); };
-            _card.Activate();
+            _card.BringToFront();
+            DispatcherQueue.TryEnqueue(() => _card?.BringToFront());
         }
         catch (Exception exception) { _card = null; StatusText.Text = exception.Message; }
     }

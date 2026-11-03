@@ -35,10 +35,14 @@ public sealed partial class CustomerCardWindow : Window
     private static extern bool SetWindowPos(nint window, nint insertAfter, int x, int y,
         int width, int height, uint flags);
 
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    private static extern nint SetWindowOwner(nint window, int index, nint owner);
+
     public void BringToFront()
     {
-        Activate();
         var window = WindowNative.GetWindowHandle(this);
+        SetWindowOwner(window, -8, App.MainWindowHandle()); // GWLP_HWNDPARENT
+        Activate();
         ShowWindow(window, 9); // SW_RESTORE
         const uint flags = 0x0001 | 0x0002 | 0x0040; // SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW
         SetWindowPos(window, new nint(-1), 0, 0, 0, 0, flags); // HWND_TOPMOST

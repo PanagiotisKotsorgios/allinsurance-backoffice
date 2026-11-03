@@ -62,7 +62,7 @@
                                     Padding="0">
                                 <Grid ColumnDefinitions="40,*">
                                     <CheckBox x:Name="SelectAllRecords" VerticalAlignment="Center"
-                                              HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των εγγραφών της σελίδας"
+                                              HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των αποτελεσμάτων"
                                               Checked="SelectAllRecords_Changed" Unchecked="SelectAllRecords_Changed" />
                                 <Grid x:Name="RecordsHeader" Grid.Column="1" ColumnDefinitions="240,140,190,130,130,240,100"
                                       ColumnSpacing="0">
@@ -78,30 +78,34 @@
                             </Border>
                             <ListView x:Name="RecordsList" Height="440" Padding="0"
                                       BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,1,1"
-                                      SelectionMode="Multiple" SelectionChanged="Records_SelectionChanged">
+                                      SelectionMode="Single" SelectionChanged="Records_SelectionChanged">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid ColumnDefinitions="240,140,190,130,130,240,100" Loaded="RecordRow_Loaded"
-                                              ColumnSpacing="0" Width="1170" Height="39">
-                                            <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
-                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <Grid ColumnDefinitions="40,240,140,190,130,130,240,100" Loaded="RecordRow_Loaded"
+                                              ColumnSpacing="0" Width="1210" Height="39">
+                                            <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1">
+                                                <CheckBox Tag="{Binding Record.Id}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Checked="RecordCheck_Changed" Unchecked="RecordCheck_Changed" />
                                             </Border>
                                             <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
-                                                <TextBlock Text="{Binding Reference}" />
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                             </Border>
                                             <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
-                                                <TextBlock Text="{Binding RelatedParty}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Reference}" />
                                             </Border>
                                             <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
-                                                <TextBlock Text="{Binding Status}" />
+                                                <TextBlock Text="{Binding RelatedParty}" TextTrimming="CharacterEllipsis" />
                                             </Border>
                                             <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
-                                                <TextBlock Text="{Binding EventDateDisplay}" />
+                                                <TextBlock Text="{Binding Status}" />
                                             </Border>
                                             <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
+                                                <TextBlock Text="{Binding EventDateDisplay}" />
+                                            </Border>
+                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" />
                                             </Border>
-                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
+                                            <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
                                                 <TextBlock Text="{Binding CreatedDisplay}" />
                                             </Border>
                                         </Grid>

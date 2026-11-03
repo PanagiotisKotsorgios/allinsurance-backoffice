@@ -62,7 +62,7 @@
                                     CornerRadius="8">
                                 <Grid ColumnDefinitions="40,*">
                                     <CheckBox x:Name="SelectAllCustomers" VerticalAlignment="Center"
-                                              HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των πελατών της σελίδας"
+                                              HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των αποτελεσμάτων"
                                               Checked="SelectAllCustomers_Changed" Unchecked="SelectAllCustomers_Changed" />
                                 <Grid x:Name="TableHeader" Grid.Column="1" ColumnSpacing="0">
                                     <Grid.ColumnDefinitions>
@@ -87,7 +87,7 @@
                             </Border>
                             <ListView x:Name="CustomersList" IsItemClickEnabled="True" Padding="0"
                                       BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,1,1"
-                                      SelectionMode="Multiple"
+                                      SelectionMode="Single"
                                       SelectionChanged="Customers_SelectionChanged"
                                       Height="460" AutomationProperties.Name="Πίνακας πελατών">
 

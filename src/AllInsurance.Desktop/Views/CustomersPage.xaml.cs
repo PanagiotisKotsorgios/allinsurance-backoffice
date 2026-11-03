@@ -20,6 +20,7 @@ public sealed partial class CustomersPage : Page
     private CustomerListItem[] _allItems = [];
     private bool _loading;
     private bool _updatingSelectAll;
+    private readonly HashSet<Guid> _checkedCustomerIds = [];
     private string _sortKey = "LastName";
     private bool _sortDescending;
     private int _page = 1;
@@ -33,6 +34,7 @@ public sealed partial class CustomersPage : Page
         CustomersList.AddHandler(UIElement.DoubleTappedEvent,
             new DoubleTappedEventHandler(async (_, args) =>
             {
+                if (IsInsideCheckBox(args.OriginalSource)) return;
                 if (FindCustomerAt(args.OriginalSource) is CustomerListItem customer)
                     await OpenCardAsync(customer.Id);
             }), true);
@@ -73,6 +75,7 @@ public sealed partial class CustomersPage : Page
             var partners = await _filters.ChoicesAsync("Συνεργάτες");
             if (version != _requestVersion) return;
             _allItems = items.ToArray();
+            _checkedCustomerIds.RemoveWhere(id => !_allItems.Any(item => item.Id == id));
             _loading = true;
             KindFilter.SetOptions(new[] { "Φυσικό πρόσωπο", "Επιχείρηση" }
                 .Concat(items.Select(item => item.CustomerKind)));
@@ -138,24 +141,38 @@ public sealed partial class CustomersPage : Page
     private void Filter_Changed(object sender, TextChangedEventArgs e) => ApplyFilters();
     private void Customers_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        var count = CustomersList.SelectedItems.Count;
-        SelectedBadge.Text = count == 1 ? "1 επιλεγμένος" : $"{count} επιλεγμένοι";
-        _updatingSelectAll = true;
-        SelectAllCustomers.IsChecked = CustomersList.Items.Count > 0 &&
-            count == CustomersList.Items.Count;
-        _updatingSelectAll = false;
+        UpdateCheckedState();
     }
     private void SelectAllCustomers_Changed(object sender, RoutedEventArgs e)
     {
         if (_updatingSelectAll || CustomersList is null) return;
-        if (SelectAllCustomers.IsChecked == true) CustomersList.SelectAll();
-        else CustomersList.SelectedItems.Clear();
+        if (SelectAllCustomers.IsChecked == true)
+            foreach (var item in _filtered) _checkedCustomerIds.Add(item.Id);
+        else
+            foreach (var item in _filtered) _checkedCustomerIds.Remove(item.Id);
+        ApplyPage();
+    }
+    private void CustomerCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is not CheckBox { Tag: Guid id } box) return;
+        if (box.IsChecked == true) _checkedCustomerIds.Add(id);
+        else _checkedCustomerIds.Remove(id);
+        UpdateCheckedState();
+    }
+    private void UpdateCheckedState()
+    {
+        if (SelectedBadge is null || SelectAllCustomers is null) return;
+        var count = _checkedCustomerIds.Count;
+        SelectedBadge.Text = count == 1 ? "1 επιλεγμένος" : $"{count} επιλεγμένοι";
+        _updatingSelectAll = true;
+        SelectAllCustomers.IsChecked = _filtered.Length > 0 &&
+            _filtered.All(item => _checkedCustomerIds.Contains(item.Id));
+        _updatingSelectAll = false;
     }
     private CustomerListItem? SelectedCustomer() =>
-        CustomersList.SelectedItems.Count == 1 &&
-        CustomersList.SelectedItems[0] is ListViewItem { Tag: CustomerListItem item } ? item : null;
-    private CustomerListItem[] SelectedCustomers() => CustomersList.SelectedItems
-        .OfType<ListViewItem>().Select(row => row.Tag).OfType<CustomerListItem>().ToArray();
+        CustomersList.SelectedItem is ListViewItem { Tag: CustomerListItem item } ? item : null;
+    private CustomerListItem[] SelectedCustomers() =>
+        _allItems.Where(item => _checkedCustomerIds.Contains(item.Id)).ToArray();
     private static ListViewItem? FindCustomerContainer(object source)
     {
         var current = source as DependencyObject;
@@ -168,6 +185,17 @@ public sealed partial class CustomersPage : Page
     }
     private static CustomerListItem? FindCustomerAt(object source) =>
         FindCustomerContainer(source)?.Tag as CustomerListItem;
+    private static bool IsInsideCheckBox(object source)
+    {
+        var current = source as DependencyObject;
+        while (current is not null)
+        {
+            if (current is CheckBox) return true;
+            if (current is ListViewItem) return false;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return false;
+    }
     private void Previous_Click(object sender, RoutedEventArgs e)
     {
         if (_page > 1) { _page--; ApplyPage(); }
@@ -190,13 +218,22 @@ public sealed partial class CustomersPage : Page
         CustomersList.Items.Clear();
         foreach (var customer in _filtered.Skip((_page - 1) * PageSize).Take(PageSize))
             CustomersList.Items.Add(CustomerRow(customer));
+        UpdateCheckedState();
         TotalBadge.Text = $"{_filtered.Length} εγγραφές";
         PageText.Text = $"Σελίδα {_page} από {pages} · Σύνολο {_filtered.Length}";
     }
 
     private ListViewItem CustomerRow(CustomerListItem item)
     {
-        var row = new Grid { ColumnSpacing = 0, Width = TableStack.Width - 42, Height = 39 };
+        var row = new Grid { ColumnSpacing = 0, Width = TableStack.Width - 2, Height = 39 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+        var check = new CheckBox { Tag = item.Id, IsChecked = _checkedCustomerIds.Contains(item.Id),
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        check.Checked += CustomerCheck_Changed;
+        check.Unchecked += CustomerCheck_Changed;
+        row.Children.Add(new Border { Child = check,
+            BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 130, 149, 168)),
+            BorderThickness = new Thickness(0, 0, 1, 1) });
         var values = new[] { item.Code, item.CustomerKind, item.LastName,
             item.FirstName, item.CompanyName, item.TaxNumber,
             item.PrimaryEmail, item.PrimaryMobile, item.City, item.BalanceDisplay };
@@ -226,7 +263,7 @@ public sealed partial class CustomersPage : Page
                     Windows.UI.Color.FromArgb(255, 198, 40, 40));
                 text.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
             }
-            Grid.SetColumn(cell, index);
+            Grid.SetColumn(cell, index + 1);
             row.Children.Add(cell);
         }
         var result = new ListViewItem { Content = row, Tag = item, Padding = new Thickness(0),
@@ -346,6 +383,7 @@ public sealed partial class CustomersPage : Page
             if (_card is not null)
             {
                 _card.BringToFront();
+                DispatcherQueue.TryEnqueue(() => _card?.BringToFront());
                 return;
             }
             _card = new CustomerCardWindow(id, edit);
@@ -355,6 +393,7 @@ public sealed partial class CustomersPage : Page
                 await RefreshAsync();
             };
             _card.BringToFront();
+            DispatcherQueue.TryEnqueue(() => _card?.BringToFront());
         }
         catch (Exception exception)
         {
@@ -366,6 +405,8 @@ public sealed partial class CustomersPage : Page
     private async void Delete_Click(object sender, RoutedEventArgs e)
     {
         var selected = SelectedCustomers();
+        if (selected.Length == 0 && SelectedCustomer() is CustomerListItem focused)
+            selected = [focused];
         if (selected.Length == 0)
         {
             await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε πελάτη από τη λίστα.");
