@@ -27,7 +27,6 @@ public sealed partial class AuditLogPage : Page
         Loaded += async (_, _) => await RefreshAsync();
     }
 
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshAsync();
 
     private async Task RefreshAsync()
     {

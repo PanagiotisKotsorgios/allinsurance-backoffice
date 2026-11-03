@@ -180,7 +180,6 @@ public sealed partial class CustomersPage : Page
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshAsync();
     private async void Add_Click(object sender, RoutedEventArgs e) => await OpenCardAsync(null);
     private async void Open_Click(object sender, RoutedEventArgs e)
     {

@@ -50,7 +50,6 @@
                         <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="178" Click="Edit_Click" />
                         <controls:ActionButton Kind="Delete" Label="Διαγραφή" Width="178" Click="Delete_Click" />
                         <controls:ActionButton Kind="Statistics" Label="Στατιστικά" Width="178" Click="Statistics_Click" />
-                        <controls:ActionButton Kind="Refresh" Label="Ανανέωση" Width="178" Click="Refresh_Click" />
                     </VariableSizedWrapGrid>
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />

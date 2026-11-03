@@ -32,7 +32,6 @@
                         <controls:ActionButton Kind="Add" Label="Προσθήκη" Width="185" Click="Add_Click" />
                         <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="185" Click="Edit_Click" />
                         <controls:ActionButton Kind="Delete" Label="Διαγραφή" Width="185" Click="Delete_Click" />
-                        <controls:ActionButton Kind="Refresh" Label="Ανανέωση" Width="185" Click="Refresh_Click" />
                     </VariableSizedWrapGrid>
                     <ListView x:Name="OptionsList" Height="220" SelectionMode="Single"
                               SelectionChanged="Options_SelectionChanged" />

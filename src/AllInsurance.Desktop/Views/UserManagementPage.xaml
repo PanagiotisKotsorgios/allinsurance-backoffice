@@ -19,7 +19,6 @@
                 <StackPanel Spacing="14">
                     <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="210" ItemHeight="50">
                         <controls:ActionButton Kind="Add" Label="Νέος χρήστης" Width="200" Click="Create_Click" />
-                        <controls:ActionButton Kind="Refresh" Label="Ανανέωση" Width="200" Click="Refresh_Click" />
                         <controls:ActionButton Kind="Reset" Label="Προσωρινός κωδικός" Width="200" Click="Reset_Click" />
                         <controls:ActionButton Kind="Users" Label="Ρόλοι" Width="200" Click="Roles_Click" />
                         <controls:ActionButton Kind="Deactivate" Label="Απενεργοποίηση" Width="200" Click="Deactivate_Click" />

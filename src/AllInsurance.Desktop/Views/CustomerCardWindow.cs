@@ -221,7 +221,7 @@ public sealed partial class CustomerCardWindow : Window
         root.Children.Add(filters);
         var commands = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 190, ItemHeight = 48 };
-        var clear = new ActionButton { Kind = "Filter", Label = "Καθαρισμός", Width = 180 };
+        var clear = new ActionButton { Kind = "Clear", Label = "Καθαρισμός", Width = 180 };
         clear.Click += (_, _) =>
         {
             search.Text = "";

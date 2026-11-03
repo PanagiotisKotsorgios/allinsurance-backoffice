@@ -38,7 +38,7 @@
                         <controls:MultiSelectFilter x:Name="KindFilter" Title="Είδος" Width="210" Height="42" />
                         <controls:MultiSelectFilter x:Name="CityFilter" Title="Πόλη" Width="210" Height="42" />
                         <controls:MultiSelectFilter x:Name="PartnerFilter" Title="Συνεργάτης" Width="210" Height="42" />
-                        <controls:ActionButton Kind="Filter" Label="Καθαρισμός φίλτρων"
+                        <controls:ActionButton Kind="Clear" Label="Καθαρισμός φίλτρων"
                                                Width="210" Height="42" Click="ClearFilters_Click" />
                     </VariableSizedWrapGrid>
                 </StackPanel>
@@ -52,8 +52,6 @@
                                                Width="210" Click="Delete_Click" />
                         <controls:ActionButton Kind="Statistics" Label="Στατιστικά πελατών"
                                                Width="210" Click="Statistics_Click" />
-                        <controls:ActionButton Kind="Refresh" Label="Ανανέωση"
-                                               Width="210" Click="Refresh_Click" />
                         <controls:ActionButton Kind="Choice" Label="Διαχείριση στηλών"
                                                Width="210" Click="Columns_Click" />
                     </VariableSizedWrapGrid>

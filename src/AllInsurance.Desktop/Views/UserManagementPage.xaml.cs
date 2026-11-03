@@ -54,7 +54,6 @@ public sealed partial class UserManagementPage : Page
         _ => role
     };
 
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshAsync();
 
     private async void Create_Click(object sender, RoutedEventArgs e)
     {

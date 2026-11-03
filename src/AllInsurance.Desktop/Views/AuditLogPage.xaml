@@ -17,7 +17,6 @@
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
                 <StackPanel Spacing="12">
-                    <controls:ActionButton Kind="Refresh" Label="Ανανέωση" Click="Refresh_Click" HorizontalAlignment="Left" />
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />
                     <ListView x:Name="EventsList" MinHeight="200" AutomationProperties.Name="Συμβάντα ελέγχου">
                         <ListView.ItemTemplate>

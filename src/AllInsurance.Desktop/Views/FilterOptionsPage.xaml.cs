@@ -103,7 +103,6 @@ public sealed partial class FilterOptionsPage : Page
     private FilterOption? Selected() => OptionsList.SelectedItem is string value
         ? _options.FirstOrDefault(item => item.Value == value) : null;
 
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshAsync();
     private async void ImportText_Click(object sender, RoutedEventArgs e) => await ImportAsync(BulkInput.Text);
 
     private async void ImportFile_Click(object sender, RoutedEventArgs e)

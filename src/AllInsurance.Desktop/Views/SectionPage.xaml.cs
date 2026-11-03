@@ -101,7 +101,6 @@ public sealed partial class SectionPage : Page
 
     private async void Filter_Changed(object sender, TextChangedEventArgs e) => await RefreshAsync();
     private async void CustomerFilter_Changed(object sender, SelectionChangedEventArgs e) => await RefreshAsync();
-    private async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshAsync();
     private void Previous_Click(object sender, RoutedEventArgs e)
     {
         if (_page > 1) { _page--; ApplyPage(); }
