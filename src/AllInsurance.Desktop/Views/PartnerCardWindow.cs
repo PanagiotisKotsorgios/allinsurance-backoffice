@@ -34,11 +34,16 @@ public sealed partial class PartnerCardWindow : Window
 
     private readonly IBusinessRecordService _records = App.Services.GetRequiredService<IBusinessRecordService>();
     private readonly IPartnerService _partners = App.Services.GetRequiredService<IPartnerService>();
+    private readonly AllInsurance.Application.Customers.ICustomerService _customers = App.Services.GetRequiredService<AllInsurance.Application.Customers.ICustomerService>();
     private readonly IFilterOptionService _filters = App.Services.GetRequiredService<IFilterOptionService>();
     private readonly Guid? _id;
     private BusinessRecord _record = new() { SectionKey = "partners", Title = "" };
     private PartnerProfileData _profile = new();
     private PartnerSnapshot _snapshot = new([], [], 0, 0, []);
+    private AllInsurance.Application.Customers.CustomerListItem[] _linkedCustomers = [];
+    private bool _editing;
+    private ActionButton? _saveButton;
+    private ActionButton? _editButton;
     private readonly Grid _root = new() { RowDefinitions =
     {
         new RowDefinition { Height = GridLength.Auto },
@@ -76,9 +81,10 @@ public sealed partial class PartnerCardWindow : Window
 
     public event EventHandler? RecordSaved;
 
-    public PartnerCardWindow(Guid? id = null)
+    public PartnerCardWindow(Guid? id = null, bool beginEditing = false)
     {
         _id = id;
+        _editing = id is null || beginEditing;
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
         _root.Background = new SolidColorBrush(IsDarkTheme()
             ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 246, 249, 252));
@@ -136,6 +142,8 @@ public sealed partial class PartnerCardWindow : Window
             _businessTypes = [.. businesses]; _capacities = [.. capacities];
             _paymentMethods = [.. methods]; _genders = [.. genders]; _taxOffices = [.. offices];
             if (_record.Id != Guid.Empty) _snapshot = await _partners.GetSnapshotAsync(_record.Id);
+            _linkedCustomers = (await _customers.SearchAsync()).Where(item =>
+                string.Equals(item.PartnerName, _record.Title, StringComparison.CurrentCultureIgnoreCase)).ToArray();
             BuildUi();
         }
         catch (Exception exception)
@@ -195,15 +203,25 @@ public sealed partial class PartnerCardWindow : Window
         leftFooter.Children.Add(moneyActions);
         footer.Children.Add(leftFooter);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9 };
-        var save = new ActionButton { Kind = "Save", Label = "Αποθήκευση" };
-        save.Click += async (_, _) => await SaveAsync();
-        actions.Children.Add(save);
+        _editButton = new ActionButton { Kind = "Edit", Label = "Επεξεργασία συνεργάτη" };
+        _editButton.Click += (_, _) => { _editing = true; BuildTabs(preserve: true); UpdateEditState(); };
+        actions.Children.Add(_editButton);
+        _saveButton = new ActionButton { Kind = "Save", Label = "Αποθήκευση" };
+        _saveButton.Click += async (_, _) => await SaveAsync();
+        actions.Children.Add(_saveButton);
         var close = new ActionButton { Kind = "Close", Label = "Κλείσιμο" };
         close.Click += (_, _) => Close();
         actions.Children.Add(close);
         Grid.SetColumn(actions, 1); footer.Children.Add(actions);
         Grid.SetRow(footer, 3); _root.Children.Add(footer);
         BuildTabs();
+        UpdateEditState();
+    }
+
+    private void UpdateEditState()
+    {
+        if (_saveButton is not null) _saveButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
+        if (_editButton is not null) _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void UpdateHeader()
@@ -250,17 +268,20 @@ public sealed partial class PartnerCardWindow : Window
     private Grid TwoColumns(out StackPanel left, out StackPanel right)
     {
         var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
+        left.Spacing = 5;
+        right.Spacing = 5;
         _formGrids.Add(grid);
         return grid;
     }
 
     private TextBox Text(StackPanel panel, string key, string label, string? value, bool multiline = false)
     {
-        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 72 : 28,
-            Height = multiline ? 72 : 28, FontSize = 13,
+        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 72 : 34,
+            Height = multiline ? 96 : 34, FontSize = 13, IsReadOnly = !_editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         if (multiline) { field.AcceptsReturn = true; field.TextWrapping = TextWrapping.Wrap; field.Height = 96; }
-        panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _text[key] = field;
+        panel.Children.Add(CardFieldLayout.CreateRow(label,
+            multiline ? ResizableNoteField.Wrap(field) : field)); _text[key] = field;
         return field;
     }
 
@@ -270,7 +291,7 @@ public sealed partial class PartnerCardWindow : Window
         var choices = options.Prepend("").Concat(value is null ? [] : [value])
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var field = new ComboBox { ItemsSource = choices,
-            SelectedItem = value ?? "", MinHeight = 28, Height = 28,
+            SelectedItem = value ?? "", MinHeight = 34, Height = 34, IsEnabled = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _choice[key] = field;
         return field;
@@ -280,7 +301,7 @@ public sealed partial class PartnerCardWindow : Window
     {
         var field = new CalendarDatePicker {
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 32, Height = 32,
+            MinHeight = 36, Height = 36, IsEnabled = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _date[key] = field;
         return field;
@@ -288,7 +309,7 @@ public sealed partial class PartnerCardWindow : Window
 
     private CheckBox Check(StackPanel panel, string key, string label, bool value)
     {
-        var field = new CheckBox { IsChecked = value, MinHeight = 28, Height = 28 };
+        var field = new CheckBox { IsChecked = value, MinHeight = 34, Height = 34, IsEnabled = _editing };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _check[key] = field;
         return field;
     }
@@ -296,7 +317,7 @@ public sealed partial class PartnerCardWindow : Window
     private AutoSuggestBox Suggest(StackPanel panel, string key, string label,
         string? value, string[] options)
     {
-        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 28, Height = 28,
+        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 34, Height = 34, IsEnabled = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Πληκτρολογήστε για αναζήτηση" };
         field.TextChanged += (_, args) =>
@@ -354,8 +375,12 @@ public sealed partial class PartnerCardWindow : Window
             _record = await _records.GetAsync(id) ?? _record;
             _profile = profile;
             _snapshot = await _partners.GetSnapshotAsync(id);
+            _linkedCustomers = (await _customers.SearchAsync()).Where(item =>
+                string.Equals(item.PartnerName, _record.Title, StringComparison.CurrentCultureIgnoreCase)).ToArray();
+            _editing = false;
             UpdateHeader();
             BuildTabs(preserve: true);
+            UpdateEditState();
             RecordSaved?.Invoke(this, EventArgs.Empty);
             _status.Text = "Η καρτέλα συνεργάτη αποθηκεύτηκε.";
         }
@@ -375,7 +400,7 @@ public sealed partial class PartnerCardWindow : Window
         Email = Optional("email"), Phone = Optional("phone"), Address = Optional("address"),
         City = Suggested("city"), PostalCode = Optional("postal"),
         FatherName = Optional("father"), MotherName = Optional("mother"), Gender = Selected("gender"),
-        BirthDate = Day("birth"), BirthPlace = Optional("birthplace"),
+        BirthDate = Day("birth"), NameDay = Day("nameday"), BirthPlace = Optional("birthplace"),
         Nationality = Optional("nationality"), PassportNumber = Optional("passport"),
         Education = Optional("education"),
         RegistryNumber = Optional("registry"), RegistryExpiry = Day("registryexpiry"),
@@ -386,7 +411,7 @@ public sealed partial class PartnerCardWindow : Window
         WorkEmail = Optional("workemail"), ContractNumber = Optional("contract"),
         StartDate = Day("start"), EndDate = Day("end"),
         CreditLimit = Money(Val("credit"), "Πιστωτικό όριο", 999_999_999m),
-        DefaultCommissionPercent = Money(Val("rate"), "Ποσοστό προμήθειας", 100m),
+        DefaultCommissionPercent = _profile.DefaultCommissionPercent,
         BankName = _bankAccounts.FirstOrDefault()?.BankName,
         Iban = _bankAccounts.FirstOrDefault()?.Iban,
         BankAccounts = _bankAccounts.Select(item => new PartnerBankAccount

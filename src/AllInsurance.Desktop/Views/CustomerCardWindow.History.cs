@@ -55,6 +55,8 @@ public sealed partial class CustomerCardWindow
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0) };
         root.Children.Add(list);
+        var pager = new TablePagination(list);
+        root.Children.Add(pager.Bar);
         var applyColumns = TableInteractions.Attach(header, list);
         IReadOnlyList<CustomerActivity> activities = [];
         void Refresh()
@@ -95,6 +97,7 @@ public sealed partial class CustomerCardWindow
                 list.Items.Add(container);
             }
             count.Text = $"{entries.Length} από {activities.Count} ενέργειες";
+            pager.Capture();
             applyColumns();
         }
         search.TextChanged += (_, _) => Refresh();

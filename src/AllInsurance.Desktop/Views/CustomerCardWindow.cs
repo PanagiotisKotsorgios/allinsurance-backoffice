@@ -74,6 +74,7 @@ public sealed partial class CustomerCardWindow : Window
     private readonly List<Action> _readFields = [];
     private Customer _customer = new() { LastName = "", FirstName = "" };
     private ComboBox? _referralChoice;
+    private ComboBox? _referralPartnerChoice;
     private ComboBox? _partnerChoice;
     private readonly Dictionary<string, ListView> _detailLists = [];
     private BusinessRecordCardWindow? _recordCard;
@@ -277,6 +278,18 @@ public sealed partial class CustomerCardWindow : Window
         }
     }
 
+    private async Task LoadPartnerReferrersAsync()
+    {
+        try
+        {
+            var names = await _filterService.ChoicesAsync("Συνεργάτες");
+            if (_referralPartnerChoice is null) return;
+            _referralPartnerChoice.ItemsSource = names;
+            _referralPartnerChoice.SelectedItem = _customer.ReferredByPartnerName;
+        }
+        catch (Exception exception) { _status.Text = exception.Message; }
+    }
+
     private void AddDetailTab(string label, string category)
         => AddTab(label, CreateDetailPanel(category));
 
@@ -284,7 +297,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         var root = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
             new RowDefinition { Height = GridLength.Auto }, new RowDefinition { Height = GridLength.Auto },
-            new RowDefinition() },
+            new RowDefinition(), new RowDefinition { Height = GridLength.Auto } },
             Margin = new Thickness(16) };
         var search = new TextBox { PlaceholderText = category switch
             {
@@ -294,7 +307,9 @@ public sealed partial class CustomerCardWindow : Window
             }, Height = 38, MinHeight = 38,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var stateFilter = new ComboBox { Width = 195, Height = 38,
-            ItemsSource = new[] { "Όλα", "Ενεργά", "Ιστορικά" }, SelectedIndex = 0 };
+            ItemsSource = category == "policies"
+                ? new[] { "Όλα", "Σε εξέλιξη", "Ενεργά", "Ιστορικά", "Αιτήσεις", "Ειδοποιητήρια", "Ασφαλιστήρια" }
+                : new[] { "Όλα", "Ενεργά", "Ανενεργά" }, SelectedIndex = 0 };
         var fromFilter = new CalendarDatePicker { Width = 195, Height = 38,
             PlaceholderText = "Από ημερομηνία" };
         var untilFilter = new CalendarDatePicker { Width = 195, Height = 38,
@@ -351,6 +366,7 @@ public sealed partial class CustomerCardWindow : Window
             BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0),
             Tag = category };
         _detailLists[category] = list;
+        var pager = new TablePagination(list);
         list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
         {
             if (FindCardRow(args.OriginalSource) is ListViewItem row && row.Tag is not null)
@@ -368,6 +384,7 @@ public sealed partial class CustomerCardWindow : Window
         {
             FillDetailList(list, category, search.Text,
                 stateFilter.SelectedIndex, fromFilter.Date?.Date, untilFilter.Date?.Date);
+            pager.Capture();
             applyColumnLayout();
         }
         search.TextChanged += (_, _) => refresh();
@@ -377,6 +394,8 @@ public sealed partial class CustomerCardWindow : Window
         refresh();
         Grid.SetRow(list, 3);
         root.Children.Add(list);
+        Grid.SetRow(pager.Bar, 4);
+        root.Children.Add(pager.Bar);
         return root;
     }
 
@@ -388,7 +407,10 @@ public sealed partial class CustomerCardWindow : Window
         var details = _customer.Details.Where(item => item.Category == category)
             .Where(item => term.Length == 0 || new[] { item.Title, item.Value, item.Notes }
                 .Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true))
-            .Where(item => state == 0 || (state == 2) == item.IsHistorical)
+            .Where(item => state == 0 ||
+                (state == 1 && !item.IsHistorical) ||
+                (category == "policies" && state == 2 && !item.IsHistorical) ||
+                (state == (category == "policies" ? 3 : 2) && item.IsHistorical))
             .Where(item => !from.HasValue || item.EffectiveFrom >= from || item.CreatedAtUtc.Date >= from)
             .Where(item => !until.HasValue || item.EffectiveFrom <= until || item.CreatedAtUtc.Date <= until)
             .OrderByDescending(item => item.CreatedAtUtc);
@@ -402,9 +424,16 @@ public sealed partial class CustomerCardWindow : Window
                 item.SectionKey == "policies" ? BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).Branch : null,
                 item.SectionKey == "vehicles" ? BusinessRecordDetails.Read<VehicleCardData>(item.DetailsJson).Make : null }.Any(value =>
                     value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true))
-            .Where(item => state == 0 || (state == 1
-                ? item.Status is "Ενεργό" or "Σε εξέλιξη"
-                : item.Status is "Ανενεργό" or "Ολοκληρωμένο"))
+            .Where(item => state == 0 || (category == "policies" ? state switch
+            {
+                1 => item.Status == "Σε εξέλιξη",
+                2 => item.Status == "Ενεργό",
+                3 => item.Status is "Ανενεργό" or "Ολοκληρωμένο",
+                4 => item.DocumentType == "Αίτηση",
+                5 => item.DocumentType == "Ειδοποιητήριο",
+                6 => item.DocumentType == "Ασφαλιστήριο",
+                _ => true
+            } : state == 1 ? item.Status == "Ενεργό" : item.Status == "Ανενεργό"))
             .Where(item => !from.HasValue || item.EventDate >= from || item.CreatedAtUtc.Date >= from)
             .Where(item => !until.HasValue || item.EventDate <= until || item.CreatedAtUtc.Date <= until)
             .OrderByDescending(item => item.CreatedAtUtc);
@@ -698,8 +727,21 @@ public sealed partial class CustomerCardWindow : Window
         try
         {
             foreach (var read in _readFields) read();
-            _customer.ReferredByCustomerId = _customer.IsReferral
-                ? _referralChoice?.SelectedValue as Guid? : null;
+            _customer.ReferredByCustomerId = _referralChoice?.SelectedValue as Guid?;
+            _customer.ReferredByPartnerName = _referralPartnerChoice?.SelectedItem as string;
+            if (_customer.Source is not ("Σύσταση" or "Σύσταση από πελάτη"))
+                _customer.ReferredByCustomerId = null;
+            if (_customer.Source != "Σύσταση από συνεργάτη")
+                _customer.ReferredByPartnerName = null;
+            if (_customer.Source == "Σύσταση από πελάτη" &&
+                !_customer.ReferredByCustomerId.HasValue)
+                throw new ArgumentException("Επιλέξτε τον πελάτη που έκανε τη σύσταση.");
+            if (_customer.Source == "Σύσταση από συνεργάτη" &&
+                string.IsNullOrWhiteSpace(_customer.ReferredByPartnerName))
+                throw new ArgumentException("Επιλέξτε τον συνεργάτη που έκανε τη σύσταση.");
+            _customer.IsReferral = _customer.ReferredByCustomerId.HasValue ||
+                !string.IsNullOrWhiteSpace(_customer.ReferredByPartnerName) ||
+                _customer.Source == "Σύσταση";
             var id = await _service.SaveAsync(_customer);
             _customer = await _service.GetAsync(id) ?? _customer;
             _editing = false;
@@ -772,7 +814,7 @@ public sealed partial class CustomerCardWindow : Window
             TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
             IsReadOnly = !_editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
-        form.Children.Add(CreateFieldRow(label, input));
+        form.Children.Add(CreateFieldRow(label, multiline ? ResizableNoteField.Wrap(input) : input));
         _readFields.Add(() => setter(input.Text.Trim()));
         return input;
     }
@@ -799,7 +841,7 @@ public sealed partial class CustomerCardWindow : Window
         _readFields.Add(() => setter(input.SelectedItem as string ?? options[0]));
     }
 
-    private void AddCatalogChoice(StackPanel form, string label, string category,
+    private ComboBox AddCatalogChoice(StackPanel form, string label, string category,
         Func<string?> getter, Action<string?> setter)
     {
         var selected = getter();
@@ -809,6 +851,7 @@ public sealed partial class CustomerCardWindow : Window
         form.Children.Add(CreateFieldRow(label, input));
         _readFields.Add(() => setter(input.SelectedItem as string ?? selected));
         _ = LoadCatalogChoicesAsync(input, category, selected);
+        return input;
     }
 
     private async Task LoadCatalogChoicesAsync(ComboBox input, string category, string? selected)
@@ -816,8 +859,11 @@ public sealed partial class CustomerCardWindow : Window
         try
         {
             var choices = await _filterService.ChoicesAsync(category);
-            input.ItemsSource = string.IsNullOrWhiteSpace(selected) || choices.Contains(selected)
-                ? choices : choices.Concat([selected]).ToArray();
+            var allChoices = category == "Πηγές πελατών"
+                ? choices.Concat(["Σύσταση από πελάτη", "Σύσταση από συνεργάτη"]).Distinct().ToArray()
+                : choices.ToArray();
+            input.ItemsSource = string.IsNullOrWhiteSpace(selected) || allChoices.Contains(selected)
+                ? allChoices : allChoices.Concat([selected]).ToArray();
             input.SelectedItem = selected;
         }
         catch (Exception exception) { _status.Text = exception.Message; }

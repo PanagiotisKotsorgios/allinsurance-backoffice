@@ -196,11 +196,14 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
             {
                 if (existing.Title != record.Title)
                 {
-                    var assigned = await db.Customers.Where(item => item.PartnerName == existing.Title)
+                    var assigned = await db.Customers.Where(item => item.PartnerName == existing.Title ||
+                            item.ReferredByPartnerName == existing.Title)
                         .ToListAsync(cancellationToken);
                     foreach (var customer in assigned)
                     {
-                        customer.PartnerName = record.Title;
+                        if (customer.PartnerName == existing.Title) customer.PartnerName = record.Title;
+                        if (customer.ReferredByPartnerName == existing.Title)
+                            customer.ReferredByPartnerName = record.Title;
                         customer.UpdatedAtUtc = now;
                         CustomerActivityLog.Add(db, customer.Id, "Αλλαγή συνεργάτη",
                             $"Ο συνεργάτης μετονομάστηκε: {existing.Title} → {record.Title}.",
@@ -285,7 +288,8 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         if (record.SectionKey == "partners")
         {
             if (await db.PartnerPayouts.AnyAsync(item => item.PartnerId == id, cancellationToken) ||
-                await db.Customers.AnyAsync(item => item.PartnerName == record.Title, cancellationToken))
+                await db.Customers.AnyAsync(item => item.PartnerName == record.Title ||
+                    item.ReferredByPartnerName == record.Title, cancellationToken))
                 throw new InvalidOperationException("Ο συνεργάτης έχει οικονομικές κινήσεις ή πελάτες. Θέστε τον ανενεργό αντί να τον διαγράψετε.");
             var policiesOfPartner = await db.BusinessRecords.AsNoTracking()
                 .Where(item => item.SectionKey == "policies" && item.DetailsJson != null)

@@ -63,11 +63,26 @@ public sealed partial class SectionPage : Page
         SectionDescription.Text = section.Description;
         AddButton.Label = "Προσθήκη " + Singular(section.Title);
         SearchInput.PlaceholderText = section.SearchHint;
-        if (section.Key == "partners") CustomerFilter.Title = "Κατηγορία";
+        if (section.Key is "partners" or "vehicles")
+        {
+            IconBackground.Visibility = Visibility.Collapsed;
+            Grid.SetColumn(HeadingPanel, 0);
+            Grid.SetColumnSpan(HeadingPanel, 2);
+        }
+        if (section.Key == "partners")
+        {
+            CustomerFilter.Title = "Κατηγορία συνεργάτη";
+            CityFilter.Visibility = Visibility.Visible;
+            PersonTypeFilter.Visibility = Visibility.Visible;
+            FromFilter.Visibility = Visibility.Collapsed;
+            UntilFilter.Visibility = Visibility.Collapsed;
+        }
         TitleHeader.Text = section.Columns[0];
         PartyHeader.Text = section.Columns.Length > 1 ? section.Columns[1] : "Στοιχεία";
         StatusFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         CustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
+        CityFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
+        PersonTypeFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         Loaded += async (_, _) =>
         {
             await LoadCustomersAsync();
@@ -117,6 +132,13 @@ public sealed partial class SectionPage : Page
                 ? _partnerCategories.Concat(records.Select(item =>
                     PartnerProfileData.Read(item.DetailsJson).Category ?? "Χωρίς κατηγορία"))
                 : _customerChoices.Select(item => item.Name));
+            if (_section.Key == "partners")
+            {
+                CityFilter.SetOptions(records.Select(item =>
+                    PartnerProfileData.Read(item.DetailsJson).City ?? "Χωρίς πόλη"));
+                PersonTypeFilter.SetOptions(records.Select(item =>
+                    PartnerProfileData.Read(item.DetailsJson).PersonType ?? "Χωρίς τύπο"));
+            }
             IEnumerable<BusinessRecord> filtered = records;
             var term = SearchInput.Text.Trim();
             if (term.Length > 0)
@@ -139,6 +161,10 @@ public sealed partial class SectionPage : Page
                     ? PartnerProfileData.Read(item.DetailsJson).Category ?? "Χωρίς κατηγορία"
                     : item.Customer is null ? "Χωρίς πελάτη" :
                         $"{item.Customer.LastName} {item.Customer.FirstName}".Trim()));
+            if (_section.Key == "partners")
+                filtered = filtered.Where(item =>
+                    CityFilter.SelectedValues.Contains(PartnerProfileData.Read(item.DetailsJson).City ?? "Χωρίς πόλη") &&
+                    PersonTypeFilter.SelectedValues.Contains(PartnerProfileData.Read(item.DetailsJson).PersonType ?? "Χωρίς τύπο"));
             if (FromFilter.Date is DateTimeOffset fromDate)
             {
                 var from = fromDate.Date;
@@ -173,6 +199,8 @@ public sealed partial class SectionPage : Page
         SearchInput.Text = "";
         StatusFilter.SelectAll();
         CustomerFilter.SelectAll();
+        CityFilter.SelectAll();
+        PersonTypeFilter.SelectAll();
         FromFilter.Date = null;
         UntilFilter.Date = null;
     }
@@ -187,6 +215,8 @@ public sealed partial class SectionPage : Page
         SelectAllRecords.IsChecked = _filtered.Length > 0 &&
             _filtered.All(row => _checkedRecordIds.Contains(row.Record.Id));
         _updatingSelectAll = false;
+        var selectedCount = _checkedRecordIds.Count > 0 ? _checkedRecordIds.Count : RecordsList.SelectedItems.Count;
+        SelectedBadge.Text = $"{selectedCount} επιλεγμένες";
     }
     private void SelectAllRecords_Changed(object sender, RoutedEventArgs e)
     {
@@ -438,24 +468,25 @@ public sealed partial class SectionPage : Page
     private async void Edit_Click(object sender, RoutedEventArgs e)
     {
         if (RecordsList.SelectedItems.Count == 1 &&
-            RecordsList.SelectedItems[0] is BusinessRecordRow row) await EditRecordAsync(row.Record);
+            RecordsList.SelectedItems[0] is BusinessRecordRow row) await EditRecordAsync(row.Record, beginEditing: true);
         else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
     }
-    private async Task EditRecordAsync(BusinessRecord? existing)
+    private async Task EditRecordAsync(BusinessRecord? existing, bool beginEditing = false)
     {
         if (_section.Key == "partners")
         {
-            OpenPartnerCard(existing?.Id);
+            OpenPartnerCard(existing?.Id, beginEditing);
             return;
         }
         if (_section.Key is "policies" or "vehicles")
         {
-            OpenBusinessRecordCard(existing?.Id);
+            OpenBusinessRecordCard(existing?.Id, beginEditing);
             return;
         }
         var record = existing is null ? new BusinessRecord { SectionKey = _section.Key, Title = "" } :
             await _records.GetAsync(existing.Id);
         if (record is null) { await UiAlerts.ShowErrorAsync(XamlRoot, "Η εγγραφή δεν υπάρχει."); return; }
+        var editing = existing is null || beginEditing;
         var title = new TextBox { Header = RequiredHeader.Create(_section.Columns[0]), Text = record.Title };
         var reference = new TextBox { Header = "Κωδικός / αριθμός", Text = record.Reference ?? "" };
         var party = new TextBox { Header = _section.Columns.Length > 1 ? _section.Columns[1] : "Σχετικό πρόσωπο",
@@ -470,7 +501,12 @@ public sealed partial class SectionPage : Page
         var notes = new TextBox { Header = "Σημειώσεις", Text = record.Notes ?? "",
             AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 90 };
         var form = new StackPanel { Spacing = 10, Width = 500 };
-        foreach (var control in new UIElement[] { title, reference, party, status, date, customer, notes })
+        var editButton = new ActionButton { Kind = "Edit", Label = "Επεξεργασία " + Singular(_section.Title),
+            Visibility = editing ? Visibility.Collapsed : Visibility.Visible,
+            HorizontalAlignment = HorizontalAlignment.Left };
+        form.Children.Add(editButton);
+        foreach (var control in new UIElement[] { title, reference, party, status, date, customer,
+            ResizableNoteField.Wrap(notes) })
             form.Children.Add(control);
         var dialog = new ContentDialog
         {
@@ -479,8 +515,20 @@ public sealed partial class SectionPage : Page
                 "Επεξεργασία " + Singular(_section.Title),
             Content = new ScrollViewer { Content = form, MaxHeight = 520 },
             PrimaryButtonText = "Αποθήκευση",
+            IsPrimaryButtonEnabled = editing,
             CloseButtonText = "Ακύρωση"
         };
+        void ApplyEditing()
+        {
+            foreach (var field in new[] { title, reference, party, status, notes })
+                field.IsReadOnly = !editing;
+            date.IsEnabled = editing;
+            customer.IsEnabled = editing;
+            dialog.IsPrimaryButtonEnabled = editing;
+            editButton.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
+        }
+        editButton.Click += (_, _) => { editing = true; ApplyEditing(); };
+        ApplyEditing();
         if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
         try
         {
@@ -498,12 +546,12 @@ public sealed partial class SectionPage : Page
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
-    private void OpenPartnerCard(Guid? id)
+    private void OpenPartnerCard(Guid? id, bool beginEditing = false)
     {
         if (_partnerCard is not null) { _partnerCard.BringToFront(); return; }
         try
         {
-            _partnerCard = new PartnerCardWindow(id);
+            _partnerCard = new PartnerCardWindow(id, beginEditing);
             _partnerCard.RecordSaved += async (_, _) => await RefreshAsync();
             _partnerCard.Closed += async (_, _) =>
             {
@@ -515,12 +563,13 @@ public sealed partial class SectionPage : Page
         catch (Exception exception) { _partnerCard = null; StatusText.Text = exception.Message; }
     }
 
-    private void OpenBusinessRecordCard(Guid? id)
+    private void OpenBusinessRecordCard(Guid? id, bool beginEditing = false)
     {
         if (_businessCard is not null) { _businessCard.BringToFront(); return; }
         try
         {
-            _businessCard = new BusinessRecordCardWindow(_section.Key, recordId: id);
+            _businessCard = new BusinessRecordCardWindow(_section.Key, recordId: id,
+                beginEditing: beginEditing);
             _businessCard.RecordSaved += async (_, _) => await RefreshAsync();
             _businessCard.Closed += async (_, _) =>
             {

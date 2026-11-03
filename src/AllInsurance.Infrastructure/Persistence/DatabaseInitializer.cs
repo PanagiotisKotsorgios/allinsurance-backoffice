@@ -52,6 +52,7 @@ public sealed class DatabaseInitializer(
             EnsureRoleSeeds(db);
             EnsureCustomerCatalogSeeds(db);
             EnsurePartnerCatalogSeeds(db);
+            EnsurePartnerGradeSeeds(db);
 
             if (!databaseExisted)
             {
@@ -232,6 +233,22 @@ public sealed class DatabaseInitializer(
                 if (!existing.Contains((category, values[index])))
                     db.FilterOptions.Add(new FilterOption { Id = Guid.NewGuid(), Category = category,
                         Value = values[index], SortOrder = index });
+        db.AppMetadata.Add(new AppMetadata { Key = marker, Value = "true" });
+        db.SaveChanges();
+    }
+
+    private static void EnsurePartnerGradeSeeds(AllInsuranceDbContext db)
+    {
+        const string marker = "partner_grades_v1";
+        if (db.AppMetadata.Any(item => item.Key == marker)) return;
+        const string category = "Κατηγορίες συνεργατών";
+        var existing = db.FilterOptions.AsNoTracking().Where(item => item.Category == category)
+            .Select(item => item.Value).ToHashSet();
+        var grades = new[] { "Α", "Β", "Γ", "Δ", "Ε" };
+        for (var index = 0; index < grades.Length; index++)
+            if (!existing.Contains(grades[index]))
+                db.FilterOptions.Add(new FilterOption { Id = Guid.NewGuid(), Category = category,
+                    Value = grades[index], SortOrder = index });
         db.AppMetadata.Add(new AppMetadata { Key = marker, Value = "true" });
         db.SaveChanges();
     }

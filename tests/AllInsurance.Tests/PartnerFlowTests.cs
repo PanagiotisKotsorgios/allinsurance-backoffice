@@ -9,6 +9,32 @@ namespace AllInsurance.Tests;
 public sealed class PartnerFlowTests
 {
     [Fact]
+    public async Task CustomerReferralTracksPartnerRenameAndPreventsDeletion()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+        var partnerId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "partners", Title = "ΣΥΝΕΡΓΑΤΗΣ Α",
+            DetailsJson = new PartnerProfileData { TaxNumber = "987654321" }.Write()
+        });
+        var customerId = await customers.SaveAsync(new Customer
+        {
+            LastName = "ΔΟΚΙΜΗ", FirstName = "ΣΥΣΤΑΣΗ", TaxNumber = "100000089",
+            Source = "Σύσταση από συνεργάτη", ReferredByPartnerName = "ΣΥΝΕΡΓΑΤΗΣ Α"
+        });
+        Assert.True((await customers.GetAsync(customerId))!.IsReferral);
+        var partner = (await records.GetAsync(partnerId))!;
+        partner.Title = "ΣΥΝΕΡΓΑΤΗΣ Β";
+        await records.SaveAsync(partner);
+        Assert.Equal("ΣΥΝΕΡΓΑΤΗΣ Β", (await customers.GetAsync(customerId))!.ReferredByPartnerName);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(partnerId));
+    }
+
+    [Fact]
     public async Task PartnerProductionPayoutAndAuditRemainLinkedAfterRename()
     {
         await using var environment = new TestEnvironment();

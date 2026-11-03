@@ -26,17 +26,20 @@ public sealed partial class CustomerCardWindow
         AddText(left, "Επώνυμο *", () => _customer.LastName, value => _customer.LastName = value ?? "");
         AddText(left, "Όνομα *", () => _customer.FirstName, value => _customer.FirstName = value ?? "");
         AddText(left, "Πατρώνυμο", () => _customer.FatherName, value => _customer.FatherName = value);
+        AddText(left, "Μητρώνυμο", () => _customer.MotherName, value => _customer.MotherName = value);
         AddCatalogChoice(left, "Φύλο", "Φύλα", () => _customer.Gender,
             value => _customer.Gender = value);
+        AddText(left, "Τόπος γέννησης", () => _customer.BirthPlace, value => _customer.BirthPlace = value);
         var birthDate = AddDate(left, "Ημ. γέννησης", () => _customer.BirthDate,
             value => _customer.BirthDate = value);
         var ageField = AddReadOnly(left, "Ηλικία", "—");
+        ageField.Foreground = new SolidColorBrush(Color.FromArgb(255, 24, 135, 74));
         void UpdateAge()
         {
             if (birthDate.Date is not DateTimeOffset date) { ageField.Text = "—"; return; }
             var age = DateTime.Today.Year - date.Year;
             if (date.Date > DateTime.Today.AddYears(-age)) age--;
-            ageField.Text = $"{age} έτη";
+            ageField.Text = $"{age} έτη (αυτόματα)";
         }
         birthDate.DateChanged += (_, _) => UpdateAge();
         UpdateAge();
@@ -55,19 +58,30 @@ public sealed partial class CustomerCardWindow
         AddCatalogChoice(right, "Τύπος ταυτότητας", "Τύποι ταυτότητας",
             () => _customer.IdentityType, value => _customer.IdentityType = value);
         AddBool(right, "Είναι οδηγός", () => _customer.IsDriver, value => _customer.IsDriver = value);
-        AddBool(right, "Έχει δίπλωμα", () => _customer.HasDrivingLicense ||
+        var hasLicense = AddBool(right, "Έχει δίπλωμα", () => _customer.HasDrivingLicense ||
             !string.IsNullOrWhiteSpace(_customer.LicenseNumber),
             value => _customer.HasDrivingLicense = value);
         AddBool(right, "Νέος οδηγός", () => _customer.IsNewDriver ||
             (_customer.LicenseStartDate is DateTime start && start >= DateTime.Today.AddYears(-2)),
             value => _customer.IsNewDriver = value);
-        AddText(right, "Αρ. διπλώματος", () => _customer.LicenseNumber, value => _customer.LicenseNumber = value);
-        AddCatalogChoice(right, "Κατηγορία διπλώματος", "Κατηγορίες διπλώματος", () => _customer.LicenseCategory,
+        var licenseNumber = AddText(right, "Αρ. διπλώματος", () => _customer.LicenseNumber, value => _customer.LicenseNumber = value);
+        var licenseCategory = AddCatalogChoice(right, "Κατηγορία διπλώματος", "Κατηγορίες διπλώματος", () => _customer.LicenseCategory,
             value => _customer.LicenseCategory = value);
-        AddDate(right, "Έναρξη διπλώματος", () => _customer.LicenseStartDate,
+        var licenseStart = AddDate(right, "Έναρξη διπλώματος", () => _customer.LicenseStartDate,
             value => _customer.LicenseStartDate = value);
-        AddDate(right, "Λήξη διπλώματος", () => _customer.LicenseEndDate,
+        var licenseEnd = AddDate(right, "Λήξη διπλώματος", () => _customer.LicenseEndDate,
             value => _customer.LicenseEndDate = value);
+        void UpdateLicenseFields()
+        {
+            var enabled = _editing && hasLicense.IsChecked == true;
+            licenseNumber.IsReadOnly = !enabled;
+            licenseCategory.IsEnabled = enabled;
+            licenseStart.IsEnabled = enabled;
+            licenseEnd.IsEnabled = enabled;
+        }
+        hasLicense.Checked += (_, _) => UpdateLicenseFields();
+        hasLicense.Unchecked += (_, _) => UpdateLicenseFields();
+        UpdateLicenseFields();
         AddCatalogChoice(right, "Επάγγελμα", "Επαγγέλματα", () => _customer.Occupation,
             value => _customer.Occupation = value);
         AddCatalogChoice(right, "Ιθαγένεια", "Ιθαγένειες", () => _customer.Nationality,
@@ -151,13 +165,11 @@ public sealed partial class CustomerCardWindow
         var root = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 350, ItemHeight = 510, Margin = new Thickness(18, 10, 18, 16) };
         var family = new StackPanel { Spacing = 3, Width = 330 };
-        AddText(family, "Μητρώνυμο", () => _customer.MotherName, value => _customer.MotherName = value);
         AddText(family, "Διαβατήριο", () => _customer.PassportNumber,
             value => _customer.PassportNumber = value);
         AddCatalogChoice(family, "Οικ. κατάσταση", "Οικογενειακές καταστάσεις",
             () => _customer.MaritalStatus, value => _customer.MaritalStatus = value);
         AddText(family, "Σύζυγος / σύντροφος", () => _customer.SpouseName, value => _customer.SpouseName = value);
-        AddText(family, "Τόπος γέννησης", () => _customer.BirthPlace, value => _customer.BirthPlace = value);
         AddDate(family, "Ονομαστική εορτή", () => _customer.NameDay, value => _customer.NameDay = value);
         AddText(family, "Περιοχή", () => _customer.Region, value => _customer.Region = value);
         AddText(family, "Τηλέφωνο", () => _customer.HomePhone, value => _customer.HomePhone = value);
@@ -178,22 +190,37 @@ public sealed partial class CustomerCardWindow
             value => _customer.InsuranceRegistry = value);
         AddCatalogChoice(business, "Νομική μορφή", "Νομικές μορφές",
             () => _customer.LegalForm, value => _customer.LegalForm = value);
-        AddText(business, "ΚΑΔ", () => _customer.BusinessActivityCode,
-            value => _customer.BusinessActivityCode = value);
         AddText(business, "Εργοδότης", () => _customer.Employer, value => _customer.Employer = value);
         AddText(business, "Επωνυμία", () => _customer.CompanyName, value => _customer.CompanyName = value);
         AddText(business, "Τηλ. επιχείρησης", () => _customer.BusinessPhone,
             value => _customer.BusinessPhone = value);
         AddText(business, "Email επιχείρησης", () => _customer.BusinessEmail,
             value => _customer.BusinessEmail = value);
-        AddCatalogChoice(business, "Πηγή", "Πηγές πελατών",
+        var sourceChoice = AddCatalogChoice(business, "Πηγή", "Πηγές πελατών",
             () => _customer.Source, value => _customer.Source = value);
+        _referralChoice = new ComboBox { PlaceholderText = "Επιλέξτε πελάτη",
+            DisplayMemberPath = "FullName", SelectedValuePath = "Id", IsEnabled = _editing,
+            MinHeight = 32, Height = 32, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var customerReferralRow = CreateFieldRow("Σύσταση από πελάτη", _referralChoice);
+        business.Children.Add(customerReferralRow);
+        _ = LoadReferrersAsync();
+        _referralPartnerChoice = new ComboBox { PlaceholderText = "Επιλέξτε συνεργάτη",
+            MinHeight = 32, Height = 32, IsEnabled = _editing,
+            HorizontalAlignment = HorizontalAlignment.Stretch };
+        var partnerReferralRow = CreateFieldRow("Σύσταση από συνεργάτη", _referralPartnerChoice);
+        business.Children.Add(partnerReferralRow);
+        _ = LoadPartnerReferrersAsync();
+        void UpdateReferralRows()
+        {
+            var source = sourceChoice.SelectedItem as string;
+            customerReferralRow.Visibility = source is "Σύσταση" or "Σύσταση από πελάτη"
+                ? Visibility.Visible : Visibility.Collapsed;
+            partnerReferralRow.Visibility = source == "Σύσταση από συνεργάτη"
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+        sourceChoice.SelectionChanged += (_, _) => UpdateReferralRows();
+        UpdateReferralRows();
         AddText(business, "Ετικέτες", () => _customer.Tags, value => _customer.Tags = value);
-        AddText(business, "URL φωτογραφίας", () => _customer.PhotoUrl,
-            value => _customer.PhotoUrl = value);
-        AddText(business, "Ζώνη", () => _customer.Zone, value => _customer.Zone = value);
-        AddText(business, "Ομαδοποίηση", () => _customer.GroupName,
-            value => _customer.GroupName = value);
         root.Children.Add(business);
 
         var status = new StackPanel { Spacing = 3, Width = 330 };
@@ -216,16 +243,6 @@ public sealed partial class CustomerCardWindow
         }
         else AddText(status, "Συνεργάτης", () => _customer.PartnerName,
             value => _customer.PartnerName = value);
-        var referralCheck = AddBool(status, "Από σύσταση", () => _customer.IsReferral,
-            value => _customer.IsReferral = value);
-        _referralChoice = new ComboBox { PlaceholderText = "Επιλέξτε πελάτη που έκανε τη σύσταση",
-            DisplayMemberPath = "FullName", SelectedValuePath = "Id", IsEnabled = _editing,
-            MinHeight = 32, Height = 32, HorizontalAlignment = HorizontalAlignment.Stretch };
-        _referralChoice.IsEnabled = _editing && referralCheck.IsChecked == true;
-        referralCheck.Checked += (_, _) => _referralChoice.IsEnabled = _editing;
-        referralCheck.Unchecked += (_, _) => _referralChoice.IsEnabled = false;
-        status.Children.Add(CreateFieldRow("Σύσταση από πελάτη", _referralChoice));
-        _ = LoadReferrersAsync();
         status.Children.Add(new TextBlock { Text = _customer.Id == Guid.Empty ?
             "Η εγγραφή θα οριστεί στην αποθήκευση." :
             $"Εγγραφή: {_customer.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}", FontSize = 12 });
@@ -245,12 +262,12 @@ public sealed partial class CustomerCardWindow
         var receipts = _customer.Transactions.Where(item => item.Type == "receipt").Sum(item => item.Amount);
         var payments = _customer.Transactions.Where(item => item.Type == "payment").Sum(item => item.Amount);
         root.Children.Add(new TextBlock { Text =
-            $"Υπόλοιπο έναρξης: {_customer.OpeningBalance:N2} {CurrencySymbol}  ·  Εισπράξεις: {receipts:N2} {CurrencySymbol}  ·  Πληρωμές: {payments:N2} {CurrencySymbol}",
+            $"Παλαιό υπόλοιπο πριν την εφαρμογή: {_customer.OpeningBalance:N2} {CurrencySymbol}  ·  Εισπράξεις: {receipts:N2} {CurrencySymbol}  ·  Πληρωμές: {payments:N2} {CurrencySymbol}",
             TextWrapping = TextWrapping.Wrap });
         root.Children.Add(new TextBlock { Text =
             "Το υπόλοιπο έναρξης χρησιμοποιείται μόνο για μεταφορά παλαιού υπολοίπου. Οι νέες κινήσεις καταχωρίζονται από τα κουμπιά είσπραξης και πληρωμής.",
             FontSize = 12, TextWrapping = TextWrapping.Wrap });
-        var openingBalance = AddText(root, $"Υπόλοιπο έναρξης ({CurrencySymbol})", () => _customer.OpeningBalance.ToString("N2"),
+        var openingBalance = AddText(root, $"Παλαιό υπόλοιπο ({CurrencySymbol})", () => _customer.OpeningBalance.ToString("N2"),
             value => _customer.OpeningBalance = ParseAmount(value, allowNegative: true));
         var normalBackground = openingBalance.Background;
         var normalForeground = openingBalance.Foreground;
@@ -302,6 +319,8 @@ public sealed partial class CustomerCardWindow
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0) };
         root.Children.Add(list);
+        var pager = new TablePagination(list);
+        root.Children.Add(pager.Bar);
         list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
         {
             if (FindCardRow(args.OriginalSource)?.Tag is CustomerTransaction transaction)
@@ -368,6 +387,7 @@ public sealed partial class CustomerCardWindow
                 TableRowResizer.Attach(row, listItem, "customer-transactions", item.Id);
                 list.Items.Add(listItem);
             }
+            pager.Capture();
             applyColumnLayout();
         }
         search.TextChanged += (_, _) => refresh();

@@ -73,6 +73,7 @@ public sealed partial class BusinessRecordCardWindow
         var actions = new StackPanel { Orientation = Orientation.Vertical, Spacing = 5,
             HorizontalAlignment = HorizontalAlignment.Left };
         var attach = new ActionButton { Kind = "Upload", Label = "Επισύναψη" };
+        _editControls.Add(attach);
         attach.Click += async (_, _) =>
         {
             try
@@ -116,24 +117,28 @@ public sealed partial class BusinessRecordCardWindow
             FontSize = 13, TextWrapping = TextWrapping.Wrap });
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
         var add = new ActionButton { Kind = "Add", Label = "Προσθήκη προσώπου" };
+        _editControls.Add(add);
         add.Click += async (_, _) => await EditPersonAsync(null);
         var edit = new ActionButton { Kind = "Edit", Label = "Επεξεργασία" };
-        edit.Click += async (_, _) => await EditPersonAsync(_peopleList?.SelectedIndex);
+        _editControls.Add(edit);
+        edit.Click += async (_, _) => await EditPersonAsync(SelectedPersonIndex());
         var delete = new ActionButton { Kind = "Delete", Label = "Διαγραφή" };
+        _editControls.Add(delete);
         delete.Click += async (_, _) =>
         {
-            if (_peopleList?.SelectedIndex is not int index || index < 0 || index >= _vehiclePeople.Count)
+            var index = SelectedPersonIndex();
+            if (index is null || index < 0 || index >= _vehiclePeople.Count)
             { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε πρόσωπο."); return; }
-            if (_vehiclePeople[index].IsPrimaryOwner)
+            if (_vehiclePeople[index.Value].IsPrimaryOwner)
             { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Ορίστε πρώτα άλλον κύριο ιδιοκτήτη."); return; }
-            _vehiclePeople.RemoveAt(index);
+            _vehiclePeople.RemoveAt(index.Value);
             RefreshPeopleList();
         };
         actions.Children.Add(add); actions.Children.Add(edit); actions.Children.Add(delete);
         panel.Children.Add(actions);
         _peopleList = VehicleTable(panel, ["Πρόσωπο", "Ρόλος", "Ποσοστό", "Κύριος"],
             [330, 280, 180, 150]);
-        _peopleList.DoubleTapped += async (_, _) => await EditPersonAsync(_peopleList.SelectedIndex);
+        _peopleList.DoubleTapped += async (_, _) => { if (_editing) await EditPersonAsync(SelectedPersonIndex()); };
         RefreshPeopleList();
         AddTab("Πρόσωπα", panel);
     }
@@ -170,6 +175,11 @@ public sealed partial class BusinessRecordCardWindow
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Το ποσοστό πρέπει να είναι από 0 έως 100."); return; }
         if (selectedRole == "Οδηγός" && (percentage != 0 || primary.IsChecked == true))
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Ο οδηγός χωρίς ιδιοκτησία έχει ποσοστό 0% και δεν είναι κύριος ιδιοκτήτης."); return; }
+        var otherShares = _vehiclePeople.Where((_, position) => position != index)
+            .Sum(item => item.OwnershipPercent);
+        if (otherShares + percentage > 100)
+        { await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+            $"Το σύνολο ιδιοκτησίας θα γίνει {otherShares + percentage:N2}%. Τα ποσοστά όλων των ιδιοκτητών δεν μπορούν να ξεπερνούν το 100%."); return; }
         var updated = new VehiclePerson { CustomerId = customerId, Role = selectedRole,
             OwnershipPercent = percentage, IsPrimaryOwner = primary.IsChecked == true };
         if (updated.IsPrimaryOwner)
@@ -182,6 +192,9 @@ public sealed partial class BusinessRecordCardWindow
         else _vehiclePeople[index!.Value] = updated;
         RefreshPeopleList();
     }
+
+    private int? SelectedPersonIndex() => _peopleList?.SelectedIndex is int index && index >= 0
+        ? ((_peopleList.Tag as TablePagination)?.PageOffset ?? 0) + index : null;
 
     private void RefreshPeopleList()
     {
@@ -387,6 +400,9 @@ public sealed partial class BusinessRecordCardWindow
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1) };
         panel.Children.Add(list);
+        var pager = new TablePagination(list);
+        list.Tag = pager;
+        panel.Children.Add(pager.Bar);
         return list;
     }
 
@@ -423,5 +439,6 @@ public sealed partial class BusinessRecordCardWindow
                 Width = total, Height = 42, Padding = new Thickness(0), Margin = new Thickness(0),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch });
         }
+        (list.Tag as TablePagination)?.Capture();
     }
 }

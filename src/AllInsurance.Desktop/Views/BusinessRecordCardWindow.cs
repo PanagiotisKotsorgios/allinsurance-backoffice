@@ -74,6 +74,9 @@ public sealed partial class BusinessRecordCardWindow : Window
     private ComboBox? _kteoStatusChoice;
     private AutoSuggestBox? _insurerSuggest;
     private ActionButton? _convertButton;
+    private ActionButton? _saveButton;
+    private ActionButton? _editButton;
+    private bool _editing;
     private ActionButton? _newVehiclePolicyButton;
     private ActionButton? _addVehicleClaimButton;
     private TextBlock? _policyFinanceSummary;
@@ -85,13 +88,14 @@ public sealed partial class BusinessRecordCardWindow : Window
     public event EventHandler? RecordSaved;
 
     public BusinessRecordCardWindow(string section, Guid? customerId = null, Guid? recordId = null,
-        nint ownerHandle = default, Guid? vehicleId = null)
+        nint ownerHandle = default, Guid? vehicleId = null, bool beginEditing = false)
     {
         if (section is not ("policies" or "vehicles"))
             throw new ArgumentException("Μη υποστηριζόμενη καρτέλα.");
         _section = section;
         _fixedCustomerId = customerId;
         _recordId = recordId;
+        _editing = recordId is null || beginEditing;
         _ownerHandle = ownerHandle == default ? App.MainWindowHandle() : ownerHandle;
         _record = new BusinessRecord { SectionKey = section, Title = "",
             CustomerId = customerId, DocumentType = section == "policies" ? "Αίτηση" : null,
@@ -225,9 +229,12 @@ public sealed partial class BusinessRecordCardWindow : Window
             _convertButton.Click += async (_, _) => await ConvertAsync();
             actions.Children.Add(_convertButton);
         }
-        var save = new ActionButton { Kind = "Save", Label = "Αποθήκευση" };
-        save.Click += async (_, _) => await SaveAsync();
-        actions.Children.Add(save);
+        _editButton = new ActionButton { Kind = "Edit", Label = _section == "vehicles" ? "Επεξεργασία οχήματος" : "Επεξεργασία ασφαλιστηρίου" };
+        _editButton.Click += (_, _) => { _editing = true; ApplyEditMode(); };
+        actions.Children.Add(_editButton);
+        _saveButton = new ActionButton { Kind = "Save", Label = "Αποθήκευση" };
+        _saveButton.Click += async (_, _) => await SaveAsync();
+        actions.Children.Add(_saveButton);
         var close = new ActionButton { Kind = "Close", Label = "Κλείσιμο" };
         close.Click += (_, _) => Close();
         actions.Children.Add(close);
@@ -239,7 +246,27 @@ public sealed partial class BusinessRecordCardWindow : Window
         else BuildVehicleTabs(customers, policies);
         SelectTab(0);
         UpdateConvertButton();
+        ApplyEditMode();
     }
+
+    private void ApplyEditMode()
+    {
+        if (_saveButton is not null) _saveButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
+        if (_editButton is not null) _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var field in _text.Values) field.IsReadOnly = !_editing;
+        foreach (var field in _dates.Values) field.IsEnabled = _editing;
+        foreach (var field in _vehicleChecks.Values) field.IsEnabled = _editing;
+        if (_customerChoice is not null) _customerChoice.IsEnabled = _editing && _fixedCustomerId is null;
+        if (_vehicleChoice is not null) _vehicleChoice.IsEnabled = _editing;
+        if (_typeChoice is not null) _typeChoice.IsEnabled = _editing;
+        if (_statusChoice is not null) _statusChoice.IsEnabled = _editing;
+        if (_kteoStatusChoice is not null) _kteoStatusChoice.IsEnabled = _editing;
+        if (_insurerSuggest is not null) _insurerSuggest.IsEnabled = _editing;
+        if (_convertButton is not null) _convertButton.IsEnabled = _editing;
+        foreach (var button in _editControls) button.IsEnabled = _editing;
+    }
+
+    private readonly List<Button> _editControls = [];
 
     private void AddTab(string title, UIElement content)
     {
@@ -286,11 +313,14 @@ public sealed partial class BusinessRecordCardWindow : Window
         return grid;
     }
 
-    private TextBox Text(StackPanel panel, string key, string label, string? value = null)
+    private TextBox Text(StackPanel panel, string key, string label, string? value = null, bool multiline = false)
     {
-        var field = new TextBox { Text = value ?? "", MinHeight = 34, Height = 34,
+        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 72 : 34,
+            Height = multiline ? 150 : 34, AcceptsReturn = multiline,
+            TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
             FontSize = 13, HorizontalAlignment = HorizontalAlignment.Stretch };
-        panel.Children.Add(CardFieldLayout.CreateRow(label, field));
+        panel.Children.Add(CardFieldLayout.CreateRow(label,
+            multiline ? ResizableNoteField.Wrap(field) : field));
         _text[key] = field;
         return field;
     }
@@ -394,8 +424,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         Text(right, "net", "Καθαρά ασφάλιστρα", data.NetPremium?.ToString("N2"));
         AddTab("Καρτέλα ασφάλισης", main);
         var extra = TwoColumns(out var extraLeft, out _);
-        var notes = Text(extraLeft, "notes", "Σημειώσεις", _record.Notes);
-        notes.AcceptsReturn = true; notes.TextWrapping = TextWrapping.Wrap; notes.Height = 150;
+        Text(extraLeft, "notes", "Σημειώσεις", _record.Notes, multiline: true);
         AddTab("Πρόσθετα στοιχεία", extra);
         AddTab("Όχημα", new TextBlock { Text = data.VehicleId is null
             ? "Δεν έχει συνδεθεί όχημα."
@@ -454,7 +483,6 @@ public sealed partial class BusinessRecordCardWindow : Window
         Date(left, "first", "Πρώτη άδεια κυκλοφορίας", data.FirstRegistrationDate);
         Date(left, "transfer", "Ημερομηνία μεταβίβασης", data.TransferDate);
         Text(left, "taxclass", "Κατηγορία φορολόγησης", data.TaxClass);
-        Text(left, "hp", "Ισχύς (ίπποι)", data.HorsePower?.ToString("N2"));
         Text(left, "seats", "Θέσεις", data.Seats?.ToString());
         Text(left, "doors", "Πόρτες", data.Doors?.ToString());
         Text(left, "fuelcolor", "Χρώμα καυσίμου", data.FuelColor);
@@ -469,8 +497,9 @@ public sealed partial class BusinessRecordCardWindow : Window
         VehicleCheck(left, "dual", "Διπλοί πίσω τροχοί", data.HasRearDualWheels);
         Text(right, "use", "Χρήση", data.Use);
         Text(right, "fuel", "Καύσιμο", data.Fuel);
-        Text(right, "cc", "Κυβισμός (cc)", data.DisplacementCc?.ToString());
+        Text(right, "hp", "Ισχύς (HP)", data.HorsePower?.ToString("N2"));
         Text(right, "kw", "Ισχύς (kW)", data.PowerKw?.ToString("N2"));
+        Text(right, "cc", "Κυβισμός (cc)", data.DisplacementCc?.ToString());
         Date(right, "acquired", "Ημερομηνία απόκτησης", data.AcquisitionDate);
         Text(right, "color", "Χρώμα", data.Color);
         Text(right, "tonnage", "Τονάζ (τόνοι)", data.Tonnage?.ToString("N2"));
@@ -497,8 +526,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             new TextBox { IsReadOnly = true, Text = _record.Id == Guid.Empty ? "—" :
                 _record.UpdatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") }));
         AddKteoImageRow(right, data.KteoImagePath);
-        var notes = Text(right, "notes", "Πρόσθετα στοιχεία", data.Notes ?? _record.Notes);
-        notes.AcceptsReturn = true; notes.TextWrapping = TextWrapping.Wrap; notes.Height = 190;
+        Text(right, "notes", "Πρόσθετα στοιχεία", data.Notes ?? _record.Notes, multiline: true);
         AddTab("Καρτέλα οχήματος", main);
         BuildPeopleTab();
         BuildVehiclePoliciesTab();
@@ -639,7 +667,9 @@ public sealed partial class BusinessRecordCardWindow : Window
             _headerState.Text = $"● {_record.Status ?? "—"}";
             _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "—");
             _conversionRequested = false;
+            _editing = false;
             UpdateConvertButton();
+            ApplyEditMode();
             RecordSaved?.Invoke(this, EventArgs.Empty);
             _status.Text = "Η καρτέλα αποθηκεύτηκε.";
             return true;

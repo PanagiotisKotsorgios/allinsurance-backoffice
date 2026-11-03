@@ -45,6 +45,7 @@ public sealed class Customer
     public bool IsActive { get; set; } = true;
     public bool IsReferral { get; set; }
     public Guid? ReferredByCustomerId { get; set; }
+    public string? ReferredByPartnerName { get; set; }
     public Customer? ReferredByCustomer { get; set; }
     public string? PartnerName { get; set; }
     public bool BelongsToOffice { get; set; } = true;

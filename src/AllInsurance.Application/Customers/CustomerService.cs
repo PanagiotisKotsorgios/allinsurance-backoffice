@@ -114,6 +114,10 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
                 throw new ArgumentException("Ο πελάτης που έκανε τη σύσταση δεν είναι έγκυρος.");
             }
         }
+        if (!string.IsNullOrWhiteSpace(customer.ReferredByPartnerName) &&
+            !await db.BusinessRecords.AnyAsync(item => item.SectionKey == "partners" &&
+                item.Title == customer.ReferredByPartnerName, cancellationToken))
+            throw new ArgumentException("Ο συνεργάτης που έκανε τη σύσταση δεν υπάρχει.");
         var now = DateTime.UtcNow;
         if (customer.Id == Guid.Empty)
         {
@@ -436,8 +440,13 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         {
             throw new ArgumentException("Το αρχικό υπόλοιπο είναι εκτός ορίων.");
         }
-        customer.IsReferral = customer.ReferredByCustomerId.HasValue || customer.IsReferral;
-        if (!customer.IsReferral) customer.ReferredByCustomerId = null;
+        customer.IsReferral = customer.ReferredByCustomerId.HasValue ||
+            !string.IsNullOrWhiteSpace(customer.ReferredByPartnerName) || customer.Source == "Σύσταση";
+        if (!customer.IsReferral)
+        {
+            customer.ReferredByCustomerId = null;
+            customer.ReferredByPartnerName = null;
+        }
         if (customer.BelongsToOffice) customer.PartnerName = null;
         else if (string.IsNullOrWhiteSpace(customer.PartnerName))
             throw new ArgumentException("Επιλέξτε συνεργάτη ή δηλώστε ότι ο πελάτης ανήκει στο γραφείο.");

@@ -326,6 +326,10 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ReferredByCustomerId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ReferredByPartnerName")
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Region")
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");

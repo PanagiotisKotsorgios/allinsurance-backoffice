@@ -25,6 +25,7 @@ public sealed partial class PartnerCardWindow
         _text.Clear(); _choice.Clear(); _date.Clear(); _check.Clear(); _suggest.Clear();
         BuildMainTab();
         BuildPoliciesTab();
+        BuildCustomersTab();
         BuildFinanceTab();
         BuildCommissionsTab();
         BuildHistoryTab();
@@ -77,8 +78,6 @@ public sealed partial class PartnerCardWindow
         Date(right, "start", "Έναρξη συνεργασίας", _profile.StartDate);
         Date(right, "end", "Λήξη συνεργασίας", _profile.EndDate);
         Text(right, "credit", "Πιστωτικό όριο (€)", _profile.CreditLimit?.ToString("N2"));
-        Text(right, "rate", "Βασική προμήθεια (%)",
-            _profile.DefaultCommissionPercent?.ToString("N2"));
         Choice(right, "paymentmethod", "Προτιμώμενος τρόπος πληρωμής",
             _paymentMethods, _profile.PaymentMethod);
         BuildBankAccounts(right);
@@ -108,6 +107,7 @@ public sealed partial class PartnerCardWindow
         }
         birth.DateChanged += (_, _) => UpdateAge(); UpdateAge();
         left.Children.Add(CardFieldLayout.CreateRow("Ηλικία", age));
+        Date(left, "nameday", "Ονομαστική εορτή", _profile.NameDay);
         Text(left, "birthplace", "Τόπος γέννησης", _profile.BirthPlace);
         Text(left, "nationality", "Εθνικότητα", _profile.Nationality);
         Text(left, "passport", "Αριθμός διαβατηρίου", _profile.PassportNumber);
@@ -140,6 +140,26 @@ public sealed partial class PartnerCardWindow
             [190, 240, 150, 170, 150, 170], rows,
             "Αναζήτηση αριθμού ασφαλιστηρίου, πελάτη ή ποσού...", async id => await OpenPolicyAsync(id)));
         AddTab("Ασφαλιστήρια", panel);
+    }
+
+    private CustomerCardWindow? _customerCard;
+
+    private void BuildCustomersTab()
+    {
+        var panel = Panel();
+        var rows = _linkedCustomers.Select(item => new PartnerTableRow([
+            item.FullName, item.TaxNumber ?? "—", item.City ?? "—",
+            item.IsActive ? "Ενεργός" : "Ανενεργός", item.BalanceDisplay], item.Id)).ToArray();
+        panel.Children.Add(Table(["Πελάτης", "ΑΦΜ", "Πόλη", "Κατάσταση", "Υπόλοιπο"],
+            [300, 180, 220, 190, 170], rows, "Αναζήτηση πελάτη, ΑΦΜ ή πόλης...", async id =>
+            {
+                if (_customerCard is not null) { _customerCard.BringToFront(); return; }
+                _customerCard = new CustomerCardWindow(id);
+                _customerCard.Closed += (_, _) => { _customerCard = null; BringToFront(); };
+                _customerCard.BringToFront();
+                await Task.CompletedTask;
+            }));
+        AddTab("Πελάτες", panel);
     }
 
     private void BuildFinanceTab()
@@ -191,8 +211,7 @@ public sealed partial class PartnerCardWindow
     private void BuildCommissionsTab()
     {
         var panel = Panel();
-        panel.Children.Add(Info($"Βασικό ποσοστό: {_profile.DefaultCommissionPercent?.ToString("N2") ?? "0,00"} %   ·   " +
-            $"Δεδουλευμένες προμήθειες: {_snapshot.Earned:N2} €"));
+        panel.Children.Add(Info($"Δεδουλευμένες προμήθειες: {_snapshot.Earned:N2} €"));
         var rows = _snapshot.Production.Select(item => new PartnerTableRow([
             item.Number, item.CustomerName, item.GrossPremium.ToString("N2") + " €",
             item.CommissionPercent.ToString("N2") + " %", item.Commission.ToString("N2") + " €"],
@@ -228,12 +247,15 @@ public sealed partial class PartnerCardWindow
             Height = 32, MinHeight = 32, HorizontalAlignment = HorizontalAlignment.Stretch };
         host.Children.Add(_bankChoice);
         var add = BankIconButton("Προσθήκη τράπεζας", "\uE710", Color.FromArgb(255, 22, 128, 61));
+        add.IsEnabled = _editing;
         add.Click += async (_, _) => await EditBankAsync(null);
         Grid.SetColumn(add, 1); host.Children.Add(add);
         var edit = BankIconButton("Επεξεργασία τράπεζας", "\uE70F", Color.FromArgb(255, 29, 100, 179));
+        edit.IsEnabled = _editing;
         edit.Click += async (_, _) => await EditBankAsync(_bankChoice.SelectedIndex);
         Grid.SetColumn(edit, 2); host.Children.Add(edit);
         var delete = BankIconButton("Διαγραφή τράπεζας", "\uE74D", Color.FromArgb(255, 198, 40, 40));
+        delete.IsEnabled = _editing;
         delete.Click += async (_, _) =>
         {
             if (_bankChoice.SelectedIndex < 0 || _bankChoice.SelectedIndex >= _bankAccounts.Count)
@@ -331,8 +353,13 @@ public sealed partial class PartnerCardWindow
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1) };
         panel.Children.Add(list);
-        var count = new TextBlock { FontSize = 13 };
-        panel.Children.Add(count);
+        var count = new TextBlock { FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
+        var pager = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var previous = new Button { Content = "‹ Προηγούμενη" };
+        var next = new Button { Content = "Επόμενη ›" };
+        pager.Children.Add(previous); pager.Children.Add(count); pager.Children.Add(next);
+        panel.Children.Add(pager);
+        var page = 1;
         var applyColumns = TableInteractions.Attach(header, list);
         void Refresh()
         {
@@ -340,7 +367,9 @@ public sealed partial class PartnerCardWindow
             var term = search.Text.Trim();
             var matching = data.Where(row => term.Length == 0 || row.Cells.Any(cell =>
                 cell.Contains(term, StringComparison.CurrentCultureIgnoreCase))).ToArray();
-            foreach (var entry in matching)
+            var pages = Math.Max(1, (int)Math.Ceiling(matching.Length / 25.0));
+            page = Math.Clamp(page, 1, pages);
+            foreach (var entry in matching.Skip((page - 1) * 25).Take(25))
             {
                 var grid = new Grid { Width = total, Height = 40 };
                 foreach (var width in widths) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
@@ -357,10 +386,14 @@ public sealed partial class PartnerCardWindow
                     Width = total, Height = 40, Padding = new Thickness(0), Margin = new Thickness(0),
                     HorizontalContentAlignment = HorizontalAlignment.Stretch });
             }
-            count.Text = $"{matching.Length} εγγραφές";
+            count.Text = $"{matching.Length} εγγραφές · Σελίδα {page}/{pages}";
+            previous.IsEnabled = page > 1;
+            next.IsEnabled = page < pages;
             applyColumns();
         }
-        search.TextChanged += (_, _) => Refresh();
+        search.TextChanged += (_, _) => { page = 1; Refresh(); };
+        previous.Click += (_, _) => { page--; Refresh(); };
+        next.Click += (_, _) => { page++; Refresh(); };
         if (open is not null)
             list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
             {

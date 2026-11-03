@@ -146,6 +146,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(customer => customer.BusinessActivityCode).HasMaxLength(80);
             entity.Property(customer => customer.Employer).HasMaxLength(160);
             entity.Property(customer => customer.Source).HasMaxLength(160);
+            entity.Property(customer => customer.ReferredByPartnerName).HasMaxLength(160);
             entity.Property(customer => customer.Tags).HasMaxLength(500);
             entity.Property(customer => customer.PhotoUrl).HasMaxLength(500);
             entity.Property(customer => customer.PassportNumber).HasMaxLength(50);
