@@ -1,4 +1,5 @@
 using AllInsurance.Application.Abstractions;
+using AllInsurance.Application.Backups;
 using AllInsurance.Infrastructure.Persistence;
 using AllInsurance.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,8 @@ public static class DependencyInjection
                 provider.GetRequiredService<IDbContextFactory<AllInsuranceDbContext>>(),
                 databasePath));
         services.AddSingleton<IClock, SystemClock>();
+        services.AddSingleton<IBackupService>(provider => new BackupService(databasePath,
+            provider.GetRequiredService<AllInsurance.Application.Authorization.ISessionService>()));
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IRecoveryCodeGenerator, CryptographicRecoveryCodeGenerator>();
         return services;

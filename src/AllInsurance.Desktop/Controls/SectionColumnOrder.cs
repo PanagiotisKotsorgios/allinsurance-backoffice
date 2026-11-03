@@ -11,6 +11,35 @@ internal static class SectionColumnOrder
     private static readonly string WidthsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "AllInsurance", "section-column-widths.json");
+    private static readonly string VisiblePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "AllInsurance", "section-column-visibility.json");
+
+    public static bool[] LoadVisibility(string sectionKey)
+    {
+        try
+        {
+            if (!File.Exists(VisiblePath)) return [true, true, true, true, true, true, true];
+            var saved = JsonSerializer.Deserialize<Dictionary<string, bool[]>>(File.ReadAllText(VisiblePath));
+            if (saved?.TryGetValue(sectionKey, out var flags) == true && flags.Length == 7 && flags[0])
+                return flags;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
+        return [true, true, true, true, true, true, true];
+    }
+
+    public static void SaveVisibility(string sectionKey, bool[] flags)
+    {
+        if (flags.Length != 7 || !flags[0]) throw new ArgumentException("Η βασική στήλη πρέπει να παραμένει ορατή.");
+        Dictionary<string, bool[]> saved;
+        try { saved = File.Exists(VisiblePath)
+            ? JsonSerializer.Deserialize<Dictionary<string, bool[]>>(File.ReadAllText(VisiblePath)) ?? []
+            : []; }
+        catch (JsonException) { saved = []; }
+        saved[sectionKey] = [.. flags];
+        Directory.CreateDirectory(Path.GetDirectoryName(VisiblePath)!);
+        File.WriteAllText(VisiblePath, JsonSerializer.Serialize(saved));
+    }
 
     public static double[] LoadWidths(string sectionKey)
     {

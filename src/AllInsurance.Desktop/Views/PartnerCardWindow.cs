@@ -1,0 +1,366 @@
+using AllInsurance.Application.Business;
+using AllInsurance.Application.Filters;
+using AllInsurance.Application.Partners;
+using AllInsurance.Desktop.Controls;
+using AllInsurance.Desktop.Settings;
+using AllInsurance.Domain.Entities;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using WinRT.Interop;
+using Windows.Foundation;
+using Windows.Graphics;
+using Windows.UI;
+using System.Globalization;
+using System.IO;
+using System.Runtime.InteropServices;
+
+namespace AllInsurance.Desktop.Views;
+
+public sealed partial class PartnerCardWindow : Window
+{
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    private static extern nint SetWindowOwner(nint window, int index, nint owner);
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(nint window);
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(nint window, nint insertAfter, int x, int y,
+        int width, int height, uint flags);
+
+    private readonly IBusinessRecordService _records = App.Services.GetRequiredService<IBusinessRecordService>();
+    private readonly IPartnerService _partners = App.Services.GetRequiredService<IPartnerService>();
+    private readonly IFilterOptionService _filters = App.Services.GetRequiredService<IFilterOptionService>();
+    private readonly Guid? _id;
+    private BusinessRecord _record = new() { SectionKey = "partners", Title = "" };
+    private PartnerProfileData _profile = new();
+    private PartnerSnapshot _snapshot = new([], [], 0, 0, []);
+    private readonly Grid _root = new() { RowDefinitions =
+    {
+        new RowDefinition { Height = GridLength.Auto },
+        new RowDefinition { Height = GridLength.Auto },
+        new RowDefinition(),
+        new RowDefinition { Height = GridLength.Auto }
+    } };
+    private readonly StackPanel _tabStrip = new() { Orientation = Orientation.Horizontal, Spacing = 0 };
+    private readonly ContentControl _tabContent = new();
+    private readonly List<(Button Button, TextBlock Label, UIElement Content)> _tabs = [];
+    private readonly Dictionary<string, TextBox> _text = [];
+    private readonly Dictionary<string, ComboBox> _choice = [];
+    private readonly Dictionary<string, CalendarDatePicker> _date = [];
+    private readonly Dictionary<string, CheckBox> _check = [];
+    private readonly Dictionary<string, AutoSuggestBox> _suggest = [];
+    private readonly List<Grid> _formGrids = [];
+    private double _contentWidth = 1100;
+    private readonly TextBlock _heading = new() { FontSize = 25, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        Foreground = new SolidColorBrush(Colors.White), TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock _subtitle = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
+    private string[] _categories = [];
+    private string[] _cities = [];
+    private string[] _businessTypes = [];
+    private string[] _capacities = [];
+    private string[] _paymentMethods = [];
+    private string[] _genders = [];
+    private string[] _taxOffices = [];
+    private int _selectedTab;
+
+    public event EventHandler? RecordSaved;
+
+    public PartnerCardWindow(Guid? id = null)
+    {
+        _id = id;
+        _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
+        _root.Background = new SolidColorBrush(IsDarkTheme()
+            ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 246, 249, 252));
+        Content = _root;
+        var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
+        var appWindow = AppWindow.GetFromWindowId(windowId);
+        var area = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
+        var width = Math.Min(1260, Math.Max(650, area.Width - 32));
+        var height = Math.Min(940, Math.Max(540, area.Height - 32));
+        _contentWidth = Math.Min(1100, width - 70);
+        _tabContent.SizeChanged += (_, args) =>
+        {
+            var target = Math.Min(1100, Math.Max(600, args.NewSize.Width - 50));
+            foreach (var grid in _formGrids) grid.Width = target;
+        };
+        appWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2,
+            area.Y + (area.Height - height) / 2, width, height));
+        appWindow.Title = "Καρτέλα συνεργάτη — AllInsurance Backoffice Software";
+        appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "allinsurance.ico"));
+        _root.Children.Add(new TextBlock { Text = "Φόρτωση καρτέλας συνεργάτη...",
+            Margin = new Thickness(24) });
+        _ = LoadAsync();
+    }
+
+    public void BringToFront()
+    {
+        var handle = WindowNative.GetWindowHandle(this);
+        SetWindowOwner(handle, -8, App.MainWindowHandle());
+        Activate();
+        const uint flags = 0x0001 | 0x0002 | 0x0040;
+        SetWindowPos(handle, new nint(-1), 0, 0, 0, 0, flags);
+        SetWindowPos(handle, new nint(-2), 0, 0, 0, 0, flags);
+        SetForegroundWindow(handle);
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            if (_id is Guid id)
+                _record = await _records.GetAsync(id) ?? throw new InvalidOperationException("Ο συνεργάτης δεν υπάρχει.");
+            if (_record.SectionKey != "partners") throw new InvalidOperationException("Η εγγραφή δεν είναι συνεργάτης.");
+            _profile = PartnerProfileData.Read(_record.DetailsJson);
+            var categories = await _filters.ChoicesAsync("Κατηγορίες συνεργατών");
+            var cities = await _filters.ChoicesAsync("Πόλεις");
+            var businesses = await _filters.ChoicesAsync("Τύποι επιχειρήσεων");
+            var capacities = await _filters.ChoicesAsync("Επαγγελματικές ιδιότητες");
+            var methods = await _filters.ChoicesAsync("Τρόποι πληρωμής");
+            var genders = await _filters.ChoicesAsync("Φύλα");
+            var offices = await _filters.ChoicesAsync("ΔΟΥ");
+            _categories = [.. categories]; _cities = [.. cities];
+            _businessTypes = [.. businesses]; _capacities = [.. capacities];
+            _paymentMethods = [.. methods]; _genders = [.. genders]; _taxOffices = [.. offices];
+            if (_record.Id != Guid.Empty) _snapshot = await _partners.GetSnapshotAsync(_record.Id);
+            BuildUi();
+        }
+        catch (Exception exception)
+        {
+            App.Services.GetRequiredService<ILogger<PartnerCardWindow>>()
+                .LogError(exception, "Αποτυχία φόρτωσης καρτέλας συνεργάτη {PartnerId}", _id);
+            _root.Children.Clear();
+            _root.Children.Add(new TextBlock { Text = exception.Message, Margin = new Thickness(24),
+                TextWrapping = TextWrapping.Wrap });
+        }
+    }
+
+    private bool IsDarkTheme() => _root.RequestedTheme == ElementTheme.Dark ||
+        (_root.RequestedTheme == ElementTheme.Default &&
+         Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
+
+    private void BuildUi()
+    {
+        _root.Children.Clear();
+        var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
+        gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
+        gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 22, 119, 170), Offset = 1 });
+        var bannerContent = new StackPanel { Spacing = 8 };
+        var identity = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+        identity.Children.Add(new Image { Source = new BitmapImage(new Uri(
+            "ms-appx:///Assets/Sections/partners.png")), Width = 54, Height = 54 });
+        var identityText = new StackPanel { Spacing = 3 };
+        identityText.Children.Add(_heading);
+        identityText.Children.Add(_headerState);
+        identity.Children.Add(identityText);
+        bannerContent.Children.Add(identity);
+        _subtitle.Margin = new Thickness(68, 2, 0, 0);
+        bannerContent.Children.Add(_subtitle);
+        _root.Children.Add(new Border { Background = gradient, CornerRadius = new CornerRadius(16),
+            Padding = new Thickness(24, 12, 24, 12), Margin = new Thickness(18, 8, 18, 4),
+            Child = bannerContent });
+        UpdateHeader();
+        var strip = new ScrollViewer { Content = _tabStrip, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(18, 0, 18, 0) };
+        Grid.SetRow(strip, 1); _root.Children.Add(strip);
+        Grid.SetRow(_tabContent, 2); _root.Children.Add(_tabContent);
+        var footer = new Grid { ColumnDefinitions = { new ColumnDefinition(),
+            new ColumnDefinition { Width = GridLength.Auto } }, Margin = new Thickness(18, 9, 18, 14) };
+        footer.Children.Add(_status);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9 };
+        var save = new ActionButton { Kind = "Save", Label = "Αποθήκευση" };
+        save.Click += async (_, _) => await SaveAsync();
+        actions.Children.Add(save);
+        var close = new ActionButton { Kind = "Close", Label = "Κλείσιμο" };
+        close.Click += (_, _) => Close();
+        actions.Children.Add(close);
+        Grid.SetColumn(actions, 1); footer.Children.Add(actions);
+        Grid.SetRow(footer, 3); _root.Children.Add(footer);
+        BuildTabs();
+    }
+
+    private void UpdateHeader()
+    {
+        _heading.Text = _record.Id == Guid.Empty ? "Νέος συνεργάτης" : _record.Title;
+        _headerState.Text = $"● {_record.Status ?? "Ενεργός συνεργάτης"}";
+        _subtitle.Text = _record.Id == Guid.Empty ? "ΚΩΔΙΚΟΣ  Νέος   ·   ΑΦΜ  —" :
+            $"ΚΩΔΙΚΟΣ  {_record.Reference ?? "—"}     ΑΦΜ  {_profile.TaxNumber ?? "—"}";
+    }
+
+    private void AddTab(string label, UIElement content)
+    {
+        var index = _tabs.Count;
+        var icon = label switch
+        {
+            "Καρτέλα συνεργάτη" => "user-round", "Πρόσθετα στοιχεία" => "settings-2",
+            "Παραγωγή" or "Οικονομικά" or "Προμήθειες" => "chart-no-axes-combined",
+            "Ιστορικό ενεργειών" => "clock-3", _ => "file-text"
+        };
+        var (button, title) = CardTabVisual.Create(label, icon, IsDarkTheme());
+        button.Click += (_, _) => SelectTab(index);
+        _tabStrip.Children.Add(button);
+        _tabs.Add((button, title, new ScrollViewer { Content = content,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto }));
+    }
+
+    private void SelectTab(int index)
+    {
+        if (index < 0 || index >= _tabs.Count) return;
+        _selectedTab = index;
+        _tabContent.Content = _tabs[index].Content;
+        var dark = IsDarkTheme();
+        for (var i = 0; i < _tabs.Count; i++)
+        {
+            var selected = i == index;
+            CardTabVisual.SetSelected(_tabs[i].Button, _tabs[i].Label, selected, dark);
+        }
+    }
+
+    private Grid TwoColumns(out StackPanel left, out StackPanel right)
+    {
+        var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
+        _formGrids.Add(grid);
+        return grid;
+    }
+
+    private TextBox Text(StackPanel panel, string key, string label, string? value, bool multiline = false)
+    {
+        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 72 : 28,
+            Height = multiline ? 72 : 28, FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Stretch };
+        if (multiline) { field.AcceptsReturn = true; field.TextWrapping = TextWrapping.Wrap; field.Height = 96; }
+        panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _text[key] = field;
+        return field;
+    }
+
+    private ComboBox Choice(StackPanel panel, string key, string label,
+        IEnumerable<string> options, string? value)
+    {
+        var choices = options.Prepend("").Concat(value is null ? [] : [value])
+            .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
+        var field = new ComboBox { ItemsSource = choices,
+            SelectedItem = value ?? "", MinHeight = 28, Height = 28,
+            HorizontalAlignment = HorizontalAlignment.Stretch };
+        panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _choice[key] = field;
+        return field;
+    }
+
+    private CalendarDatePicker Date(StackPanel panel, string key, string label, DateTime? value)
+    {
+        var field = new CalendarDatePicker {
+            Date = value is DateTime date ? new DateTimeOffset(date) : null,
+            MinHeight = 32, Height = 32,
+            HorizontalAlignment = HorizontalAlignment.Stretch };
+        panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _date[key] = field;
+        return field;
+    }
+
+    private CheckBox Check(StackPanel panel, string key, string label, bool value)
+    {
+        var field = new CheckBox { IsChecked = value, MinHeight = 28, Height = 28 };
+        panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _check[key] = field;
+        return field;
+    }
+
+    private AutoSuggestBox Suggest(StackPanel panel, string key, string label,
+        string? value, string[] options)
+    {
+        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 28, Height = 28,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            PlaceholderText = "Πληκτρολογήστε για αναζήτηση" };
+        field.TextChanged += (_, args) =>
+        {
+            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            var term = field.Text.Trim();
+            field.ItemsSource = term.Length < 2 ? [] : options.Where(item =>
+                item.Contains(term, StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+        };
+        field.SuggestionChosen += (_, args) => field.Text = args.SelectedItem as string ?? field.Text;
+        panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _suggest[key] = field;
+        return field;
+    }
+
+    private string Val(string key) => _text[key].Text.Trim();
+    private string? Optional(string key) => string.IsNullOrWhiteSpace(Val(key)) ? null : Val(key);
+    private string? Selected(string key) => _choice[key].SelectedItem as string is { Length: > 0 } value ? value : null;
+    private DateTime? Day(string key) => _date[key].Date?.Date;
+    private bool Checked(string key) => _check[key].IsChecked == true;
+    private string? Suggested(string key) => string.IsNullOrWhiteSpace(_suggest[key].Text)
+        ? null : _suggest[key].Text.Trim();
+
+    private static decimal? Money(string text, string name, decimal maximum)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (decimal.TryParse(text, NumberStyles.Number, CultureInfo.GetCultureInfo("el-GR"), out var value)
+            && value >= 0 && value <= maximum) return value;
+        throw new ArgumentException($"Το πεδίο «{name}» πρέπει να είναι από 0 έως {maximum:N2}.");
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            var profile = ReadProfile();
+            if (profile.TaxNumber is null || profile.TaxNumber.Length != 9 ||
+                !profile.TaxNumber.All(char.IsDigit))
+                throw new ArgumentException("Συμπληρώστε έγκυρο ΑΦΜ 9 ψηφίων.");
+            if (profile.PersonType == "Νομικό πρόσωπο" && string.IsNullOrWhiteSpace(profile.CompanyName))
+                throw new ArgumentException("Η επωνυμία είναι υποχρεωτική για νομικό πρόσωπο.");
+            if (profile.PersonType != "Νομικό πρόσωπο" &&
+                (string.IsNullOrWhiteSpace(profile.FirstName) || string.IsNullOrWhiteSpace(profile.LastName)))
+                throw new ArgumentException("Το όνομα και το επώνυμο είναι υποχρεωτικά.");
+            if (profile.StartDate > profile.EndDate)
+                throw new ArgumentException("Η λήξη συνεργασίας πρέπει να είναι μετά την έναρξη.");
+            _record.Title = profile.PersonType == "Νομικό πρόσωπο" ? profile.CompanyName! :
+                $"{profile.LastName} {profile.FirstName}".Trim();
+            if (_record.Id == Guid.Empty) _record.Reference = "P-" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
+            _record.Status = Selected("status") ?? "Ενεργός";
+            _record.RelatedParty = profile.City;
+            _record.EventDate = profile.StartDate;
+            _record.Notes = profile.Notes;
+            _record.DetailsJson = profile.Write();
+            var id = await _records.SaveAsync(_record);
+            _record = await _records.GetAsync(id) ?? _record;
+            _profile = profile;
+            _snapshot = await _partners.GetSnapshotAsync(id);
+            UpdateHeader();
+            BuildTabs(preserve: true);
+            RecordSaved?.Invoke(this, EventArgs.Empty);
+            _status.Text = "Η καρτέλα συνεργάτη αποθηκεύτηκε.";
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
+    }
+
+    private PartnerProfileData ReadProfile() => new()
+    {
+        FirstName = Optional("first"), LastName = Optional("last"), CompanyName = Optional("company"),
+        TaxNumber = Optional("tax"), TaxOffice = Selected("taxoffice"),
+        PersonType = Selected("person"), BusinessType = Selected("business"),
+        ProfessionalCapacity = Selected("capacity"), IdentityNumber = Optional("identity"),
+        CooperationManager = Optional("manager"), Category = Selected("category"),
+        IsPotential = Selected("status") == "Πιθανός", IsSuspended = Selected("status") == "Αναστολή",
+        HasEnded = Selected("status") == "Λήξη συνεργασίας", HasActiveContract = Checked("contractactive"),
+        Email = Optional("email"), Phone = Optional("phone"), Address = Optional("address"),
+        City = Suggested("city"), PostalCode = Optional("postal"),
+        FatherName = Optional("father"), MotherName = Optional("mother"), Gender = Selected("gender"),
+        BirthDate = Day("birth"), PassportNumber = Optional("passport"), Education = Optional("education"),
+        RegistryNumber = Optional("registry"), RegistryExpiry = Day("registryexpiry"),
+        Chamber = Optional("chamber"), SecondaryEmail = Optional("email2"),
+        SecondaryPhone = Optional("phone2"), Mobile = Optional("mobile"), Website = Optional("website"),
+        WorkAddress = Optional("workaddress"), WorkCity = Suggested("workcity"),
+        WorkPostalCode = Optional("workpostal"), WorkPhone = Optional("workphone"),
+        WorkEmail = Optional("workemail"), ContractNumber = Optional("contract"),
+        StartDate = Day("start"), EndDate = Day("end"),
+        CreditLimit = Money(Val("credit"), "Πιστωτικό όριο", 999_999_999m),
+        DefaultCommissionPercent = Money(Val("rate"), "Ποσοστό προμήθειας", 100m),
+        BankName = Optional("bank"), Iban = Optional("iban"), PaymentMethod = Selected("paymentmethod"),
+        Notes = Optional("notes")
+    };
+}

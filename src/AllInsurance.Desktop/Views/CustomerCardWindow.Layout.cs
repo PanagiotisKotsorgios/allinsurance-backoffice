@@ -14,15 +14,7 @@ public sealed partial class CustomerCardWindow
 {
     private Grid CompactColumns(out StackPanel left, out StackPanel right)
     {
-        var grid = new Grid { ColumnSpacing = 18, Margin = new Thickness(20, 10, 20, 12),
-            MaxWidth = 1100, MinWidth = 600, Width = _contentWidth };
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        left = new StackPanel { Spacing = 2 };
-        right = new StackPanel { Spacing = 2 };
-        grid.Children.Add(left);
-        Grid.SetColumn(right, 1);
-        grid.Children.Add(right);
+        var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
         _compactMain = grid;
         return grid;
     }

@@ -118,7 +118,6 @@ public sealed partial class CustomersPage : Page
                 "Company" => item => item.CompanyName ?? "",
                 "Tax" => item => item.TaxNumber ?? "",
                 "Email" => item => item.PrimaryEmail ?? "",
-                "Mobile" => item => item.PrimaryMobile ?? "",
                 "City" => item => item.City ?? "",
                 _ => item => item.LastName
             };
@@ -234,7 +233,7 @@ public sealed partial class CustomersPage : Page
             BorderThickness = new Thickness(0, 0, 1, 1) });
         var values = new[] { item.Code, item.CustomerKind, item.LastName,
             item.FirstName, item.CompanyName, item.TaxNumber,
-            item.PrimaryEmail, item.PrimaryMobile, item.City, item.BalanceDisplay };
+            item.PrimaryEmail, item.City, item.BalanceDisplay };
         var ordered = CustomerColumns.Ordered;
         for (var index = 0; index < ordered.Length; index++)
         {
@@ -368,7 +367,7 @@ public sealed partial class CustomersPage : Page
 
     private async void Columns_Click(object sender, RoutedEventArgs e)
     {
-        var choices = CustomerColumns.All.Where(column => column.Key != "Mobile").Select(column =>
+        var choices = CustomerColumns.All.Select(column =>
             (column.Key, Box: new CheckBox { Content = column.Title,
                 IsChecked = CustomerColumns.IsVisible(column.Key) })).ToArray();
         var panel = new StackPanel { Spacing = 4 };

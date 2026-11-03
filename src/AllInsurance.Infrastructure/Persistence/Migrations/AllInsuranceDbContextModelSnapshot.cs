@@ -503,6 +503,84 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.ToTable("FilterOptions", (string)null);
                 });
 
+            modelBuilder.Entity("AllInsurance.Domain.Entities.PartnerActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartnerId", "OccurredAtUtc");
+
+                    b.ToTable("PartnerActivities", (string)null);
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.PartnerPayout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PartnerId", "OccurredAtUtc");
+
+                    b.ToTable("PartnerPayouts", (string)null);
+                });
+
             modelBuilder.Entity("AllInsurance.Domain.Entities.RecoveryCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -755,6 +833,28 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Navigation("BusinessRecord");
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.PartnerActivity", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.BusinessRecord", "Partner")
+                        .WithMany()
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Partner");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.PartnerPayout", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.BusinessRecord", "Partner")
+                        .WithMany()
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Partner");
                 });
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.RecoveryCode", b =>

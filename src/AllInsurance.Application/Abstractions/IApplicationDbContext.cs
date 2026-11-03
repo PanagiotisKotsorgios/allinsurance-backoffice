@@ -18,6 +18,8 @@ public interface IApplicationDbContext : IAsyncDisposable
     DbSet<CustomerTransaction> CustomerTransactions { get; }
     DbSet<CustomerActivity> CustomerActivities { get; }
     DbSet<BusinessRecord> BusinessRecords { get; }
+    DbSet<PartnerPayout> PartnerPayouts { get; }
+    DbSet<PartnerActivity> PartnerActivities { get; }
     DbSet<FilterOption> FilterOptions { get; }
     DatabaseFacade Database { get; }
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;

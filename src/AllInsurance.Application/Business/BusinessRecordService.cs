@@ -1,6 +1,7 @@
 using AllInsurance.Application.Abstractions;
 using AllInsurance.Application.Authorization;
 using AllInsurance.Application.Customers;
+using AllInsurance.Application.Partners;
 using AllInsurance.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -56,16 +57,53 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
             record.DocumentType is not ("Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο"))
             throw new ArgumentException("Μη έγκυρος τύπος εγγράφου ασφάλισης.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        if (record.SectionKey == "partners" && record.DetailsJson is not null)
+        {
+            var profile = PartnerProfileData.Read(record.DetailsJson);
+            if (profile.TaxNumber is not { Length: 9 } || !profile.TaxNumber.All(char.IsDigit))
+                throw new ArgumentException("Ο ΑΦΜ συνεργάτη πρέπει να έχει 9 ψηφία.");
+            var otherProfiles = await db.BusinessRecords.AsNoTracking()
+                .Where(item => item.SectionKey == "partners" && item.Id != record.Id &&
+                    item.DetailsJson != null)
+                .Select(item => item.DetailsJson).ToListAsync(cancellationToken);
+            if (otherProfiles.Any(json => PartnerProfileData.Read(json).TaxNumber == profile.TaxNumber))
+                throw new InvalidOperationException("Υπάρχει ήδη συνεργάτης με αυτόν τον ΑΦΜ.");
+        }
         if (record.CustomerId is Guid customerId &&
             !await db.Customers.AnyAsync(customer => customer.Id == customerId, cancellationToken))
             throw new ArgumentException("Ο συνδεδεμένος πελάτης δεν υπάρχει.");
         if (record.SectionKey == "policies")
         {
-            var vehicleId = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson).VehicleId;
+            var details = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson);
+            var vehicleId = details.VehicleId;
             if (vehicleId is Guid id && !await db.BusinessRecords.AnyAsync(item =>
                 item.Id == id && item.SectionKey == "vehicles" && item.CustomerId == record.CustomerId,
                 cancellationToken))
                 throw new ArgumentException("Το όχημα πρέπει να ανήκει στον ίδιο πελάτη.");
+            if (details.PartnerId is Guid explicitPartner &&
+                !await db.BusinessRecords.AnyAsync(item => item.Id == explicitPartner &&
+                    item.SectionKey == "partners", cancellationToken))
+                throw new ArgumentException("Ο συνεργάτης του ασφαλιστηρίου δεν υπάρχει.");
+            if (record.DocumentType is null or "Ασφαλιστήριο" &&
+                details.PartnerId is null && record.CustomerId is Guid linkedCustomer)
+            {
+                var partnerName = await db.Customers.AsNoTracking()
+                    .Where(item => item.Id == linkedCustomer).Select(item => item.PartnerName)
+                    .SingleOrDefaultAsync(cancellationToken);
+                if (!string.IsNullOrWhiteSpace(partnerName))
+                {
+                    var partner = await db.BusinessRecords.AsNoTracking()
+                        .FirstOrDefaultAsync(item => item.SectionKey == "partners" &&
+                            item.Title == partnerName, cancellationToken);
+                    if (partner is not null)
+                    {
+                        details.PartnerId = partner.Id;
+                        details.PartnerCommissionPercent =
+                            PartnerProfileData.Read(partner.DetailsJson).DefaultCommissionPercent;
+                        record.DetailsJson = BusinessRecordDetails.Write(details);
+                    }
+                }
+            }
         }
         var now = DateTime.UtcNow;
         if (record.Id == Guid.Empty)
@@ -75,6 +113,14 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
             record.UpdatedAtUtc = now;
             record.CreatedByUserId = session.Current!.UserId;
             db.BusinessRecords.Add(record);
+            if (record.SectionKey == "partners")
+                PartnerActivityLog.Add(db, record.Id, "Δημιουργία συνεργάτη",
+                    $"Δημιουργήθηκε η καρτέλα {record.Title}.", session.Current!.DisplayName);
+            if (record.SectionKey == "policies" &&
+                (record.DocumentType is null or "Ασφαλιστήριο") &&
+                BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson).PartnerId is Guid newPartnerId)
+                PartnerActivityLog.Add(db, newPartnerId, "Νέα παραγωγή",
+                    $"Καταχωρίστηκε ασφαλιστήριο {record.Title}.", session.Current!.DisplayName);
             if (record.CustomerId is Guid activityCustomerId)
                 CustomerActivityLog.Add(db, activityCustomerId, "Προσθήκη " +
                     (record.SectionKey == "policies" ? record.DocumentType ?? "ασφαλιστηρίου" :
@@ -93,6 +139,40 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
             var creator = existing.CreatedByUserId;
             var previousType = existing.DocumentType;
             var previousCustomerId = existing.CustomerId;
+            if (record.SectionKey == "partners")
+            {
+                if (existing.Title != record.Title)
+                {
+                    var assigned = await db.Customers.Where(item => item.PartnerName == existing.Title)
+                        .ToListAsync(cancellationToken);
+                    foreach (var customer in assigned)
+                    {
+                        customer.PartnerName = record.Title;
+                        customer.UpdatedAtUtc = now;
+                        CustomerActivityLog.Add(db, customer.Id, "Αλλαγή συνεργάτη",
+                            $"Ο συνεργάτης μετονομάστηκε: {existing.Title} → {record.Title}.",
+                            session.Current!.DisplayName);
+                    }
+                }
+                var before = PartnerProfileData.Read(existing.DetailsJson);
+                var after = PartnerProfileData.Read(record.DetailsJson);
+                var changesInProfile = typeof(PartnerProfileData).GetProperties()
+                    .Where(property => !Equals(property.GetValue(before), property.GetValue(after)))
+                    .ToArray();
+                if (existing.Title != record.Title)
+                    PartnerActivityLog.Add(db, record.Id, "Επεξεργασία συνεργάτη",
+                        $"Ονομασία: {existing.Title} → {record.Title}", session.Current!.DisplayName);
+                if (existing.Status != record.Status)
+                    PartnerActivityLog.Add(db, record.Id, "Επεξεργασία συνεργάτη",
+                        $"Κατάσταση: {existing.Status ?? "—"} → {record.Status ?? "—"}",
+                        session.Current!.DisplayName);
+                foreach (var property in changesInProfile)
+                    PartnerActivityLog.Add(db, record.Id, "Επεξεργασία συνεργάτη",
+                        $"{PartnerActivityLog.Label(property.Name)}: " +
+                        $"{PartnerActivityLog.Value(property.GetValue(before))} → " +
+                        PartnerActivityLog.Value(property.GetValue(after)),
+                        session.Current!.DisplayName);
+            }
             var changes = new List<string>();
             if (existing.Title != record.Title) changes.Add($"Αριθμός: {existing.Title} → {record.Title}");
             if (existing.Status != record.Status)
@@ -101,6 +181,28 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
                 changes.Add($"Τύπος: {existing.DocumentType ?? "—"} → {record.DocumentType ?? "—"}");
             if (existing.DetailsJson != record.DetailsJson) changes.Add("Ενημερώθηκαν τα αναλυτικά στοιχεία.");
             if (existing.Notes != record.Notes) changes.Add("Ενημερώθηκαν οι σημειώσεις.");
+            if (record.SectionKey == "policies")
+            {
+                var before = BusinessRecordDetails.Read<PolicyCardData>(existing.DetailsJson);
+                var after = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson);
+                var wasIssued = previousType is null or "Ασφαλιστήριο";
+                var isIssued = record.DocumentType is null or "Ασφαλιστήριο";
+                if (wasIssued && before.PartnerId is Guid oldPartner &&
+                    (!isIssued || oldPartner != after.PartnerId))
+                    PartnerActivityLog.Add(db, oldPartner, "Μεταβολή παραγωγής",
+                        $"Το ασφαλιστήριο {existing.Title} αποσυνδέθηκε από την παραγωγή.",
+                        session.Current!.DisplayName);
+                if (isIssued && after.PartnerId is Guid currentPartner &&
+                    (!wasIssued || before.PartnerId != currentPartner))
+                    PartnerActivityLog.Add(db, currentPartner, "Νέα παραγωγή",
+                        $"Το ασφαλιστήριο {record.Title} προστέθηκε στην παραγωγή.",
+                        session.Current!.DisplayName);
+                else if (isIssued && after.PartnerId is Guid samePartner &&
+                    (existing.Title != record.Title || existing.DetailsJson != record.DetailsJson))
+                    PartnerActivityLog.Add(db, samePartner, "Μεταβολή παραγωγής",
+                        $"Ενημερώθηκε το ασφαλιστήριο {record.Title} και η προμήθειά του.",
+                        session.Current!.DisplayName);
+            }
             db.Entry(existing).CurrentValues.SetValues(record);
             if (previousCustomerId is Guid previousOwnerId && previousCustomerId != record.CustomerId)
                 CustomerActivityLog.Add(db, previousOwnerId, "Αλλαγή σύνδεσης εγγραφής",
@@ -127,6 +229,17 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var record = await db.BusinessRecords.SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
             ?? throw new InvalidOperationException("Η εγγραφή δεν υπάρχει.");
+        if (record.SectionKey == "partners")
+        {
+            if (await db.PartnerPayouts.AnyAsync(item => item.PartnerId == id, cancellationToken) ||
+                await db.Customers.AnyAsync(item => item.PartnerName == record.Title, cancellationToken))
+                throw new InvalidOperationException("Ο συνεργάτης έχει οικονομικές κινήσεις ή πελάτες. Θέστε τον ανενεργό αντί να τον διαγράψετε.");
+            var policiesOfPartner = await db.BusinessRecords.AsNoTracking()
+                .Where(item => item.SectionKey == "policies" && item.DetailsJson != null)
+                .Select(item => item.DetailsJson).ToListAsync(cancellationToken);
+            if (policiesOfPartner.Any(json => BusinessRecordDetails.Read<PolicyCardData>(json).PartnerId == id))
+                throw new InvalidOperationException("Ο συνεργάτης έχει συνδεδεμένα ασφαλιστήρια και δεν μπορεί να διαγραφεί.");
+        }
         if (record.SectionKey == "policies" &&
             await db.CustomerTransactions.AnyAsync(item => item.BusinessRecordId == id, cancellationToken))
             throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένες οικονομικές κινήσεις και δεν μπορεί να διαγραφεί.");
@@ -138,6 +251,10 @@ public sealed class BusinessRecordService(IApplicationDbContextFactory factory, 
             if (policies.Any(json => BusinessRecordDetails.Read<PolicyCardData>(json).VehicleId == id))
                 throw new InvalidOperationException("Το όχημα συνδέεται με αίτηση ή ασφαλιστήριο και δεν μπορεί να διαγραφεί.");
         }
+        if (record.SectionKey == "policies" &&
+            BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson).PartnerId is Guid partnerId)
+            PartnerActivityLog.Add(db, partnerId, "Διαγραφή παραγωγής",
+                $"Διαγράφηκε το ασφαλιστήριο {record.Title}.", session.Current!.DisplayName);
         if (record.CustomerId is Guid customerId)
             CustomerActivityLog.Add(db, customerId, "Διαγραφή εγγραφής",
                 $"Διαγράφηκε η εγγραφή {record.Title}.", session.Current!.DisplayName);

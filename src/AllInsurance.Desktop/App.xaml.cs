@@ -6,11 +6,13 @@ using AllInsurance.Application.Customers;
 using AllInsurance.Application.Settings;
 using AllInsurance.Application.Business;
 using AllInsurance.Application.Filters;
+using AllInsurance.Application.Partners;
 using AllInsurance.Desktop.Navigation;
 using AllInsurance.Desktop.Security;
 using AllInsurance.Desktop.Settings;
 using AllInsurance.Infrastructure;
 using AllInsurance.Desktop.ViewModels;
+using AllInsurance.Desktop.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -53,6 +55,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             "allinsurance.db");
         _host = Host.CreateDefaultBuilder()
             .UseContentRoot(AppContext.BaseDirectory)
+            .ConfigureLogging(logging => logging.AddProvider(new LocalErrorLoggerProvider()))
             .ConfigureServices((context, services) =>
             {
                 services.AddAllInsuranceInfrastructure(databasePath);
@@ -82,6 +85,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                 services.AddTransient<ICustomerService, CustomerService>();
                 services.AddTransient<ITransactionSettingsService, TransactionSettingsService>();
                 services.AddTransient<IBusinessRecordService, BusinessRecordService>();
+                services.AddTransient<IPartnerService, PartnerService>();
                 services.AddTransient<IFilterOptionService, FilterOptionService>();
                 services.AddTransient<AdministratorSetupViewModel>();
                 services.AddTransient<LoginViewModel>();

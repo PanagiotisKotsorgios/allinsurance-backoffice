@@ -23,13 +23,14 @@
                         <TextBlock x:Name="SectionDescription" FontSize="15" TextWrapping="Wrap"
                                    Foreground="{ThemeResource SecondaryTextBrush}" />
                     </StackPanel>
-                    <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                        <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="188" ItemHeight="50">
-                            <controls:ActionButton x:Name="AddButton" Kind="Add" Label="Προσθήκη" Width="178" Click="Add_Click" />
-                            <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="178" Click="Edit_Click" />
-                            <controls:ActionButton Kind="Statistics" Label="Στατιστικά" Width="178" Click="Statistics_Click" />
+                    <Grid x:Name="ActionsGrid" Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto"
+                          RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8" SizeChanged="ActionsGrid_SizeChanged">
+                        <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="244" ItemHeight="50">
+                            <controls:ActionButton x:Name="AddButton" Kind="Add" Label="Προσθήκη" Width="232" Click="Add_Click" />
+                            <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="232" Click="Edit_Click" />
+                            <controls:ActionButton Kind="Columns" Label="Διαχείριση στηλών" Width="232" Click="Columns_Click" />
                         </VariableSizedWrapGrid>
-                        <controls:ActionButton Grid.Column="1" Kind="Delete" Label="Διαγραφή"
+                        <controls:ActionButton x:Name="DeleteButton" Grid.Column="1" Kind="Delete" Label="Διαγραφή"
                                                Click="Delete_Click" HorizontalAlignment="Right" VerticalAlignment="Top" />
                     </Grid>
                 </Grid>

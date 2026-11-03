@@ -11,7 +11,7 @@ public static class CustomerColumns
         ("Code", "Κωδικός", 125), ("Kind", "Είδος", 130),
         ("LastName", "Επώνυμο", 155), ("FirstName", "Όνομα", 155),
         ("Company", "Επωνυμία", 180), ("Tax", "ΑΦΜ", 100),
-        ("Email", "Email", 220), ("Mobile", "Κινητό", 145),
+        ("Email", "Email", 220),
         ("City", "Πόλη", 140), ("Balance", "Υπόλοιπο", 100)
     ];
 
@@ -52,7 +52,7 @@ public static class CustomerColumns
         return All.Select(item => item.Key).ToArray();
     }
 
-    public static bool IsVisible(string key) => key == "Mobile" || _visible.Contains(key);
+    public static bool IsVisible(string key) => _visible.Contains(key);
     public static double WidthValue(string key) => _widths.TryGetValue(key, out var width)
         ? width : All.First(item => item.Key == key).Width;
 
@@ -87,7 +87,6 @@ public static class CustomerColumns
     public static void Save(IEnumerable<string> visible)
     {
         var selected = visible.ToHashSet(StringComparer.Ordinal);
-        selected.Add("Mobile");
         _visible = selected;
         Directory.CreateDirectory(Path.GetDirectoryName(PathOnDisk)!);
         File.WriteAllText(PathOnDisk, JsonSerializer.Serialize(selected));

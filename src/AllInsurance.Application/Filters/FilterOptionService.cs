@@ -17,7 +17,8 @@ public sealed class FilterOptionService(IApplicationDbContextFactory factory, IS
         return new[] { "Πόλεις", "Κλάδοι", "Καλύψεις", "Επαγγέλματα", "Καταστάσεις",
             "Φύλα", "Νομικές μορφές", "Οικογενειακές καταστάσεις", "Πηγές πελατών",
             "Τύποι ταυτότητας", "Κατηγορίες διπλώματος", "Ιθαγένειες", "ΔΟΥ",
-            "Τρόποι πληρωμής" }
+            "Τρόποι πληρωμής", "Κατηγορίες συνεργατών", "Τύποι επιχειρήσεων",
+            "Επαγγελματικές ιδιότητες" }
             .Concat(saved).Distinct(StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase).ToArray();
     }

@@ -35,6 +35,10 @@ Customer and section tables support dragging column edges and row bottoms to res
 
 The customer card now opens dedicated policy and vehicle cards. New policy records start as applications, and an explicit action converts them to insurance policies. Receipts and payments can be linked to a policy belonging to the same customer. Customer activities are recorded with timestamp, action, details, and user; earlier edits cannot be reconstructed from databases created before this audit feature. See [customer card workflow](Software%20Analysis/08%20-%20Customer%20Card%20Workflow/README.md).
 
+All shared dashboards now use the customer screen's action layout and per-section column visibility. The partner card tracks identity, cooperation, production, policies, earned commissions, payouts and activity history. Partner categories and professional roles are configurable. See [partner workspace](Software%20Analysis/09%20-%20Partner%20Workspace/README.md).
+
+The customer, partner, vehicle and policy cards share the same form layout, tab style and red required-field markers. The navigation menu mirrors every sidebar section and its shortcut. Administrator tools now include SQLite backups with integrity checks and a searchable local error log. The customer table no longer displays the mobile column. See [navigation and maintenance](Software%20Analysis/10%20-%20Navigation%20and%20Maintenance/README.md).
+
 ## Build and tests
 
 ```powershell
@@ -46,4 +50,4 @@ The integration tests use isolated temporary SQLite files and cover first-run se
 
 ## Local security boundary
 
-The SQLite file and customer attachments are not encrypted by the app. They are stored under the current Windows user's Local AppData directory; use Windows account protections and BitLocker where available. Application permissions do not prevent someone with direct filesystem write access from tampering with local records. Do not place the database on a writable network share.
+The SQLite file, backups and customer attachments are not encrypted by the app. They are stored under the current Windows user's Local AppData directory; use Windows account protections and BitLocker where available. Application permissions do not prevent someone with direct filesystem write access from tampering with local records. Do not place the database on a writable network share.

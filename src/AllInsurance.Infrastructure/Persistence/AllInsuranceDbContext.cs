@@ -18,6 +18,8 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<CustomerTransaction> CustomerTransactions => Set<CustomerTransaction>();
     public DbSet<CustomerActivity> CustomerActivities => Set<CustomerActivity>();
     public DbSet<BusinessRecord> BusinessRecords => Set<BusinessRecord>();
+    public DbSet<PartnerPayout> PartnerPayouts => Set<PartnerPayout>();
+    public DbSet<PartnerActivity> PartnerActivities => Set<PartnerActivity>();
     public DbSet<FilterOption> FilterOptions => Set<FilterOption>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -218,6 +220,32 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.HasIndex(record => record.CustomerId);
             entity.HasOne(record => record.Customer).WithMany(customer => customer.BusinessRecords)
                 .HasForeignKey(record => record.CustomerId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PartnerPayout>(entity =>
+        {
+            entity.ToTable("PartnerPayouts");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Amount).HasPrecision(18, 2);
+            entity.Property(item => item.Currency).IsRequired().HasMaxLength(3);
+            entity.Property(item => item.PaymentMethod).IsRequired().HasMaxLength(80);
+            entity.Property(item => item.Reference).HasMaxLength(100);
+            entity.Property(item => item.Description).HasMaxLength(500);
+            entity.HasIndex(item => new { item.PartnerId, item.OccurredAtUtc });
+            entity.HasOne(item => item.Partner).WithMany()
+                .HasForeignKey(item => item.PartnerId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PartnerActivity>(entity =>
+        {
+            entity.ToTable("PartnerActivities");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Action).IsRequired().HasMaxLength(80);
+            entity.Property(item => item.Description).IsRequired().HasMaxLength(4000);
+            entity.Property(item => item.ActorName).IsRequired().HasMaxLength(200);
+            entity.HasIndex(item => new { item.PartnerId, item.OccurredAtUtc });
+            entity.HasOne(item => item.Partner).WithMany()
+                .HasForeignKey(item => item.PartnerId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<FilterOption>(entity =>

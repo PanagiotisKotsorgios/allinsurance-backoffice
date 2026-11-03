@@ -20,6 +20,8 @@ public sealed partial class ShortcutsPage : Page
         entries.AddRange([
             new("Ctrl+U", "Διαχείριση χρηστών"),
             new("Ctrl+J", "Αρχείο ελέγχου"),
+            new("Ctrl+B", "Αντίγραφα ασφαλείας"),
+            new("Ctrl+L", "Ημερολόγιο σφαλμάτων"),
             new("Ctrl+K", "Διαχείριση συντομεύσεων"),
             new("Ctrl+S", "Ρυθμίσεις συστήματος"),
             new("F1", "Οδηγός χρήσης"),

@@ -51,6 +51,7 @@ public sealed class DatabaseInitializer(
             EnableSqlitePragmas(db);
             EnsureRoleSeeds(db);
             EnsureCustomerCatalogSeeds(db);
+            EnsurePartnerCatalogSeeds(db);
 
             if (!databaseExisted)
             {
@@ -206,6 +207,31 @@ public sealed class DatabaseInitializer(
                     Value = value, SortOrder = index });
             }
         }
+        db.AppMetadata.Add(new AppMetadata { Key = marker, Value = "true" });
+        db.SaveChanges();
+    }
+
+    private static void EnsurePartnerCatalogSeeds(AllInsuranceDbContext db)
+    {
+        const string marker = "partner_catalog_defaults_v1";
+        if (db.AppMetadata.Any(item => item.Key == marker)) return;
+        var defaults = new Dictionary<string, string[]>
+        {
+            ["Κατηγορίες συνεργατών"] = ["Ασφαλιστικός διαμεσολαβητής", "Πράκτορας",
+                "Μεσίτης", "Σύμβουλος", "Συνεργαζόμενο γραφείο", "Άλλο"],
+            ["Τύποι επιχειρήσεων"] = ["Ατομική επιχείρηση", "Ο.Ε.", "Ε.Ε.",
+                "Ι.Κ.Ε.", "Ε.Π.Ε.", "Α.Ε.", "Άλλο"],
+            ["Επαγγελματικές ιδιότητες"] = ["Ασφαλιστικός πράκτορας", "Μεσίτης ασφαλίσεων",
+                "Συντονιστής ασφαλιστικών πρακτόρων", "Σύμβουλος", "Άλλο"]
+        };
+        var existing = db.FilterOptions.AsNoTracking()
+            .Select(item => new { item.Category, item.Value }).ToList()
+            .Select(item => (item.Category, item.Value)).ToHashSet();
+        foreach (var (category, values) in defaults)
+            for (var index = 0; index < values.Length; index++)
+                if (!existing.Contains((category, values[index])))
+                    db.FilterOptions.Add(new FilterOption { Id = Guid.NewGuid(), Category = category,
+                        Value = values[index], SortOrder = index });
         db.AppMetadata.Add(new AppMetadata { Key = marker, Value = "true" });
         db.SaveChanges();
     }

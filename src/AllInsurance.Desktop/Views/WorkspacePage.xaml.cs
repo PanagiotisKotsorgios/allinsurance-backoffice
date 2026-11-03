@@ -33,10 +33,18 @@ public sealed partial class WorkspacePage : Page
 
         UsersMenuItem.IsEnabled = _session.Current!.Permissions.Contains(Permission.ManageUsers);
         AuditMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ReadSecurityEvents);
+        BackupMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
+        ErrorLogMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
         SessionText.Text = $"Συνεδρία: {_session.Current.DisplayName} ({_session.Current.Username})";
 
-        foreach (var section in WorkspaceSections.All)
+        for (var index = 0; index < WorkspaceSections.All.Count; index++)
         {
+            var section = WorkspaceSections.All[index];
+            var sectionKey = section.Key;
+            var shortcut = $"Ctrl+{(index + 1) % 10}";
+            var menuItem = new MenuFlyoutItem { Text = $"{section.Title}      {shortcut}" };
+            menuItem.Click += (_, _) => NavigateToSection(sectionKey);
+            NavigationMenu.Items.Add(menuItem);
             var label = new TextBlock
             {
                 Text = section.Title,
@@ -158,6 +166,8 @@ public sealed partial class WorkspacePage : Page
 
         AddShortcut(VirtualKey.U, VirtualKeyModifiers.Control, ShowUsers);
         AddShortcut(VirtualKey.J, VirtualKeyModifiers.Control, ShowAudit);
+        AddShortcut(VirtualKey.B, VirtualKeyModifiers.Control, ShowBackups);
+        AddShortcut(VirtualKey.L, VirtualKeyModifiers.Control, ShowErrorLog);
         AddShortcut(VirtualKey.K, VirtualKeyModifiers.Control, ShowShortcuts);
         AddShortcut(VirtualKey.S, VirtualKeyModifiers.Control, ShowSettings);
         AddShortcut(VirtualKey.F1, (VirtualKeyModifiers)0, () => _ = ShowInformationAsync(
@@ -204,11 +214,6 @@ public sealed partial class WorkspacePage : Page
         }
     }
 
-    private void Customers_Click(object sender, RoutedEventArgs e) => NavigateToSection("customers");
-    private void Policies_Click(object sender, RoutedEventArgs e) => NavigateToSection("policies");
-    private void Claims_Click(object sender, RoutedEventArgs e) => NavigateToSection("claims");
-    private void Reports_Click(object sender, RoutedEventArgs e) => NavigateToSection("reports");
-
     private void ShowUsers()
     {
         if (UsersMenuItem.IsEnabled)
@@ -227,6 +232,20 @@ public sealed partial class WorkspacePage : Page
         }
     }
 
+    private void ShowBackups()
+    {
+        if (!BackupMenuItem.IsEnabled) return;
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new BackupPage();
+    }
+
+    private void ShowErrorLog()
+    {
+        if (!ErrorLogMenuItem.IsEnabled) return;
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new ErrorLogPage();
+    }
+
     private void ShowSettings() { MainNavigation.SelectedItem = null; SectionHost.Content = new SettingsPage(); }
     private void ShowFilterOptions() { MainNavigation.SelectedItem = null; SectionHost.Content = new FilterOptionsPage(); }
     private void ShowShortcuts() { MainNavigation.SelectedItem = null; SectionHost.Content = new ShortcutsPage(); }
@@ -234,13 +253,15 @@ public sealed partial class WorkspacePage : Page
     private void Users_Click(object sender, RoutedEventArgs e) => ShowUsers();
 
     private void Audit_Click(object sender, RoutedEventArgs e) => ShowAudit();
+    private void Backups_Click(object sender, RoutedEventArgs e) => ShowBackups();
+    private void ErrorLog_Click(object sender, RoutedEventArgs e) => ShowErrorLog();
     private void Settings_Click(object sender, RoutedEventArgs e) => ShowSettings();
     private void FilterOptions_Click(object sender, RoutedEventArgs e) => ShowFilterOptions();
     private void Shortcuts_Click(object sender, RoutedEventArgs e) => ShowShortcuts();
 
     private async void Guide_Click(object sender, RoutedEventArgs e) => await ShowInformationAsync(
         "Οδηγός χρήσης",
-        "Επιλέξτε ενότητα από το αριστερό μενού. Τα Εργαλεία περιλαμβάνουν τη διαχείριση χρηστών και το αρχείο ελέγχου για διαχειριστές. Κλείστε την εφαρμογή ή επιλέξτε Αποσύνδεση για να τερματίσετε τη συνεδρία.");
+        "Επιλέξτε ενότητα από το αριστερό μενού ή από την Πλοήγηση. Τα Εργαλεία περιλαμβάνουν διαχείριση χρηστών, αρχείο ελέγχου, αντίγραφα ασφαλείας και ημερολόγιο σφαλμάτων για διαχειριστές. Οι συντομεύσεις φαίνονται στο μενού Πλοήγηση. Επιλέξτε Αποσύνδεση για να τερματίσετε τη συνεδρία.");
 
     private async void Contact_Click(object sender, RoutedEventArgs e) => await ShowInformationAsync(
         "Επικοινωνία",
@@ -248,7 +269,7 @@ public sealed partial class WorkspacePage : Page
 
     private async void About_Click(object sender, RoutedEventArgs e) => await ShowInformationAsync(
         "Σχετικά",
-        "AllInsurance Backoffice Software\nΠροϊόν της KALYPSIS SOFTWARE SOLUTIONS.\nΈκδοση 0.2 – Διεπαφή εργασίας.\nΕικονίδια εργαλείων: Lucide (ISC/MIT).");
+        "AllInsurance Backoffice Software\nΠροϊόν της KALYPSIS SOFTWARE SOLUTIONS.\nΈκδοση 0.3 – Καρτέλες πελατών και συνεργατών.\nΕικονίδια εργαλείων: Lucide (ISC/MIT).");
 
     private async Task ShowInformationAsync(string title, string message)
     {

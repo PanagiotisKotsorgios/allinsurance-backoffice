@@ -9,6 +9,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using WinRT.Interop;
 using Windows.Graphics;
 using Windows.UI;
@@ -44,13 +45,18 @@ public sealed class BusinessRecordCardWindow : Window
     } };
     private readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal, Spacing = 0 };
     private readonly ContentControl _tabContent = new();
-    private readonly List<(Button Button, UIElement Content)> _tabItems = [];
+    private readonly List<(Button Button, TextBlock Label, UIElement Content)> _tabItems = [];
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _heading = new() { FontSize = 25,
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         Foreground = new SolidColorBrush(Colors.White) };
+    private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White),
+        Margin = new Thickness(68, 2, 0, 0) };
     private readonly Dictionary<string, TextBox> _text = [];
     private readonly Dictionary<string, CalendarDatePicker> _dates = [];
+    private readonly List<Grid> _formGrids = [];
+    private double _contentWidth = 1100;
     private ComboBox? _customerChoice;
     private ComboBox? _vehicleChoice;
     private ComboBox? _typeChoice;
@@ -82,6 +88,12 @@ public sealed class BusinessRecordCardWindow : Window
         var area = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
         var width = Math.Min(1220, Math.Max(660, area.Width - 32));
         var height = Math.Min(900, Math.Max(560, area.Height - 32));
+        _contentWidth = Math.Min(1100, width - 70);
+        _tabContent.SizeChanged += (_, args) =>
+        {
+            var target = Math.Min(1100, Math.Max(600, args.NewSize.Width - 50));
+            foreach (var grid in _formGrids) grid.Width = target;
+        };
         appWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2,
             area.Y + (area.Height - height) / 2, width, height));
         appWindow.Title = section == "policies" ? "Καρτέλα ασφάλισης — AllInsurance" :
@@ -139,24 +151,35 @@ public sealed class BusinessRecordCardWindow : Window
         IReadOnlyList<CustomerTransaction> transactions)
     {
         _root.Children.Clear();
-        var banner = new Border { Margin = new Thickness(14, 12, 14, 8),
-            Padding = new Thickness(24, 14, 24, 14), CornerRadius = new CornerRadius(14),
-            Background = new SolidColorBrush(Color.FromArgb(255, 17, 73, 130)) };
+        var gradient = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0),
+            EndPoint = new Windows.Foundation.Point(1, 1) };
+        gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
+        gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 22, 119, 170), Offset = 1 });
+        var banner = new Border { Margin = new Thickness(18, 8, 18, 4),
+            Padding = new Thickness(24, 12, 24, 12), CornerRadius = new CornerRadius(16),
+            Background = gradient };
         _heading.Text = _section == "vehicles"
             ? (_record.Id == Guid.Empty ? "Νέο όχημα" : _record.Title)
             : (_record.Id == Guid.Empty ? "Νέα αίτηση ασφάλισης" :
                 $"{_record.DocumentType ?? "Ασφαλιστήριο"} · {_record.Title}");
-        var bannerText = new StackPanel { Spacing = 4 };
-        bannerText.Children.Add(_heading);
-        bannerText.Children.Add(new TextBlock { Text = _section == "vehicles"
-            ? "Στοιχεία οχήματος και σύνδεση με τον ιδιοκτήτη"
-            : "Αίτηση, ειδοποιητήριο και μετατροπή σε ασφαλιστήριο",
-            Foreground = new SolidColorBrush(Colors.White) });
+        _headerState.Text = $"● {_record.Status ?? (_section == "vehicles" ? "Ενεργό" : "Σε εξέλιξη")}";
+        _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "Νέο");
+        var bannerText = new StackPanel { Spacing = 8 };
+        var identity = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+        identity.Children.Add(new Image { Source = new BitmapImage(new Uri(_section == "vehicles"
+            ? "ms-appx:///Assets/Sections/vehicles.png" : "ms-appx:///Assets/Sections/policies.png")),
+            Width = 54, Height = 54 });
+        var identityText = new StackPanel { Spacing = 3 };
+        identityText.Children.Add(_heading);
+        identityText.Children.Add(_headerState);
+        identity.Children.Add(identityText);
+        bannerText.Children.Add(identity);
+        bannerText.Children.Add(_headerCode);
         banner.Child = bannerText;
         _root.Children.Add(banner);
         var strip = new ScrollViewer { Content = _tabs, HorizontalScrollBarVisibility =
             ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Margin = new Thickness(14, 0, 14, 0) };
+            Margin = new Thickness(18, 0, 18, 0) };
         Grid.SetRow(strip, 1);
         _root.Children.Add(strip);
         Grid.SetRow(_tabContent, 2);
@@ -192,13 +215,19 @@ public sealed class BusinessRecordCardWindow : Window
     private void AddTab(string title, UIElement content)
     {
         var index = _tabItems.Count;
-        var button = new Button { Content = title, MinHeight = 44,
-            Padding = new Thickness(15, 7, 15, 7), Margin = new Thickness(0),
-            CornerRadius = new CornerRadius(0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            BorderThickness = new Thickness(0, 0, 1, 0) };
+        var icon = title switch
+        {
+            "Καρτέλα οχήματος" or "Όχημα" => "car-front",
+            "Ιδιοκτήτης" => "user-round",
+            "Πρόσθετα στοιχεία" => "settings-2",
+            "Οικονομικά" => "chart-no-axes-combined",
+            "Ιστορικό" => "clock-3",
+            _ => "file-text"
+        };
+        var (button, label) = CardTabVisual.Create(title, icon, IsDarkTheme());
         button.Click += (_, _) => SelectTab(index);
         _tabs.Children.Add(button);
-        _tabItems.Add((button, new ScrollViewer { Content = content,
+        _tabItems.Add((button, label, new ScrollViewer { Content = content,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto }));
     }
@@ -211,12 +240,7 @@ public sealed class BusinessRecordCardWindow : Window
         for (var i = 0; i < _tabItems.Count; i++)
         {
             var selected = i == index;
-            _tabItems[i].Button.Background = new SolidColorBrush(dark
-                ? selected ? Color.FromArgb(255, 35, 77, 111) : Color.FromArgb(255, 54, 59, 66)
-                : selected ? Color.FromArgb(255, 202, 228, 246) : Color.FromArgb(255, 226, 233, 239));
-            _tabItems[i].Button.Foreground = new SolidColorBrush(dark
-                ? Colors.White : selected ? Color.FromArgb(255, 16, 77, 126) :
-                Color.FromArgb(255, 47, 57, 69));
+            CardTabVisual.SetSelected(_tabItems[i].Button, _tabItems[i].Label, selected, dark);
         }
     }
 
@@ -224,57 +248,50 @@ public sealed class BusinessRecordCardWindow : Window
         (_root.RequestedTheme == ElementTheme.Default &&
          Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
 
-    private static Grid TwoColumns(out StackPanel left, out StackPanel right)
+    private Grid TwoColumns(out StackPanel left, out StackPanel right)
     {
-        var grid = new Grid { ColumnSpacing = 20, Margin = new Thickness(22, 16, 22, 20),
-            MaxWidth = 1120, HorizontalAlignment = HorizontalAlignment.Stretch };
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        left = new StackPanel { Spacing = 10 };
-        right = new StackPanel { Spacing = 10 };
-        grid.Children.Add(left);
-        Grid.SetColumn(right, 1);
-        grid.Children.Add(right);
+        var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
+        _formGrids.Add(grid);
         return grid;
     }
 
     private TextBox Text(StackPanel panel, string key, string label, string? value = null)
     {
-        var field = new TextBox { Header = label, Text = value ?? "",
-            HorizontalAlignment = HorizontalAlignment.Stretch };
-        panel.Children.Add(field);
+        var field = new TextBox { Text = value ?? "", MinHeight = 28, Height = 28,
+            FontSize = 13, HorizontalAlignment = HorizontalAlignment.Stretch };
+        panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         _text[key] = field;
         return field;
     }
 
     private CalendarDatePicker Date(StackPanel panel, string key, string label, DateTime? value = null)
     {
-        var field = new CalendarDatePicker { Header = label,
+        var field = new CalendarDatePicker {
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
+            MinHeight = 32, Height = 32,
             HorizontalAlignment = HorizontalAlignment.Stretch };
-        panel.Children.Add(field);
+        panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         _dates[key] = field;
         return field;
     }
 
     private ComboBox Choices(StackPanel panel, string label, IEnumerable<string> items, string? selected)
     {
-        var field = new ComboBox { Header = label, ItemsSource = items.ToArray(),
-            HorizontalAlignment = HorizontalAlignment.Stretch };
+        var field = new ComboBox { ItemsSource = items.ToArray(),
+            MinHeight = 28, Height = 28, HorizontalAlignment = HorizontalAlignment.Stretch };
         field.SelectedItem = selected;
-        panel.Children.Add(field);
+        panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         return field;
     }
 
     private ComboBox CustomerChoice(StackPanel panel, IReadOnlyList<CustomerListItem> customers)
     {
         var items = customers.Select(item => new Choice(item.Id, item.FullName)).ToArray();
-        _customerChoice = new ComboBox { Header = "Πελάτης / ιδιοκτήτης *",
-            ItemsSource = items, DisplayMemberPath = nameof(Choice.Name),
+        _customerChoice = new ComboBox { ItemsSource = items, DisplayMemberPath = nameof(Choice.Name),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            IsEnabled = _fixedCustomerId is null };
+            IsEnabled = _fixedCustomerId is null, MinHeight = 28, Height = 28 };
         _customerChoice.SelectedItem = items.FirstOrDefault(item => item.Id == _record.CustomerId);
-        panel.Children.Add(_customerChoice);
+        panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *", _customerChoice));
         return _customerChoice;
     }
 
@@ -294,6 +311,15 @@ public sealed class BusinessRecordCardWindow : Window
         Text(left, "application", "Αριθμός αίτησης", data.ApplicationNumber);
         Text(left, "notice", "Αριθμός ειδοποιητηρίου", data.NoticeNumber);
         Text(left, "policy", "Αριθμός ασφαλιστηρίου", data.PolicyNumber);
+        void UpdateRequiredNumber()
+        {
+            var type = _typeChoice?.SelectedItem as string;
+            CardFieldLayout.SetRequired(left, _text["application"], "Αριθμός αίτησης", type == "Αίτηση");
+            CardFieldLayout.SetRequired(left, _text["notice"], "Αριθμός ειδοποιητηρίου", type == "Ειδοποιητήριο");
+            CardFieldLayout.SetRequired(left, _text["policy"], "Αριθμός ασφαλιστηρίου", type == "Ασφαλιστήριο");
+        }
+        _typeChoice.SelectionChanged += (_, _) => UpdateRequiredNumber();
+        UpdateRequiredNumber();
         Text(left, "insurer", "Ασφαλιστική εταιρεία", data.Insurer);
         Text(left, "agency", "Πρακτορείο", data.Agency);
         Text(left, "branch", "Κλάδος", data.Branch);
@@ -304,11 +330,11 @@ public sealed class BusinessRecordCardWindow : Window
              .. vehicles.Where(item => item.CustomerId == customerId)
                  .Select(item => new Choice(item.Id, item.Title))];
         var vehicleItems = VehicleItems(_record.CustomerId);
-        _vehicleChoice = new ComboBox { Header = "Συνδεδεμένο όχημα",
-            ItemsSource = vehicleItems, DisplayMemberPath = nameof(Choice.Name),
+        _vehicleChoice = new ComboBox { ItemsSource = vehicleItems,
+            DisplayMemberPath = nameof(Choice.Name), MinHeight = 28, Height = 28,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         _vehicleChoice.SelectedItem = vehicleItems.FirstOrDefault(item => item.Id == data.VehicleId) ?? vehicleItems[0];
-        right.Children.Add(_vehicleChoice);
+        right.Children.Add(CardFieldLayout.CreateRow("Συνδεδεμένο όχημα", _vehicleChoice));
         _customerChoice!.SelectionChanged += (_, _) =>
         {
             var selectedVehicle = (_vehicleChoice.SelectedItem as Choice)?.Id;
@@ -323,16 +349,16 @@ public sealed class BusinessRecordCardWindow : Window
         Text(right, "gross", "Μικτά ασφάλιστρα", data.GrossPremium?.ToString("N2"));
         Text(right, "net", "Καθαρά ασφάλιστρα", data.NetPremium?.ToString("N2"));
         AddTab("Καρτέλα ασφάλισης", main);
-        var extra = new StackPanel { Margin = new Thickness(22), Spacing = 10 };
-        var notes = Text(extra, "notes", "Σημειώσεις", _record.Notes);
+        var extra = TwoColumns(out var extraLeft, out _);
+        var notes = Text(extraLeft, "notes", "Σημειώσεις", _record.Notes);
         notes.AcceptsReturn = true; notes.TextWrapping = TextWrapping.Wrap; notes.Height = 150;
         AddTab("Πρόσθετα στοιχεία", extra);
         AddTab("Όχημα", new TextBlock { Text = data.VehicleId is null
             ? "Δεν έχει συνδεθεί όχημα."
             : vehicles.FirstOrDefault(item => item.Id == data.VehicleId)?.Title ?? "Το όχημα δεν βρέθηκε.",
             Margin = new Thickness(22), FontSize = 16 });
-        var coverage = new StackPanel { Margin = new Thickness(22) };
-        var cover = Text(coverage, "coverage", "Καλύψεις / όροι", data.CoverageNotes);
+        var coverage = TwoColumns(out var coverageLeft, out _);
+        var cover = Text(coverageLeft, "coverage", "Καλύψεις / όροι", data.CoverageNotes);
         cover.AcceptsReturn = true; cover.TextWrapping = TextWrapping.Wrap; cover.Height = 190;
         AddTab("Καλύψεις", coverage);
         var finance = new StackPanel { Margin = new Thickness(22), Spacing = 10 };
@@ -381,8 +407,8 @@ public sealed class BusinessRecordCardWindow : Window
         _statusChoice = Choices(right, "Κατάσταση", ["Ενεργό", "Ανενεργό"],
             _record.Status ?? "Ενεργό");
         AddTab("Καρτέλα οχήματος", main);
-        var extra = new StackPanel { Margin = new Thickness(22), Spacing = 10 };
-        var notes = Text(extra, "notes", "Πρόσθετες πληροφορίες", data.Notes ?? _record.Notes);
+        var extra = TwoColumns(out var extraLeft, out _);
+        var notes = Text(extraLeft, "notes", "Πρόσθετες πληροφορίες", data.Notes ?? _record.Notes);
         notes.AcceptsReturn = true; notes.TextWrapping = TextWrapping.Wrap; notes.Height = 190;
         AddTab("Πρόσθετα στοιχεία", extra);
         AddTab("Ιδιοκτήτης", new TextBlock { Text = customers.FirstOrDefault(item =>
@@ -433,6 +459,8 @@ public sealed class BusinessRecordCardWindow : Window
                     throw new InvalidOperationException("Χρησιμοποιήστε «Μετατροπή σε ασφαλιστήριο».");
                 var data = new PolicyCardData
                 {
+                    PartnerId = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PartnerId,
+                    PartnerCommissionPercent = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PartnerCommissionPercent,
                     ApplicationNumber = Value("application"), NoticeNumber = Value("notice"),
                     PolicyNumber = Value("policy"), Insurer = Value("insurer"),
                     Agency = Value("agency"), Branch = Value("branch"), Product = Value("product"),
@@ -496,6 +524,8 @@ public sealed class BusinessRecordCardWindow : Window
                     $"Τελευταία ενημέρωση: {_record.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}";
             _heading.Text = _section == "policies"
                 ? $"{_record.DocumentType} · {_record.Title}" : _record.Title;
+            _headerState.Text = $"● {_record.Status ?? "—"}";
+            _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "—");
             _conversionRequested = false;
             UpdateConvertButton();
             RecordSaved?.Invoke(this, EventArgs.Empty);

@@ -1,5 +1,6 @@
 using AllInsurance.Application.Business;
 using AllInsurance.Application.Customers;
+using AllInsurance.Application.Filters;
 using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,13 +18,17 @@ public sealed partial class SectionPage : Page
     private readonly WorkspaceSection _section;
     private readonly IBusinessRecordService _records;
     private readonly ICustomerService _customers;
+    private readonly IFilterOptionService _filters;
     private CustomerCardWindow? _card;
     private BusinessRecordCardWindow? _businessCard;
+    private PartnerCardWindow? _partnerCard;
     private CustomerChoice[] _customerChoices = [];
+    private string[] _partnerCategories = [];
     private int _requestVersion;
     private BusinessRecordRow[] _filtered = [];
     private readonly int[] _columnOrder = [0, 1, 2, 3, 4, 5, 6];
     private readonly double[] _columnWidths;
+    private readonly bool[] _columnVisible;
     private readonly HashSet<Grid> _recordGrids = [];
     private int _sortColumn = 0;
     private bool _sortDescending;
@@ -38,8 +43,10 @@ public sealed partial class SectionPage : Page
         _section = section;
         _columnOrder = SectionColumnOrder.Load(section.Key);
         _columnWidths = SectionColumnOrder.LoadWidths(section.Key);
+        _columnVisible = SectionColumnOrder.LoadVisibility(section.Key);
         _records = App.Services.GetRequiredService<IBusinessRecordService>();
         _customers = App.Services.GetRequiredService<ICustomerService>();
+        _filters = App.Services.GetRequiredService<IFilterOptionService>();
         InitializeComponent();
         InitializeTableActions();
         TableColumnResizer.Attach(RecordsHeader, ResizeColumn,
@@ -56,6 +63,7 @@ public sealed partial class SectionPage : Page
         SectionDescription.Text = section.Description;
         AddButton.Label = "Προσθήκη " + Singular(section.Title);
         SearchInput.PlaceholderText = section.SearchHint;
+        if (section.Key == "partners") CustomerFilter.Title = "Κατηγορία";
         TitleHeader.Text = section.Columns[0];
         PartyHeader.Text = section.Columns.Length > 1 ? section.Columns[1] : "Στοιχεία";
         StatusFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
@@ -70,10 +78,22 @@ public sealed partial class SectionPage : Page
     private void Scroller_SizeChanged(object sender, SizeChangedEventArgs e) =>
         PageContent.Width = Math.Max(180, Math.Min(1380, e.NewSize.Width - 48));
 
+    private void ActionsGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var narrow = e.NewSize.Width < 1020;
+        Grid.SetRow(DeleteButton, narrow ? 1 : 0);
+        Grid.SetColumn(DeleteButton, narrow ? 0 : 1);
+    }
+
     private async Task LoadCustomersAsync()
     {
         try
         {
+            if (_section.Key == "partners")
+            {
+                _partnerCategories = [.. await _filters.ChoicesAsync("Κατηγορίες συνεργατών")];
+                return;
+            }
             var customers = await _customers.SearchAsync();
             _customerChoices = [new CustomerChoice(null, "Χωρίς πελάτη"),
                 .. customers.Select(item => new CustomerChoice(item.Id, item.FullName))];
@@ -93,19 +113,32 @@ public sealed partial class SectionPage : Page
             _checkedRecordIds.RemoveWhere(id => !records.Any(record => record.Id == id));
             StatusFilter.SetOptions(records.Select(item => string.IsNullOrWhiteSpace(item.Status)
                 ? "Χωρίς κατάσταση" : item.Status));
-            CustomerFilter.SetOptions(_customerChoices.Select(item => item.Name));
+            CustomerFilter.SetOptions(_section.Key == "partners"
+                ? _partnerCategories.Concat(records.Select(item =>
+                    PartnerProfileData.Read(item.DetailsJson).Category ?? "Χωρίς κατηγορία"))
+                : _customerChoices.Select(item => item.Name));
             IEnumerable<BusinessRecord> filtered = records;
             var term = SearchInput.Text.Trim();
             if (term.Length > 0)
                 filtered = filtered.Where(item => item.Title.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
                     item.Reference?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true ||
                     item.RelatedParty?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true ||
-                    item.Status?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true);
+                    item.Status?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true ||
+                    (_section.Key == "partners" && new[]
+                    {
+                        PartnerProfileData.Read(item.DetailsJson).TaxNumber,
+                        PartnerProfileData.Read(item.DetailsJson).Email,
+                        PartnerProfileData.Read(item.DetailsJson).Phone,
+                        PartnerProfileData.Read(item.DetailsJson).Category,
+                        PartnerProfileData.Read(item.DetailsJson).City
+                    }.Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true)));
             filtered = filtered.Where(item => StatusFilter.SelectedValues.Contains(
                 string.IsNullOrWhiteSpace(item.Status) ? "Χωρίς κατάσταση" : item.Status));
             filtered = filtered.Where(item => CustomerFilter.SelectedValues.Contains(
-                item.Customer is null ? "Χωρίς πελάτη" :
-                    $"{item.Customer.LastName} {item.Customer.FirstName}".Trim()));
+                _section.Key == "partners"
+                    ? PartnerProfileData.Read(item.DetailsJson).Category ?? "Χωρίς κατηγορία"
+                    : item.Customer is null ? "Χωρίς πελάτη" :
+                        $"{item.Customer.LastName} {item.Customer.FirstName}".Trim()));
             if (FromFilter.Date is DateTimeOffset fromDate)
             {
                 var from = fromDate.Date;
@@ -328,8 +361,8 @@ public sealed partial class SectionPage : Page
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
         if (grid.Children[4] is Border { Child: TextBlock statusText } statusCell)
         {
-            var highlighted = row.Status is "Ενεργό" or "Σε εξέλιξη";
-            statusCell.Background = highlighted ? new SolidColorBrush(row.Status == "Ενεργό"
+            var highlighted = row.Status is "Ενεργό" or "Ενεργός" or "Σε εξέλιξη" or "Πιθανός";
+            statusCell.Background = highlighted ? new SolidColorBrush(row.Status is "Ενεργό" or "Ενεργός"
                 ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 204, 111, 25)) : null;
             statusText.Foreground = highlighted ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
         }
@@ -345,7 +378,7 @@ public sealed partial class SectionPage : Page
         if (sender is Grid grid) _recordGrids.Remove(grid);
     }
 
-    private double TableWidth => 40 + _columnWidths.Sum();
+    private double TableWidth => 40 + _columnWidths.Where((_, index) => _columnVisible[index]).Sum();
 
     private void ResizeColumn(int original, double width)
     {
@@ -367,8 +400,10 @@ public sealed partial class SectionPage : Page
         {
             var original = _columnOrder[position];
             var offset = isHeader ? 0 : 1;
-            grid.ColumnDefinitions[position + offset].Width = new GridLength(_columnWidths[original]);
+            grid.ColumnDefinitions[position + offset].Width = new GridLength(
+                _columnVisible[original] ? _columnWidths[original] : 0);
             var cell = (FrameworkElement)grid.Children[original + offset];
+            cell.Visibility = _columnVisible[original] ? Visibility.Visible : Visibility.Collapsed;
             Grid.SetColumn(cell, position + offset);
             if (cell is Border border)
                 border.BorderThickness = isHeader
@@ -376,6 +411,28 @@ public sealed partial class SectionPage : Page
                     : position == _columnOrder.Length - 1 ? new Thickness(0, 0, 0, 1) :
                         new Thickness(0, 0, 1, 1);
         }
+    }
+    private async void Columns_Click(object sender, RoutedEventArgs e)
+    {
+        var names = new[] { TitleHeader.Text, "Κωδικός", PartyHeader.Text, "Κατάσταση",
+            "Ημερομηνία", "Πελάτης", "Εγγραφή" };
+        var fields = names.Select((name, index) => new CheckBox
+        {
+            Content = name, IsChecked = _columnVisible[index], IsEnabled = index != 0
+        }).ToArray();
+        var panel = new StackPanel { Spacing = 4 };
+        foreach (var field in fields) panel.Children.Add(field);
+        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Διαχείριση στηλών",
+            Content = panel, PrimaryButtonText = "Εφαρμογή", CloseButtonText = "Ακύρωση" };
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
+        for (var index = 0; index < fields.Length; index++)
+            _columnVisible[index] = fields[index].IsChecked == true;
+        try { SectionColumnOrder.SaveVisibility(_section.Key, _columnVisible); }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+        ApplyColumnOrder(RecordsHeader);
+        foreach (var grid in _recordGrids.ToArray()) ApplyColumnOrder(grid);
+        RecordsList.ItemsSource = null;
+        ApplyPage();
     }
     private async void Add_Click(object sender, RoutedEventArgs e) => await EditRecordAsync(null);
     private async void Edit_Click(object sender, RoutedEventArgs e)
@@ -386,6 +443,11 @@ public sealed partial class SectionPage : Page
     }
     private async Task EditRecordAsync(BusinessRecord? existing)
     {
+        if (_section.Key == "partners")
+        {
+            OpenPartnerCard(existing?.Id);
+            return;
+        }
         if (_section.Key is "policies" or "vehicles")
         {
             OpenBusinessRecordCard(existing?.Id);
@@ -434,6 +496,23 @@ public sealed partial class SectionPage : Page
             StatusText.Text = "Η εγγραφή αποθηκεύτηκε.";
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+    }
+
+    private void OpenPartnerCard(Guid? id)
+    {
+        if (_partnerCard is not null) { _partnerCard.BringToFront(); return; }
+        try
+        {
+            _partnerCard = new PartnerCardWindow(id);
+            _partnerCard.RecordSaved += async (_, _) => await RefreshAsync();
+            _partnerCard.Closed += async (_, _) =>
+            {
+                _partnerCard = null;
+                await RefreshAsync();
+            };
+            _partnerCard.BringToFront();
+        }
+        catch (Exception exception) { _partnerCard = null; StatusText.Text = exception.Message; }
     }
 
     private void OpenBusinessRecordCard(Guid? id)
@@ -493,25 +572,6 @@ public sealed partial class SectionPage : Page
             await RefreshAsync();
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
-    }
-
-    private async void Statistics_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var records = await _records.SearchAsync(_section.Key);
-            var linked = records.Count(item => item.CustomerId.HasValue);
-            var statuses = records.GroupBy(item => string.IsNullOrWhiteSpace(item.Status) ? "Χωρίς κατάσταση" : item.Status)
-                .OrderByDescending(group => group.Count())
-                .Take(8)
-                .Select(group => $"{group.Key}: {group.Count()}");
-            var dialog = new ContentDialog { XamlRoot = XamlRoot,
-                Title = "Στατιστικά — " + _section.Title,
-                Content = $"Σύνολο: {records.Count}\nΣυνδεδεμένα με πελάτη: {linked}\n" +
-                    string.Join("\n", statuses), CloseButtonText = "Κλείσιμο" };
-            await DialogButtonStyles.ShowAsync(dialog);
-        }
-        catch (Exception exception) { StatusText.Text = exception.Message; }
     }
 
     private void OpenRelatedCustomer_Click(object sender, RoutedEventArgs e)

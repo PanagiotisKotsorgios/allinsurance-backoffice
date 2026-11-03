@@ -17,6 +17,8 @@ public sealed class PolicyCardData
     public decimal? GrossPremium { get; set; }
     public decimal? NetPremium { get; set; }
     public string? CoverageNotes { get; set; }
+    public Guid? PartnerId { get; set; }
+    public decimal? PartnerCommissionPercent { get; set; }
 }
 
 public sealed class VehicleCardData

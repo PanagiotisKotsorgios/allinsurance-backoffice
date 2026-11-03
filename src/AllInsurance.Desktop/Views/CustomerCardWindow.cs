@@ -728,20 +728,7 @@ public sealed partial class CustomerCardWindow : Window
             "Οικονομικά" => "chart-no-axes-combined",
             _ => "clock-3"
         };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9,
-            VerticalAlignment = VerticalAlignment.Center };
-        label.Children.Add(new Image { Source = new SvgImageSource(new Uri(
-            $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 25, Height = 25 });
-        var title = new TextBlock { Text = header, FontSize = 15,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            VerticalAlignment = VerticalAlignment.Center };
-        label.Children.Add(title);
-        var button = new Button { Content = label, MinHeight = 54, MinWidth = 155,
-            Padding = new Thickness(12, 7, 12, 7), Margin = new Thickness(0),
-            CornerRadius = new CornerRadius(0),
-            BorderThickness = new Thickness(0, 0, 1, 0),
-            BorderBrush = new SolidColorBrush(IsDarkTheme()
-                ? Color.FromArgb(255, 82, 89, 98) : Color.FromArgb(255, 198, 205, 213)) };
+        var (button, title) = CardTabVisual.Create(header, icon, IsDarkTheme());
         var index = _tabButtons.Count;
         button.Click += (_, _) => SelectTab(index);
         _tabButtons.Add(button);
@@ -765,12 +752,7 @@ public sealed partial class CustomerCardWindow : Window
         for (var i = 0; i < _tabButtons.Count; i++)
         {
             var selected = i == index;
-            _tabButtons[i].Background = new SolidColorBrush(dark
-                ? selected ? Color.FromArgb(255, 35, 77, 111) : Color.FromArgb(255, 54, 59, 66)
-                : selected ? Color.FromArgb(255, 211, 230, 246) : Color.FromArgb(255, 229, 234, 239));
-            _tabLabels[i].Foreground = new SolidColorBrush(dark
-                ? selected ? Colors.White : Color.FromArgb(255, 226, 231, 236)
-                : selected ? Color.FromArgb(255, 15, 79, 127) : Color.FromArgb(255, 43, 53, 65));
+            CardTabVisual.SetSelected(_tabButtons[i], _tabLabels[i], selected, dark);
         }
     }
 
@@ -854,23 +836,7 @@ public sealed partial class CustomerCardWindow : Window
     }
 
     private static Grid CreateFieldRow(string label, FrameworkElement input)
-    {
-        var row = new Grid { ColumnSpacing = 10 };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(145) });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var required = label.EndsWith('*');
-        var caption = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2,
-            VerticalAlignment = VerticalAlignment.Center };
-        caption.Children.Add(new TextBlock { Text = required ? label[..^1].TrimEnd() : label,
-            FontSize = 12, TextWrapping = TextWrapping.Wrap });
-        if (required) caption.Children.Add(new TextBlock { Text = "*", FontSize = 14,
-            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 38, 38)) });
-        row.Children.Add(caption);
-        Grid.SetColumn(input, 1);
-        row.Children.Add(input);
-        return row;
-    }
+        => CardFieldLayout.CreateRow(label, input);
 
     private static decimal ParseAmount(string? input, bool allowNegative)
     {
