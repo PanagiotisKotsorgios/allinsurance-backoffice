@@ -90,10 +90,10 @@
                                     <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="TitleHeader" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κωδικός" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="PartyHeader" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κατάσταση" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Ημερομηνία" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Πελάτης" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="10,8"><TextBlock Text="Εγγραφή" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="StatusHeader" Text="Κατάσταση" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="EventHeader" Text="Ημερομηνία" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="CustomerHeader" Text="Πελάτης" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="10,8"><TextBlock x:Name="CreatedHeader" Text="Εγγραφή" FontWeight="SemiBold" /></Border>
                                 </Grid>
                                 </Grid>
                             </Border>

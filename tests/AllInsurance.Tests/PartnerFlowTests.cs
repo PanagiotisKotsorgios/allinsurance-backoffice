@@ -95,17 +95,20 @@ public sealed class PartnerFlowTests
         var snapshot = await partners.GetSnapshotAsync(partnerId);
         Assert.Equal(120m, snapshot.Earned);
         Assert.Equal(120m, snapshot.Due);
+        Assert.Equal(snapshot.Due, (await partners.GetBalancesAsync())[partnerId]);
         Assert.Equal(partnerId, BusinessRecordDetails.Read<PolicyCardData>(
             (await records.GetAsync(policyId))!.DetailsJson).PartnerId);
         await partners.AddPayoutAsync(partnerId, 50m, "Τραπεζική μεταφορά", "TX-1", "Μέρος προμήθειας");
         snapshot = await partners.GetSnapshotAsync(partnerId);
         Assert.Equal(50m, snapshot.Paid);
         Assert.Equal(70m, snapshot.Due);
+        Assert.Equal(snapshot.Due, (await partners.GetBalancesAsync())[partnerId]);
         Assert.Contains(snapshot.Activities, item => item.Action == "Γενική πληρωμή");
         await partners.AddMovementAsync(partnerId, "receipt", 20m, "Μετρητά", "RC-1", "Γενική είσπραξη");
         snapshot = await partners.GetSnapshotAsync(partnerId);
         Assert.Equal(30m, snapshot.Paid);
         Assert.Equal(90m, snapshot.Due);
+        Assert.Equal(snapshot.Due, (await partners.GetBalancesAsync())[partnerId]);
         Assert.Contains(snapshot.Payouts, item => item.Kind == "receipt");
         Assert.Contains(snapshot.Activities, item => item.Action == "Γενική είσπραξη");
         var partner = (await records.GetAsync(partnerId))!;

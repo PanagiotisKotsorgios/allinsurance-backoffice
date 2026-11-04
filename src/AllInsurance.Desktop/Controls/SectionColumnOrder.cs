@@ -43,7 +43,9 @@ internal static class SectionColumnOrder
 
     public static double[] LoadWidths(string sectionKey)
     {
-        var defaults = new double[] { 240, 140, 190, 130, 130, 240, 100 };
+        var defaults = sectionKey == "partners"
+            ? new double[] { 240, 140, 165, 175, 150, 160, 130 }
+            : [240, 140, 190, 130, 130, 240, 100];
         try
         {
             if (!File.Exists(WidthsPath)) return defaults;

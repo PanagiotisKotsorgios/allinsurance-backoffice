@@ -1,6 +1,7 @@
 using AllInsurance.Application.Business;
 using AllInsurance.Application.Customers;
 using AllInsurance.Application.Filters;
+using AllInsurance.Application.Partners;
 using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,7 @@ public sealed partial class SectionPage : Page
     private readonly IBusinessRecordService _records;
     private readonly ICustomerService _customers;
     private readonly IFilterOptionService _filters;
+    private readonly IPartnerService _partners;
     private CustomerCardWindow? _card;
     private BusinessRecordCardWindow? _businessCard;
     private WorkspaceRecordCardWindow? _workspaceCard;
@@ -50,6 +52,7 @@ public sealed partial class SectionPage : Page
         _records = App.Services.GetRequiredService<IBusinessRecordService>();
         _customers = App.Services.GetRequiredService<ICustomerService>();
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
+        _partners = App.Services.GetRequiredService<IPartnerService>();
         InitializeComponent();
         TableRowStriping.Attach(RecordsList);
         TableRowStriping.Attach(RelatedRecordsList);
@@ -63,7 +66,15 @@ public sealed partial class SectionPage : Page
         SearchInput.PlaceholderText = section.SearchHint;
         ConfigureFilterBar();
         TitleHeader.Text = section.Columns[0];
-        PartyHeader.Text = section.Columns.Length > 1 ? section.Columns[1] : "Στοιχεία";
+        PartyHeader.Text = section.Key == "partners" ? "Πόλη" :
+            section.Columns.Length > 1 ? section.Columns[1] : "Στοιχεία";
+        if (section.Key == "partners")
+        {
+            StatusHeader.Text = "Τύπος προσώπου";
+            EventHeader.Text = "Υπόλοιπο";
+            CustomerHeader.Text = "Πιστωτικό όριο";
+            CreatedHeader.Text = "Κατάσταση";
+        }
         StatusFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         CustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         CityFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
@@ -189,7 +200,19 @@ public sealed partial class SectionPage : Page
                 var until = untilDate.Date;
                 filtered = filtered.Where(item => FilterDate(item) < until.AddDays(1));
             }
-            _filtered = filtered.Select(item => new BusinessRecordRow(item)).ToArray();
+            IReadOnlyDictionary<Guid, decimal>? balances = null;
+            if (_section.Key == "partners")
+            {
+                balances = await _partners.GetBalancesAsync();
+                if (version != _requestVersion) return;
+            }
+            _filtered = filtered.Select(item =>
+            {
+                var profile = _section.Key == "partners"
+                    ? PartnerProfileData.Read(item.DetailsJson) : null;
+                return new BusinessRecordRow(item, profile,
+                    balances is not null && balances.TryGetValue(item.Id, out var due) ? due : null);
+            }).ToArray();
             SortRecords();
             _page = 1;
             ApplyPage();
@@ -367,6 +390,30 @@ public sealed partial class SectionPage : Page
 
     private void SortRecords()
     {
+        if (_section.Key == "partners")
+        {
+            if (_sortColumn is 4 or 5)
+            {
+                Func<BusinessRecordRow, decimal> amount = _sortColumn == 4
+                    ? row => row.PartnerBalance ?? 0m
+                    : row => row.PartnerProfile?.CreditLimit ?? 0m;
+                _filtered = (_sortDescending ? _filtered.OrderByDescending(amount) :
+                    _filtered.OrderBy(amount)).ToArray();
+                return;
+            }
+            Func<BusinessRecordRow, string> partnerKey = _sortColumn switch
+            {
+                1 => row => row.Reference ?? "",
+                2 => row => row.RelatedParty ?? "",
+                3 => row => row.Status ?? "",
+                6 => row => row.Record.Status ?? "",
+                _ => row => row.Title
+            };
+            _filtered = (_sortDescending ? _filtered.OrderByDescending(partnerKey,
+                StringComparer.CurrentCultureIgnoreCase) : _filtered.OrderBy(partnerKey,
+                StringComparer.CurrentCultureIgnoreCase)).ToArray();
+            return;
+        }
         if (_sortColumn is 4 or 6)
         {
             Func<BusinessRecordRow, DateTime> date = _sortColumn == 4
@@ -409,12 +456,22 @@ public sealed partial class SectionPage : Page
         ApplyColumnOrder(grid);
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
-        if (grid.Children[4] is Border { Child: TextBlock statusText } statusCell)
+        var statusIndex = _section.Key == "partners" ? 7 : 4;
+        if (grid.Children[statusIndex] is Border { Child: TextBlock statusText } statusCell)
         {
-            var highlighted = row.Status is "Ενεργό" or "Ενεργός" or "Σε εξέλιξη" or "Πιθανός";
-            statusCell.Background = highlighted ? new SolidColorBrush(row.Status is "Ενεργό" or "Ενεργός"
+            var highlighted = row.Record.Status is "Ενεργό" or "Ενεργός" or "Σε εξέλιξη" or "Πιθανός";
+            statusCell.Background = highlighted ? new SolidColorBrush(row.Record.Status is "Ενεργό" or "Ενεργός"
                 ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 204, 111, 25)) : null;
             statusText.Foreground = highlighted ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
+        }
+        if (_section.Key == "partners" &&
+            grid.Children[5] is Border { Child: TextBlock balanceText } balanceCell)
+        {
+            var outstanding = row.PartnerBalance.GetValueOrDefault() != 0m;
+            balanceCell.Background = outstanding
+                ? new SolidColorBrush(Color.FromArgb(255, 198, 40, 40)) : null;
+            balanceText.Foreground = outstanding
+                ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
         }
         if (firstLoad && FindRecordContainer(grid) is ListViewItem container)
             TableRowResizer.Attach(grid, container, _section.Key, row.Record.Id);
@@ -472,8 +529,8 @@ public sealed partial class SectionPage : Page
     }
     private async void Columns_Click(object sender, RoutedEventArgs e)
     {
-        var names = new[] { TitleHeader.Text, "Κωδικός", PartyHeader.Text, "Κατάσταση",
-            "Ημερομηνία", "Πελάτης", "Εγγραφή" };
+        var names = new[] { TitleHeader.Text, "Κωδικός", PartyHeader.Text,
+            StatusHeader.Text, EventHeader.Text, CustomerHeader.Text, CreatedHeader.Text };
         var fields = names.Select((name, index) => new CheckBox
         {
             Content = name, IsChecked = _columnVisible[index], IsEnabled = index != 0
@@ -640,16 +697,23 @@ public sealed partial class SectionPage : Page
 
     private sealed record CustomerChoice(Guid? Id, string Name);
 
-    private sealed record BusinessRecordRow(BusinessRecord Record)
+    private sealed record BusinessRecordRow(BusinessRecord Record,
+        PartnerProfileData? PartnerProfile = null, decimal? PartnerBalance = null)
     {
         public string Title => Record.Title;
         public string? Reference => Record.Reference;
-        public string? RelatedParty => Record.RelatedParty;
-        public string? Status => Record.Status;
-        public string EventDateDisplay => Record.EventDate?.ToString("dd/MM/yyyy") ?? "";
-        public string CustomerName => Record.Customer is null ? "" :
-            $"{Record.Customer.LastName} {Record.Customer.FirstName}";
-        public string CreatedDisplay => Record.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy");
+        public string? RelatedParty => PartnerProfile?.City ?? Record.RelatedParty;
+        public string? Status => PartnerProfile?.PersonType ?? Record.Status;
+        public string EventDateDisplay => PartnerProfile is null
+            ? Record.EventDate?.ToString("dd/MM/yyyy") ?? ""
+            : $"{PartnerBalance.GetValueOrDefault():N2} €";
+        public string CustomerName => PartnerProfile is null
+            ? Record.Customer is null ? "" :
+                $"{Record.Customer.LastName} {Record.Customer.FirstName}"
+            : PartnerProfile.CreditLimit is decimal limit ? $"{limit:N2} €" : "—";
+        public string CreatedDisplay => PartnerProfile is null
+            ? Record.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")
+            : Record.Status ?? "";
         public override string ToString() => Record.Title;
     }
 }

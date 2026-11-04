@@ -19,6 +19,7 @@ public sealed record PartnerSnapshot(IReadOnlyList<PartnerProductionItem> Produc
 public interface IPartnerService
 {
     Task<PartnerSnapshot> GetSnapshotAsync(Guid partnerId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<Guid, decimal>> GetBalancesAsync(CancellationToken cancellationToken = default);
     Task<Guid> AddPayoutAsync(Guid partnerId, decimal amount, string method,
         string? reference, string? description, CancellationToken cancellationToken = default);
     Task<Guid> AddMovementAsync(Guid partnerId, string kind, decimal amount, string method,
@@ -28,6 +29,49 @@ public interface IPartnerService
 public sealed class PartnerService(IApplicationDbContextFactory factory, ISessionService session)
     : IPartnerService
 {
+    public async Task<IReadOnlyDictionary<Guid, decimal>> GetBalancesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        RequireSession();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var partners = await db.BusinessRecords.AsNoTracking()
+            .Where(item => item.SectionKey == "partners").ToListAsync(cancellationToken);
+        var profiles = partners.ToDictionary(item => item.Id,
+            item => PartnerProfileData.Read(item.DetailsJson));
+        var balances = partners.ToDictionary(item => item.Id, _ => 0m);
+        var idsByName = partners.GroupBy(item => item.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Select(item => item.Id).ToArray(),
+                StringComparer.CurrentCultureIgnoreCase);
+        var policies = await db.BusinessRecords.AsNoTracking().Include(item => item.Customer)
+            .Where(item => item.SectionKey == "policies" &&
+                (item.DocumentType == "Ασφαλιστήριο" || item.DocumentType == null))
+            .ToListAsync(cancellationToken);
+        foreach (var policy in policies)
+        {
+            var details = BusinessRecordDetails.Read<PolicyCardData>(policy.DetailsJson);
+            Guid[] partnerIds;
+            if (details.PartnerId is Guid explicitId)
+                partnerIds = profiles.ContainsKey(explicitId) ? [explicitId] : [];
+            else if (policy.Customer?.PartnerName is string name &&
+                     idsByName.TryGetValue(name, out var matching)) partnerIds = matching;
+            else partnerIds = [];
+            foreach (var id in partnerIds)
+            {
+                var rate = details.PartnerCommissionPercent ??
+                    profiles[id].DefaultCommissionPercent ?? 0m;
+                var premium = details.GrossPremium ?? 0m;
+                balances[id] += decimal.Round(premium * rate / 100m, 2,
+                    MidpointRounding.AwayFromZero);
+            }
+        }
+        var payouts = await db.PartnerPayouts.AsNoTracking().ToListAsync(cancellationToken);
+        foreach (var payout in payouts)
+            if (balances.ContainsKey(payout.PartnerId))
+                balances[payout.PartnerId] += payout.Kind == "receipt"
+                    ? payout.Amount : -payout.Amount;
+        return balances;
+    }
+
     public async Task<PartnerSnapshot> GetSnapshotAsync(Guid partnerId,
         CancellationToken cancellationToken = default)
     {
