@@ -19,6 +19,9 @@ public sealed partial class BusinessRecordCardWindow
     private PolicyCardData _policyData = new();
     private CustomerTransaction[] _policyTransactions = [];
     private ComboBox? _policyPartnerChoice;
+    private readonly List<AutoSuggestBox> _policySearchFields = [];
+    private string[] _policyBranchOptions = [];
+    private string[] _policyPackageOptions = [];
     private ComboBox? _policyHolderChoice;
     private ComboBox? _policyDurationChoice;
     private CheckBox? _payInInstallments;
@@ -53,9 +56,56 @@ public sealed partial class BusinessRecordCardWindow
             .Concat(_partnerRecords.Select(item => new Choice(item.Id, item.Title))).ToArray();
         _policyPartnerChoice = new ComboBox { ItemsSource = values,
             DisplayMemberPath = nameof(Choice.Name), Height = 34, MinHeight = 34,
-            HorizontalAlignment = HorizontalAlignment.Stretch };
+            HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _policyPartnerChoice.SelectedItem = values.FirstOrDefault(item => item.Id == data.PartnerId) ?? values[0];
-        panel.Children.Add(CardFieldLayout.CreateRow("Συνεργάτης", _policyPartnerChoice));
+        panel.Children.Add(_policyPartnerChoice);
+        var search = SearchChoice(values, _policyPartnerChoice, "Αναζήτηση συνεργάτη");
+        panel.Children.Add(CardFieldLayout.CreateRow("Συνεργάτης", search));
+    }
+
+    private AutoSuggestBox SearchChoice(Choice[] choices, ComboBox selected, string hint)
+    {
+        var search = new AutoSuggestBox { Text = (selected.SelectedItem as Choice)?.Name ?? "",
+            PlaceholderText = hint, MinHeight = 34,
+            HorizontalAlignment = HorizontalAlignment.Stretch };
+        search.TextChanged += (_, args) =>
+        {
+            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            search.ItemsSource = choices.Select(item => item.Name)
+                .Where(name => name.Contains(search.Text, StringComparison.CurrentCultureIgnoreCase))
+                .Take(30).ToArray();
+            selected.SelectedItem = choices.FirstOrDefault(item =>
+                string.Equals(item.Name, search.Text, StringComparison.CurrentCultureIgnoreCase));
+        };
+        search.SuggestionChosen += (_, args) =>
+        {
+            search.Text = args.SelectedItem as string ?? search.Text;
+            selected.SelectedItem = choices.FirstOrDefault(item => item.Name == search.Text);
+        };
+        _policySearchFields.Add(search);
+        return search;
+    }
+
+    private AutoSuggestBox SearchValue(StackPanel panel, string key, string label,
+        string? initial, IEnumerable<string> choices)
+    {
+        var backing = new TextBox { Text = initial ?? "", Visibility = Visibility.Collapsed };
+        _text[key] = backing;
+        panel.Children.Add(backing);
+        var options = choices.Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
+        var search = new AutoSuggestBox { Text = initial ?? "", PlaceholderText = "Αναζήτηση " + label,
+            MinHeight = 34, HorizontalAlignment = HorizontalAlignment.Stretch };
+        search.TextChanged += (_, args) =>
+        {
+            backing.Text = search.Text;
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+                search.ItemsSource = options.Where(value => value.Contains(search.Text,
+                    StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+        };
+        search.SuggestionChosen += (_, args) => search.Text = args.SelectedItem as string ?? search.Text;
+        _policySearchFields.Add(search);
+        return search;
     }
 
     private void AddPolicyHolderChoice(StackPanel panel, IReadOnlyList<CustomerListItem> customers,
@@ -65,9 +115,23 @@ public sealed partial class BusinessRecordCardWindow
             .Concat(customers.Select(item => new Choice(item.Id, item.FullName))).ToArray();
         _policyHolderChoice = new ComboBox { ItemsSource = values,
             DisplayMemberPath = nameof(Choice.Name), Height = 34, MinHeight = 34,
-            HorizontalAlignment = HorizontalAlignment.Stretch };
+            HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _policyHolderChoice.SelectedItem = values.FirstOrDefault(item => item.Id == data.HolderCustomerId) ?? values[0];
-        panel.Children.Add(CardFieldLayout.CreateRow("Κάτοχος / συμβαλλόμενος", _policyHolderChoice));
+        panel.Children.Add(_policyHolderChoice);
+        panel.Children.Add(CardFieldLayout.CreateRow("Κάτοχος / συμβαλλόμενος",
+            SearchChoice(values, _policyHolderChoice, "Αναζήτηση κατόχου")));
+    }
+
+    private void PolicyCustomerChoice(StackPanel panel, IReadOnlyList<CustomerListItem> customers)
+    {
+        var values = customers.Select(item => new Choice(item.Id,
+            $"{item.FullName} · {item.Code}")).ToArray();
+        _customerChoice = new ComboBox { ItemsSource = values,
+            DisplayMemberPath = nameof(Choice.Name), Visibility = Visibility.Collapsed };
+        _customerChoice.SelectedItem = values.FirstOrDefault(item => item.Id == _record.CustomerId);
+        panel.Children.Add(_customerChoice);
+        panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *",
+            SearchChoice(values, _customerChoice, "Αναζήτηση πελάτη ή κωδικού")));
     }
 
     private void AddPolicyDurationChoice(StackPanel panel, PolicyCardData data)
@@ -157,13 +221,11 @@ public sealed partial class BusinessRecordCardWindow
         AddTab("Αντικείμενα", objects);
 
         var coverage = PolicyPanel();
-        Text(coverage, "coverage", "Καλύψεις / όροι", data.CoverageNotes, multiline: true);
         coverage.Children.Add(BuildPolicyCoveragesEditor());
         AddTab("Καλύψεις", coverage);
 
         BuildPolicyFinanceTab(data);
         BuildPolicyDocumentsTab();
-        BuildPolicyClaimsTab();
         BuildPolicyHistoryTab();
     }
 

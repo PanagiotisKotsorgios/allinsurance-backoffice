@@ -30,12 +30,13 @@ public sealed partial class SectionPage
             "partners" => new FrameworkElement[] { StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter },
             "vehicles" => [StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter, DateRangeFilter],
             "companies" or "agencies" => [StatusFilter, CustomerFilter, CityFilter],
-            "policies" => [StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter, DateRangeFilter],
+            "policies" => [StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter,
+                PolicyCustomerFilter, PolicyPartnerFilter, DateRangeFilter],
             "claims" => [StatusFilter, CustomerFilter, DateRangeFilter],
             _ => [StatusFilter, CustomerFilter, DateRangeFilter]
         };
         foreach (var element in new FrameworkElement[] { StatusFilter, CustomerFilter, CityFilter,
-            PersonTypeFilter, DateRangeFilter })
+            PersonTypeFilter, PolicyCustomerFilter, PolicyPartnerFilter, DateRangeFilter })
             element.Visibility = visible.Contains(element) ? Visibility.Visible : Visibility.Collapsed;
         DateBasisFilter.Visibility = _section.Key == "policies" ? Visibility.Visible : Visibility.Collapsed;
         _visibleFilterCount = visible.Length;
@@ -128,6 +129,9 @@ public sealed partial class SectionPage
                 CustomerFilter.SetOptions(records.Select(item => Policy(item).Branch ?? "Χωρίς κλάδο"));
                 CityFilter.SetOptions(records.Select(item => Policy(item).Insurer ?? "Χωρίς εταιρεία"));
                 PersonTypeFilter.SetOptions(records.Select(item => Policy(item).Agency ?? "Χωρίς πρακτορείο"));
+                PolicyCustomerFilter.SetOptions(records.Select(item => item.Customer is null
+                    ? "Χωρίς πελάτη" : $"{item.Customer.LastName} {item.Customer.FirstName}".Trim()));
+                PolicyPartnerFilter.SetOptions(records.Select(PolicyPartnerName));
                 break;
             case "claims":
                 CustomerFilter.SetOptions(records.Select(item => Workspace(item, "claimType", "Χωρίς είδος"))
@@ -174,7 +178,22 @@ public sealed partial class SectionPage
             "policies" => Policy(item).Agency ?? "Χωρίς πρακτορείο",
             _ => null
         };
-        return fourth is null || PersonTypeFilter.SelectedValues.Contains(fourth);
+        if (fourth is not null && !PersonTypeFilter.SelectedValues.Contains(fourth)) return false;
+        if (_section.Key == "policies")
+        {
+            var customer = item.Customer is null ? "Χωρίς πελάτη" :
+                $"{item.Customer.LastName} {item.Customer.FirstName}".Trim();
+            return PolicyCustomerFilter.SelectedValues.Contains(customer) &&
+                PolicyPartnerFilter.SelectedValues.Contains(PolicyPartnerName(item));
+        }
+        return true;
+    }
+
+    private string PolicyPartnerName(BusinessRecord item)
+    {
+        var partnerId = Policy(item).PartnerId;
+        return partnerId is Guid id && _policyPartnerNames.TryGetValue(id, out var name)
+            ? name : "Χωρίς συνεργάτη";
     }
 
     private DateTime? FilterDate(BusinessRecord item) => _section.Key switch

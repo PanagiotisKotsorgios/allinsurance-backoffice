@@ -21,8 +21,13 @@ public static class ShortcutCatalog
     [
         .. WorkspaceSections.All.Select((section, index) => new ShortcutSpec(
             "section:" + section.Key, section.Title,
-            new ShortcutBinding(index == 9 ? VirtualKey.Number0 : (VirtualKey)((int)VirtualKey.Number1 + index),
-                VirtualKeyModifiers.Control))),
+            section.Key == "renewals"
+                ? new ShortcutBinding(VirtualKey.R,
+                    VirtualKeyModifiers.Control | VirtualKeyModifiers.Shift)
+                : new ShortcutBinding((index > 6 ? index - 1 : index) == 9
+                    ? VirtualKey.Number0
+                    : (VirtualKey)((int)VirtualKey.Number1 + (index > 6 ? index - 1 : index)),
+                    VirtualKeyModifiers.Control))),
         new("users", "Διαχείριση χρηστών", new(VirtualKey.U, VirtualKeyModifiers.Control)),
         new("audit", "Αρχείο ελέγχου", new(VirtualKey.J, VirtualKeyModifiers.Control)),
         new("backups", "Αντίγραφα ασφαλείας", new(VirtualKey.B, VirtualKeyModifiers.Control)),

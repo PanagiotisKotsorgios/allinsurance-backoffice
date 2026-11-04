@@ -53,6 +53,7 @@ public sealed class DatabaseInitializer(
             EnsureCustomerCatalogSeeds(db);
             EnsurePartnerCatalogSeeds(db);
             EnsurePartnerGradeSeeds(db);
+            EnsureInsuranceCatalogSeeds(db);
 
             if (!databaseExisted)
             {
@@ -251,6 +252,77 @@ public sealed class DatabaseInitializer(
                     Value = grades[index], SortOrder = index });
         db.AppMetadata.Add(new AppMetadata { Key = marker, Value = "true" });
         db.SaveChanges();
+    }
+
+    private static void EnsureInsuranceCatalogSeeds(AllInsuranceDbContext db)
+    {
+        const string marker = "insurance_catalog_defaults_v1";
+        if (db.AppMetadata.Any(item => item.Key == marker)) return;
+        var categories = new Dictionary<string, string[]>
+        {
+            ["Κλάδοι"] = ["Αυτοκίνητο", "Πυρός / περιουσίας", "Υγεία", "Ζωή",
+                "Ατυχήματα", "Αστική ευθύνη", "Σκάφη", "Πλοία", "Αεροσκάφη",
+                "Μεταφορές", "Ταξιδιωτική ασφάλιση", "Νομική προστασία"],
+            ["Χρήσεις οχημάτων"] = ["Ε.Ι.Χ. (επιβατικό ιδιωτικής χρήσης)",
+                "Φ.Ι.Χ. (φορτηγό ιδιωτικής χρήσης)", "Φ.Δ.Χ. (φορτηγό δημόσιας χρήσης)",
+                "Ταξί", "Δίκυκλο", "Αγροτικό", "Λεωφορείο", "Ενοικιαζόμενο",
+                "Όχημα σχολής οδηγών", "Μηχάνημα έργου"],
+            ["Καλύψεις"] = ["Αστική ευθύνη για σωματικές βλάβες τρίτων",
+                "Αστική ευθύνη για υλικές ζημιές τρίτων", "Οδική βοήθεια",
+                "Φροντίδα ατυχήματος", "Θραύση κρυστάλλων", "Πυρκαγιά",
+                "Κλοπή ολική", "Κλοπή μερική", "Φυσικά φαινόμενα", "Πλημμύρα",
+                "Σεισμός", "Ίδιες ζημιές", "Νομική προστασία", "Προσωπικό ατύχημα οδηγού",
+                "Ζημιές από ανασφάλιστο όχημα", "Αστική ευθύνη από πυρκαγιά"]
+        };
+        var saved = db.FilterOptions.AsNoTracking().Select(item => new { item.Category, item.Value })
+            .ToList().Select(item => (item.Category, item.Value)).ToHashSet();
+        foreach (var (category, values) in categories)
+            for (var index = 0; index < values.Length; index++)
+                if (!saved.Contains((category, values[index])))
+                    db.FilterOptions.Add(new FilterOption { Id = Guid.NewGuid(), Category = category,
+                        Value = values[index], SortOrder = index });
+
+        // Ενδεικτικός κατάλογος, όχι δήλωση ενεργής συνεργασίας. EAEE member list (2026)
+        // https://www.eaee.gr/wp-content/uploads/2026/02/Παράρτημα-7.pdf
+        var insurers = new[] { "Allianz", "Εθνική Ασφαλιστική", "INTERAMERICAN",
+            "Generali Hellas", "ERGO Ασφαλιστική", "Eurolife FFH", "INTERLIFE",
+            "Groupama", "Ατλαντική Ένωση", "NP Ασφαλιστική" };
+        // Επίσημες σελίδες των φορέων: brokins.gr, insurancemarket.gr,
+        // pricefox.gr, brokersunion.gr, megabrokers.gr.
+        var agencies = new[] { "BROKINS", "Money Market / insurancemarket",
+            "CompareGreece / Pricefox", "Brokers Union", "Mega Brokers" };
+        SeedOrganizations(db, "companies", insurers, "companyType", "Ασφαλιστική εταιρεία", "ΑΣΦ");
+        SeedOrganizations(db, "agencies", agencies, "agencyType", "Πρακτορείο", "ΠΡΑ");
+        db.AppMetadata.Add(new AppMetadata { Key = marker, Value = "true" });
+        db.SaveChanges();
+    }
+
+    private static void SeedOrganizations(AllInsuranceDbContext db, string section,
+        string[] names, string typeField, string type, string prefix)
+    {
+        var existing = db.BusinessRecords.AsNoTracking().Where(item => item.SectionKey == section)
+            .Select(item => item.Title).ToList().ToHashSet(StringComparer.CurrentCultureIgnoreCase);
+        for (var index = 0; index < names.Length; index++)
+        {
+            var name = names[index];
+            if (existing.Contains(name)) continue;
+            db.BusinessRecords.Add(new BusinessRecord
+            {
+                Id = Guid.NewGuid(), SectionKey = section, Title = name,
+                Reference = $"{prefix}-{index + 1:000}", Status = "Ανενεργό",
+                Notes = "Ενδεικτικός κατάλογος. Επιβεβαιώστε τα στοιχεία και τη συνεργασία πριν από χρήση.",
+                DetailsJson = BusinessRecordDetails.Write(new WorkspaceCardData
+                {
+                    Fields = new Dictionary<string, string?>
+                    {
+                        ["title"] = name, ["reference"] = $"{prefix}-{index + 1:000}",
+                        ["status"] = "Ανενεργό", [typeField] = type,
+                        ["origin"] = "Εσωτερικό"
+                    }
+                }),
+                CreatedAtUtc = DateTime.UtcNow, UpdatedAtUtc = DateTime.UtcNow
+            });
+        }
     }
 
     private static void CreateMigrationBackup(string connectionString)

@@ -195,6 +195,13 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                     item.Id == previousId && item.SectionKey == "policies" &&
                     item.CustomerId == record.CustomerId, cancellationToken))
                     throw new ArgumentException("Το προηγούμενο ασφαλιστήριο πρέπει να ανήκει στον ίδιο πελάτη.");
+                var otherPolicies = await db.BusinessRecords.AsNoTracking()
+                    .Where(item => item.SectionKey == "policies" && item.Id != record.Id &&
+                        item.DetailsJson != null)
+                    .Select(item => item.DetailsJson).ToListAsync(cancellationToken);
+                if (otherPolicies.Any(json =>
+                    BusinessRecordDetails.Read<PolicyCardData>(json).PreviousPolicyId == previousId))
+                    throw new ArgumentException("Υπάρχει ήδη ανανέωση για το επιλεγμένο ασφαλιστήριο.");
             }
             if (details.StartDate > details.EndDate || details.CoverageDurationMonths is < 1 or > 60 ||
                 details.InsuredValue is < 0 || details.DiscountPercent is < 0 or > 100 ||

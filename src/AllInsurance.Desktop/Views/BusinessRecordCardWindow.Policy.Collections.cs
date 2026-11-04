@@ -153,15 +153,27 @@ public sealed partial class BusinessRecordCardWindow
 
     private async Task<PolicyCoverage?> EditCoverageAsync(PolicyCoverage? existing)
     {
-        var name = new TextBox { Header = RequiredHeader.Create("Κάλυψη"), Text = existing?.Name ?? "" };
+        var configured = (await _policyFilters.ChoicesAsync("Καλύψεις"))
+            .Concat(existing is null ? [] : [existing.Name])
+            .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
+        var name = new AutoSuggestBox { Header = RequiredHeader.Create("Κάλυψη"),
+            Text = existing?.Name ?? "", PlaceholderText = "Αναζήτηση παραμετρικής κάλυψης" };
+        name.TextChanged += (_, args) =>
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+                name.ItemsSource = configured.Where(value => value.Contains(name.Text,
+                    StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+        };
+        name.SuggestionChosen += (_, args) => name.Text = args.SelectedItem as string ?? name.Text;
         var sum = new TextBox { Header = "Ασφαλισμένο ποσό (€)", Text = existing?.SumInsured?.ToString("N2") ?? "" };
         var deductible = new TextBox { Header = "Απαλλαγή (€)", Text = existing?.Deductible?.ToString("N2") ?? "" };
         var premium = new TextBox { Header = "Ασφάλιστρο κάλυψης (€)", Text = existing?.Premium?.ToString("N2") ?? "" };
         var notes = new TextBox { Header = "Σημειώσεις", Text = existing?.Notes ?? "" };
         if (!await ShowPolicyEditorAsync(existing is null ? "Νέα κάλυψη" : "Επεξεργασία κάλυψης",
             name, sum, deductible, premium, notes)) return null;
-        if (string.IsNullOrWhiteSpace(name.Text))
-        { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Η κάλυψη είναι υποχρεωτική."); return null; }
+        if (!configured.Contains(name.Text.Trim(), StringComparer.CurrentCultureIgnoreCase))
+        { await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+            "Επιλέξτε κάλυψη από τις παραμετρικές τιμές της εφαρμογής."); return null; }
         try { return new PolicyCoverage { Id = existing?.Id ?? Guid.NewGuid(), Name = name.Text.Trim(),
             SumInsured = DecimalValue(sum.Text, "Ασφαλισμένο ποσό"),
             Deductible = DecimalValue(deductible.Text, "Απαλλαγή"),

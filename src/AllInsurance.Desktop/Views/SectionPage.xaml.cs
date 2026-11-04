@@ -28,6 +28,7 @@ public sealed partial class SectionPage : Page
     private string[] _partnerCategories = [];
     private HashSet<Guid> _vehiclesWithActivePolicy = [];
     private Dictionary<Guid, string> _vehicleInsuranceStates = [];
+    private Dictionary<Guid, string> _policyPartnerNames = [];
     private int _requestVersion;
     private BusinessRecordRow[] _filtered = [];
     private readonly int[] _columnOrder = [0, 1, 2, 3, 4, 5, 6];
@@ -63,7 +64,6 @@ public sealed partial class SectionPage : Page
                 catch (Exception exception) { ShowStatus(exception.Message); } });
         ApplyColumnOrder(RecordsHeader);
         AddButton.Label = "Προσθήκη " + Singular(section.Title);
-        RenewalsButton.Visibility = section.Key == "policies" ? Visibility.Visible : Visibility.Collapsed;
         SearchInput.PlaceholderText = section.SearchHint;
         ConfigureFilterBar();
         TitleHeader.Text = section.Columns[0];
@@ -101,6 +101,8 @@ public sealed partial class SectionPage : Page
         CustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         CityFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         PersonTypeFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
+        PolicyCustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
+        PolicyPartnerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         Loaded += (_, _) => UpdateResponsiveLayout(PageContent.ActualWidth);
         Loaded += async (_, _) =>
         {
@@ -127,8 +129,7 @@ public sealed partial class SectionPage : Page
     private void UpdateResponsiveLayout(double width)
     {
         if (FilterBar is null || _visibleFilterCount == 0 || width <= 0) return;
-        var requiredWidth = _visibleFilterCount * 188 + 180 + 230 + 160 +
-            (_section.Key == "policies" ? 155 : 0) + 56;
+        var requiredWidth = _visibleFilterCount * 188 + 180 + 230 + 160 + 56;
         var popup = width < requiredWidth;
         if (popup != _filtersInPopup)
         {
@@ -149,12 +150,10 @@ public sealed partial class SectionPage : Page
         foreach (var filter in FilterBar.Children.OfType<FrameworkElement>())
             filter.Width = popup ? 240 : 180;
         ShowFiltersButton.Visibility = popup ? Visibility.Visible : Visibility.Collapsed;
-        var narrow = width < (_section.Key == "policies" ? 930 : 760);
+        var narrow = width < 760;
         AddButton.IconOnly = narrow;
-        RenewalsButton.IconOnly = narrow;
         DeleteButton.IconOnly = narrow;
         AddButton.Width = narrow ? 44 : 230;
-        RenewalsButton.Width = narrow ? 44 : 155;
         DeleteButton.Width = narrow ? 44 : 160;
         var veryNarrow = width < 480;
         ClearFiltersButton.IconOnly = veryNarrow;
@@ -204,6 +203,12 @@ public sealed partial class SectionPage : Page
                         group.Any(item => item.Record.DocumentType is "Αίτηση" or "Ειδοποιητήριο" ||
                             item.Record.Status == "Σε εξέλιξη") ? "Σε εξέλιξη" :
                         "Χωρίς ενεργό συμβόλαιο");
+            }
+            if (_section.Key == "policies")
+            {
+                _policyPartnerNames = (await _records.SearchAsync("partners"))
+                    .ToDictionary(item => item.Id, item => item.Title);
+                if (version != _requestVersion) return;
             }
             ConfigureFilterOptions(records);
             IEnumerable<BusinessRecord> filtered = records;
@@ -291,6 +296,8 @@ public sealed partial class SectionPage : Page
         CustomerFilter.SelectAll();
         CityFilter.SelectAll();
         PersonTypeFilter.SelectAll();
+        PolicyCustomerFilter.SelectAll();
+        PolicyPartnerFilter.SelectAll();
         if (_section.Key == "policies") DateBasisFilter.SelectedIndex = 0;
         FromFilter.Date = null;
         UntilFilter.Date = null;

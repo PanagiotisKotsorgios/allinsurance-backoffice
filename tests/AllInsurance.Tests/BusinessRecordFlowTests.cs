@@ -69,6 +69,10 @@ public sealed class BusinessRecordFlowTests
             { ApplicationNumber = "RENEW-1", PreviousPolicyId = policyId }) });
         Assert.Equal(policyId, BusinessRecordDetails.Read<PolicyCardData>(
             (await records.GetAsync(renewalId))!.DetailsJson).PreviousPolicyId);
+        await Assert.ThrowsAsync<ArgumentException>(() => records.SaveAsync(new BusinessRecord
+        { SectionKey = "policies", Title = "RENEW-2", CustomerId = customerId,
+            DocumentType = "Αίτηση", DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            { ApplicationNumber = "RENEW-2", PreviousPolicyId = policyId }) }));
         await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(policyId));
     }
 

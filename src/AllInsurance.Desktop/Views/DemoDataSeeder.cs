@@ -51,7 +51,8 @@ internal static class DemoDataSeeder
                 OpeningBalance = 120m, IsActive = false
             });
         }
-        foreach (var section in WorkspaceSections.All.Where(item => item.Key != "customers"))
+        foreach (var section in WorkspaceSections.All.Where(item =>
+            item.Key is not ("customers" or "renewals")))
         {
             if ((await records.SearchAsync(section.Key)).Count != 0) continue;
             for (var index = 1; index <= 2; index++)

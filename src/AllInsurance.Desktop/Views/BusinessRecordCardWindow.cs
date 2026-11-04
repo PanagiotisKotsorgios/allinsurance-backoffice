@@ -43,7 +43,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         new RowDefinition(),
         new RowDefinition { Height = GridLength.Auto }
     } };
-    private readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal, Spacing = 0 };
+    private readonly Grid _tabs = new() { Margin = new Thickness(18, 0, 18, 0) };
     private readonly ContentControl _tabContent = new();
     private readonly List<(Button Button, TextBlock Label, UIElement Content)> _tabItems = [];
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
@@ -123,6 +123,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         {
             var target = Math.Min(1100, Math.Max(600, args.NewSize.Width - 50));
             foreach (var grid in _formGrids) grid.Width = target;
+            LayoutTabs(args.NewSize.Width - 36);
         };
         appWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2,
             area.Y + (area.Height - height) / 2, width, height));
@@ -216,6 +217,11 @@ public sealed partial class BusinessRecordCardWindow : Window
                 : [];
             _policyTransactions = transactions;
             if (_section == "policies") _policyCurrency = await _policySettings.GetCurrencyAsync();
+            if (_section == "policies")
+            {
+                _policyBranchOptions = (await _policyFilters.ChoicesAsync("Κλάδοι")).ToArray();
+                _policyPackageOptions = (await _policyFilters.ChoicesAsync("Πακέτα ασφαλίσεων")).ToArray();
+            }
             _vehicleCustomers = customers;
             _vehiclePolicies = policies;
             _vehicleClaims = claims;
@@ -260,11 +266,8 @@ public sealed partial class BusinessRecordCardWindow : Window
         bannerText.Children.Add(_headerCode);
         banner.Child = bannerText;
         _root.Children.Add(banner);
-        var strip = new ScrollViewer { Content = _tabs, HorizontalScrollBarVisibility =
-            ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Margin = new Thickness(18, 0, 18, 0) };
-        Grid.SetRow(strip, 1);
-        _root.Children.Add(strip);
+        Grid.SetRow(_tabs, 1);
+        _root.Children.Add(_tabs);
         Grid.SetRow(_tabContent, 2);
         _root.Children.Add(_tabContent);
         var footer = new Grid { ColumnDefinitions =
@@ -294,6 +297,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         _root.Children.Add(footer);
         if (_section == "policies") BuildPolicyTabs(customers, vehicles, transactions, companies);
         else BuildVehicleTabs(customers, policies);
+        LayoutTabs(_contentWidth);
         SelectTab(0);
         UpdateConvertButton();
         ApplyEditMode();
@@ -339,6 +343,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             }
         }
         if (_insurerSuggest is not null) _insurerSuggest.IsEnabled = _editing;
+        foreach (var search in _policySearchFields) search.IsEnabled = _editing;
         if (_convertButton is not null) _convertButton.IsEnabled = _editing;
         foreach (var button in _editControls) button.IsEnabled = _editing;
     }
@@ -392,10 +397,30 @@ public sealed partial class BusinessRecordCardWindow : Window
         };
         var (button, label) = CardTabVisual.Create(title, icon, IsDarkTheme());
         button.Click += (_, _) => SelectTab(index);
+        button.HorizontalAlignment = HorizontalAlignment.Stretch;
+        button.MinWidth = 0;
         _tabs.Children.Add(button);
         _tabItems.Add((button, label, new ScrollViewer { Content = content,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto }));
+    }
+
+    private void LayoutTabs(double availableWidth)
+    {
+        if (_tabItems.Count == 0 || availableWidth <= 0) return;
+        var columns = Math.Min(_tabItems.Count, Math.Max(2, (int)(availableWidth / 155)));
+        _tabs.ColumnDefinitions.Clear();
+        _tabs.RowDefinitions.Clear();
+        for (var index = 0; index < columns; index++)
+            _tabs.ColumnDefinitions.Add(new ColumnDefinition {
+                Width = new GridLength(1, GridUnitType.Star) });
+        for (var index = 0; index < (_tabItems.Count + columns - 1) / columns; index++)
+            _tabs.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (var index = 0; index < _tabItems.Count; index++)
+        {
+            Grid.SetRow(_tabItems[index].Button, index / columns);
+            Grid.SetColumn(_tabItems[index].Button, index % columns);
+        }
     }
 
     private void SelectTab(int index)
@@ -517,9 +542,8 @@ public sealed partial class BusinessRecordCardWindow : Window
         var openInsurer = OrganizationLinkButton("companies", () => _insurerSuggest.Text, companies);
         Grid.SetColumn(openInsurer, 1); insurerHost.Children.Add(openInsurer);
         left.Children.Add(CardFieldLayout.CreateRow("Ασφαλιστική εταιρεία", insurerHost));
-        var agencyInput = new TextBox { Text = data.Agency ?? "", Height = 34, MinHeight = 34,
-            FontSize = 13, HorizontalAlignment = HorizontalAlignment.Stretch };
-        _text["agency"] = agencyInput;
+        var agencyInput = SearchValue(left, "agency", "πρακτορείου", data.Agency,
+            _agencyRecords.Select(item => item.Title));
         var agencyHost = new Grid { ColumnSpacing = 4,
             ColumnDefinitions = { new ColumnDefinition(),
                 new ColumnDefinition { Width = GridLength.Auto } } };
@@ -528,9 +552,11 @@ public sealed partial class BusinessRecordCardWindow : Window
         Grid.SetColumn(openAgency, 1); agencyHost.Children.Add(openAgency);
         left.Children.Add(CardFieldLayout.CreateRow("Πρακτορείο", agencyHost));
         AddPolicyPartnerChoice(left, data);
-        Text(left, "branch", "Κλάδος", data.Branch);
-        Text(left, "product", "Προϊόν / πακέτο", data.Product);
-        CustomerChoice(right, customers);
+        left.Children.Add(CardFieldLayout.CreateRow("Κλάδος",
+            SearchValue(left, "branch", "κλάδου", data.Branch, _policyBranchOptions)));
+        left.Children.Add(CardFieldLayout.CreateRow("Προϊόν / πακέτο",
+            SearchValue(left, "product", "πακέτου", data.Product, _policyPackageOptions)));
+        PolicyCustomerChoice(right, customers);
         AddPolicyHolderChoice(right, customers, data);
         Choice[] VehicleItems(Guid? customerId) =>
             [new Choice(null, "Χωρίς όχημα"),
@@ -698,7 +724,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                     DiscountReason = Value("discountreason"),
                     PreviousInsurer = Value("previousinsurer"), RenewalNotes = Value("renewalnotes"),
                     PayInInstallments = _payInInstallments?.IsChecked == true,
-                    CoverageNotes = Value("coverage"),
+                    CoverageNotes = _policyData.CoverageNotes,
                     Coverages = _policyData.Coverages,
                     InsuredObjects = _policyData.InsuredObjects,
                     Endorsements = _policyData.Endorsements,

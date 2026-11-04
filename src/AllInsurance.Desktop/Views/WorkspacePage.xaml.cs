@@ -321,6 +321,7 @@ public sealed partial class WorkspacePage : Page
     private static Page CreateSectionPage(WorkspaceSection section) => section.Key switch
     {
         "customers" => new CustomersPage(),
+        "renewals" => new RenewalsPage(),
         "updates" => new CommunicationsPage(),
         "reports" => new ReportsPage(),
         "bridges" => new CompanyBridgesPage(),
