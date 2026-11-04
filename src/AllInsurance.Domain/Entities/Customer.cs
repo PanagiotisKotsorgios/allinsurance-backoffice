@@ -27,6 +27,7 @@ public sealed class Customer
     public string? SpouseName { get; set; }
     public string? HomePhone { get; set; }
     public string? SecondMobile { get; set; }
+    public string? ThirdMobile { get; set; }
     public string? InsuranceRegistry { get; set; }
     public string? LegalForm { get; set; }
     public string? BusinessActivityCode { get; set; }

@@ -18,12 +18,20 @@ internal static class ResizableNoteField
         host.Children.Add(new TextBlock { Text = "◢", FontSize = 14,
             HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
             Margin = new Thickness(0, 0, 5, 3), IsHitTestVisible = false });
-        ToolTipService.SetToolTip(grip, "Σύρετε για αλλαγή ύψους σημειώσεων");
+        ToolTipService.SetToolTip(grip, "Σύρετε για αλλαγή πλάτους και ύψους σημειώσεων");
         grip.DragDelta += (_, args) =>
         {
             var height = Math.Clamp(host.Height + args.VerticalChange, 72, 500);
             host.Height = height;
             input.Height = height;
+            if (Math.Abs(args.HorizontalChange) > 0.5)
+            {
+                var available = (host.Parent as Grid)?.ActualWidth - 155 ?? host.ActualWidth;
+                var maxWidth = Math.Max(250, available);
+                var current = double.IsNaN(host.Width) ? host.ActualWidth : host.Width;
+                host.Width = Math.Clamp(current + args.HorizontalChange, 250, maxWidth);
+                host.HorizontalAlignment = HorizontalAlignment.Left;
+            }
         };
         host.Children.Add(grip);
         return host;

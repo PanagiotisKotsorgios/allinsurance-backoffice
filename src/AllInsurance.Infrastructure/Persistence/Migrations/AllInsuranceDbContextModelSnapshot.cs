@@ -438,6 +438,10 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<string>("ThirdEmail")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ThirdMobile")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ThirdPhone")
                         .HasColumnType("TEXT");
 

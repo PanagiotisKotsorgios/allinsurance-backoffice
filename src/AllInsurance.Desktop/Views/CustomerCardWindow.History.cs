@@ -20,9 +20,9 @@ public sealed partial class CustomerCardWindow
             ItemWidth = 205, ItemHeight = 46 };
         var action = new ComboBox { Width = 195, Height = 40, SelectedIndex = 0 };
         action.Items.Add("Όλες οι ενέργειες");
-        var from = new CalendarDatePicker { Width = 195, Height = 40,
+        var from = new EditableDateInput { Width = 195, Height = 40,
             PlaceholderText = "Από ημερομηνία" };
-        var until = new CalendarDatePicker { Width = 195, Height = 40,
+        var until = new EditableDateInput { Width = 195, Height = 40,
             PlaceholderText = "Έως ημερομηνία" };
         filters.Children.Add(action);
         filters.Children.Add(from);

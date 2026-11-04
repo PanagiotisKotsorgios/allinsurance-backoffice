@@ -43,6 +43,7 @@ internal static class CustomerActivityLog
         nameof(Customer.SpouseName) => "σύζυγος / σύντροφος",
         nameof(Customer.HomePhone) => "τηλέφωνο",
         nameof(Customer.SecondMobile) => "δεύτερο κινητό",
+        nameof(Customer.ThirdMobile) => "τρίτο κινητό",
         nameof(Customer.InsuranceRegistry) => "ασφαλιστικό μητρώο",
         nameof(Customer.LegalForm) => "νομική μορφή",
         nameof(Customer.BusinessActivityCode) => "ΚΑΔ",

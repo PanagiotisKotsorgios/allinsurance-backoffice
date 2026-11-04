@@ -33,6 +33,7 @@ public sealed class CustomerFlowTests
         {
             LastName = "Παπαδόπουλος", FirstName = "Νίκος",
             TaxNumber = "123456789", PrimaryMobile = "6900000000",
+            ThirdMobile = "6970000000",
             OpeningBalance = 100m, City = "Πάτρα", CustomerKind = "Φυσικό πρόσωπο",
             HomePhone = "2610000000", MaritalStatus = "Έγγαμος", Source = "Σύσταση",
             PassportNumber = "AA123456", Zone = "Αιτωλοακαρνανία", HasDrivingLicense = true
@@ -43,8 +44,10 @@ public sealed class CustomerFlowTests
         Assert.Equal("Πάτρα", loaded.City);
         Assert.Equal("Έγγαμος", loaded.MaritalStatus);
         Assert.Equal("AA123456", loaded.PassportNumber);
+        Assert.Equal("6970000000", loaded.ThirdMobile);
         Assert.True(loaded.HasDrivingLicense);
         Assert.Contains("2610000000", (await service.SearchAsync()).Single().SearchText);
+        Assert.Contains("6970000000", (await service.SearchAsync()).Single().SearchText);
         Assert.Equal(100m, CustomerService.Balance(loaded));
         Assert.Single(await service.SearchAsync("123456789"));
         Assert.Single(await service.SearchAsync("Πάτρα"));

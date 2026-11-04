@@ -56,7 +56,7 @@ public sealed partial class PartnerCardWindow : Window
     private readonly List<(Button Button, TextBlock Label, UIElement Content)> _tabs = [];
     private readonly Dictionary<string, TextBox> _text = [];
     private readonly Dictionary<string, ComboBox> _choice = [];
-    private readonly Dictionary<string, CalendarDatePicker> _date = [];
+    private readonly Dictionary<string, EditableDateInput> _date = [];
     private readonly Dictionary<string, CheckBox> _check = [];
     private readonly Dictionary<string, AutoSuggestBox> _suggest = [];
     private readonly List<Grid> _formGrids = [];
@@ -297,9 +297,9 @@ public sealed partial class PartnerCardWindow : Window
         return field;
     }
 
-    private CalendarDatePicker Date(StackPanel panel, string key, string label, DateTime? value)
+    private EditableDateInput Date(StackPanel panel, string key, string label, DateTime? value)
     {
-        var field = new CalendarDatePicker {
+        var field = new EditableDateInput {
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
             MinHeight = 36, Height = 36, IsEnabled = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -335,7 +335,7 @@ public sealed partial class PartnerCardWindow : Window
     private string Val(string key) => _text[key].Text.Trim();
     private string? Optional(string key) => string.IsNullOrWhiteSpace(Val(key)) ? null : Val(key);
     private string? Selected(string key) => _choice[key].SelectedItem as string is { Length: > 0 } value ? value : null;
-    private DateTime? Day(string key) => _date[key].Date?.Date;
+    private DateTime? Day(string key) => _date[key].GetValidatedDate(key);
     private bool Checked(string key) => _check[key].IsChecked == true;
     private string? Suggested(string key) => string.IsNullOrWhiteSpace(_suggest[key].Text)
         ? null : _suggest[key].Text.Trim();

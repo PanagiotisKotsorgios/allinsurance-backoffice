@@ -310,14 +310,21 @@ public sealed partial class CustomerCardWindow : Window
             ItemsSource = category == "policies"
                 ? new[] { "Όλα", "Σε εξέλιξη", "Ενεργά", "Ιστορικά", "Αιτήσεις", "Ειδοποιητήρια", "Ασφαλιστήρια" }
                 : new[] { "Όλα", "Ενεργά", "Ανενεργά" }, SelectedIndex = 0 };
-        var fromFilter = new CalendarDatePicker { Width = 195, Height = 38,
+        var dateBasis = new ComboBox { Width = 195, Height = 38,
+            ItemsSource = new[] { "Ημ. έναρξης", "Ημ. έκδοσης" }, SelectedIndex = 0 };
+        var fromFilter = new EditableDateInput { Width = 195, Height = 38,
             PlaceholderText = "Από ημερομηνία" };
-        var untilFilter = new CalendarDatePicker { Width = 195, Height = 38,
+        var untilFilter = new EditableDateInput { Width = 195, Height = 38,
             PlaceholderText = "Έως ημερομηνία" };
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 205, ItemHeight = 42 };
-        foreach (var field in new UIElement[] { stateFilter, fromFilter, untilFilter })
-            filters.Children.Add(field);
+        filters.Children.Add(stateFilter);
+        if (category == "policies")
+        {
+            filters.Children.Add(dateBasis);
+            filters.Children.Add(fromFilter);
+            filters.Children.Add(untilFilter);
+        }
         var filterGroup = new StackPanel { Spacing = 7 };
         filterGroup.Children.Add(SearchFieldVisual.Wrap(search));
         filterGroup.Children.Add(filters);
@@ -383,12 +390,14 @@ public sealed partial class CustomerCardWindow : Window
         void refresh()
         {
             FillDetailList(list, category, search.Text,
-                stateFilter.SelectedIndex, fromFilter.Date?.Date, untilFilter.Date?.Date);
+                stateFilter.SelectedIndex, fromFilter.Date?.Date, untilFilter.Date?.Date,
+                dateBasis.SelectedIndex);
             pager.Capture();
             applyColumnLayout();
         }
         search.TextChanged += (_, _) => refresh();
         stateFilter.SelectionChanged += (_, _) => refresh();
+        dateBasis.SelectionChanged += (_, _) => refresh();
         fromFilter.DateChanged += (_, _) => refresh();
         untilFilter.DateChanged += (_, _) => refresh();
         refresh();
@@ -400,10 +409,12 @@ public sealed partial class CustomerCardWindow : Window
     }
 
     private void FillDetailList(ListView list, string category, string query,
-        int state, DateTime? from, DateTime? until)
+        int state, DateTime? from, DateTime? until, int dateBasis)
     {
         list.Items.Clear();
         var term = query.Trim();
+        DateTime DetailDate(CustomerDetail item) => dateBasis == 0
+            ? item.EffectiveFrom ?? item.CreatedAtUtc.Date : item.CreatedAtUtc.Date;
         var details = _customer.Details.Where(item => item.Category == category)
             .Where(item => term.Length == 0 || new[] { item.Title, item.Value, item.Notes }
                 .Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true))
@@ -411,8 +422,8 @@ public sealed partial class CustomerCardWindow : Window
                 (state == 1 && !item.IsHistorical) ||
                 (category == "policies" && state == 2 && !item.IsHistorical) ||
                 (state == (category == "policies" ? 3 : 2) && item.IsHistorical))
-            .Where(item => !from.HasValue || item.EffectiveFrom >= from || item.CreatedAtUtc.Date >= from)
-            .Where(item => !until.HasValue || item.EffectiveFrom <= until || item.CreatedAtUtc.Date <= until)
+            .Where(item => !from.HasValue || DetailDate(item) >= from.Value)
+            .Where(item => !until.HasValue || DetailDate(item) <= until.Value)
             .OrderByDescending(item => item.CreatedAtUtc);
         foreach (var item in details)
             list.Items.Add(DetailListItem(category, item, item.Title, item.Value, item.Notes,
@@ -434,14 +445,22 @@ public sealed partial class CustomerCardWindow : Window
                 6 => item.DocumentType == "Ασφαλιστήριο",
                 _ => true
             } : state == 1 ? item.Status == "Ενεργό" : item.Status == "Ανενεργό"))
-            .Where(item => !from.HasValue || item.EventDate >= from || item.CreatedAtUtc.Date >= from)
-            .Where(item => !until.HasValue || item.EventDate <= until || item.CreatedAtUtc.Date <= until)
+            .Where(item => !from.HasValue || FilterDate(item, category, dateBasis) >= from)
+            .Where(item => !until.HasValue || FilterDate(item, category, dateBasis) <= until)
             .OrderByDescending(item => item.CreatedAtUtc);
         foreach (var item in linked)
             list.Items.Add(DetailListItem(category, item, item.Title,
                 category == "policies" ? item.DocumentType ?? "Ασφαλιστήριο" : item.Reference,
                 item.RelatedParty ?? item.Notes, item.EventDate?.ToString("dd/MM/yyyy"),
                 null, item.Status));
+    }
+
+    private static DateTime FilterDate(BusinessRecord record, string category, int dateBasis)
+    {
+        if (category != "policies") return record.EventDate ?? record.CreatedAtUtc.Date;
+        var policy = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson);
+        return (dateBasis == 0 ? policy.StartDate : policy.IssueDate) ??
+            record.EventDate ?? record.CreatedAtUtc.Date;
     }
 
     private ListViewItem DetailListItem(string category, object source, params string?[] cells)
@@ -557,13 +576,18 @@ public sealed partial class CustomerCardWindow : Window
         var value = new TextBox { Header = "Τιμή / αριθμός / στοιχεία", Text = existing?.Value ?? "" };
         var notes = new TextBox { Header = "Σημειώσεις", AcceptsReturn = true, Height = 90,
             Text = existing?.Notes ?? "" };
-        var from = new CalendarDatePicker { Header = "Από",
+        var from = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = existing?.EffectiveFrom is DateTime start ? new DateTimeOffset(start) : null };
-        var until = new CalendarDatePicker { Header = "Έως",
+        var until = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = existing?.EffectiveUntil is DateTime end ? new DateTimeOffset(end) : null };
         var historical = new CheckBox { Content = "Ιστορική καταχώριση", IsChecked = existing?.IsHistorical ?? false };
         var form = new StackPanel { Spacing = 10, Width = 460 };
-        foreach (var field in new UIElement[] { title, value, notes, from, until, historical }) form.Children.Add(field);
+        foreach (var field in new UIElement[] { title, value, notes }) form.Children.Add(field);
+        form.Children.Add(new TextBlock { Text = "Από" });
+        form.Children.Add(from);
+        form.Children.Add(new TextBlock { Text = "Έως" });
+        form.Children.Add(until);
+        form.Children.Add(historical);
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
             Title = existing is null ? "Προσθήκη στοιχείου" : "Επεξεργασία στοιχείου",
             Content = new ScrollViewer { Content = form, MaxHeight = 460 },
@@ -573,10 +597,10 @@ public sealed partial class CustomerCardWindow : Window
         {
             if (existing is null)
                 await _service.AddDetailAsync(_customer.Id, category, title.Text, value.Text, notes.Text,
-                    from.Date?.Date, until.Date?.Date, historical.IsChecked == true);
+                    from.GetValidatedDate("Από"), until.GetValidatedDate("Έως"), historical.IsChecked == true);
             else
                 await _service.UpdateDetailAsync(_customer.Id, existing.Id, title.Text, value.Text, notes.Text,
-                    from.Date?.Date, until.Date?.Date, historical.IsChecked == true);
+                    from.GetValidatedDate("Από"), until.GetValidatedDate("Έως"), historical.IsChecked == true);
             _customer = await _service.GetAsync(_customer.Id) ?? _customer;
             BuildTabs();
             SelectTab(category);
@@ -821,10 +845,26 @@ public sealed partial class CustomerCardWindow : Window
 
     private CheckBox AddBool(StackPanel form, string label, Func<bool> getter, Action<bool> setter)
     {
-        var input = new CheckBox { IsChecked = getter(), IsEnabled = _editing,
+        var checkedValue = getter();
+        var input = new CheckBox { IsChecked = checkedValue, IsEnabled = _editing,
             MinHeight = 28, Height = 28 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
-        form.Children.Add(CreateFieldRow(label, input));
+        if (_editing) form.Children.Add(CreateFieldRow(label, input));
+        else
+        {
+            var mark = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Background = new SolidColorBrush(checkedValue
+                    ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115)),
+                Child = new TextBlock { Text = checkedValue ? "✓" : "",
+                    Foreground = new SolidColorBrush(Colors.White), FontSize = 16,
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center } };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mark,
+                label + (checkedValue ? ": Ναι" : ": Όχι"));
+            form.Children.Add(CreateFieldRow(label, mark));
+        }
         _readFields.Add(() => setter(input.IsChecked == true));
         return input;
     }
@@ -869,15 +909,15 @@ public sealed partial class CustomerCardWindow : Window
         catch (Exception exception) { _status.Text = exception.Message; }
     }
 
-    private CalendarDatePicker AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)
+    private EditableDateInput AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)
     {
-        var input = new CalendarDatePicker { PlaceholderText = "Επιλέξτε ημερομηνία",
+        var input = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             MinHeight = 32, Height = 32,
             Date = getter() is DateTime value ? new DateTimeOffset(value) : null,
             IsEnabled = _editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
-        _readFields.Add(() => setter(input.Date?.Date));
+        _readFields.Add(() => setter(input.GetValidatedDate(label)));
         return input;
     }
 

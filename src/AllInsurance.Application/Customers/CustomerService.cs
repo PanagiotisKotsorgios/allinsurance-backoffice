@@ -59,7 +59,7 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             Currency = currency,
             SearchText = string.Join(' ', new[] { customer.LastName, customer.FirstName,
                 customer.CompanyName, customer.TaxNumber, customer.PrimaryMobile,
-                customer.HomePhone, customer.SecondMobile, customer.SecondPhone,
+                customer.HomePhone, customer.SecondMobile, customer.ThirdMobile, customer.SecondPhone,
                 customer.ThirdPhone, customer.PrimaryEmail, customer.SecondEmail,
                 customer.ThirdEmail, customer.BusinessEmail, customer.BusinessPhone,
                 customer.PrimaryAddress, customer.City, customer.Region,

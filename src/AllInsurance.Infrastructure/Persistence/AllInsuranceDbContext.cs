@@ -143,6 +143,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(customer => customer.SpouseName).HasMaxLength(160);
             entity.Property(customer => customer.HomePhone).HasMaxLength(40);
             entity.Property(customer => customer.SecondMobile).HasMaxLength(40);
+            entity.Property(customer => customer.ThirdMobile).HasMaxLength(40);
             entity.Property(customer => customer.InsuranceRegistry).HasMaxLength(80);
             entity.Property(customer => customer.LegalForm).HasMaxLength(100);
             entity.Property(customer => customer.BusinessActivityCode).HasMaxLength(80);
