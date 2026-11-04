@@ -918,6 +918,7 @@ public sealed partial class CustomerCardWindow : Window
             SelectedItem = options.Contains(getter()) ? getter() : options[0] };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
+        WireChoiceTransfer(form, input);
         _readFields.Add(() => setter(input.SelectedItem as string ?? options[0]));
     }
 
@@ -929,6 +930,7 @@ public sealed partial class CustomerCardWindow : Window
             PlaceholderText = "Επιλέξτε", HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
+        WireChoiceTransfer(form, input);
         _readFields.Add(() => setter(input.SelectedItem as string ?? selected));
         _ = LoadCatalogChoicesAsync(input, category, selected);
         return input;
@@ -947,6 +949,35 @@ public sealed partial class CustomerCardWindow : Window
             input.SelectedItem = selected;
         }
         catch (Exception exception) { _status.Text = exception.Message; }
+    }
+
+    private void WireChoiceTransfer(StackPanel form, ComboBox input)
+    {
+        if (!_editing)
+        {
+            var row = (Grid)form.Children[^1];
+            row.CanDrag = true;
+            row.DragStarting += (_, args) =>
+            {
+                if (input.SelectedItem is string value) args.Data.SetText(value);
+            };
+            return;
+        }
+        input.AllowDrop = true;
+        input.DragOver += (_, args) =>
+        {
+            if (args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+                args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+        };
+        input.Drop += async (_, args) =>
+        {
+            var value = await args.DataView.GetTextAsync();
+            var match = input.Items.OfType<string>().FirstOrDefault(item =>
+                string.Equals(item, value, StringComparison.CurrentCultureIgnoreCase));
+            if (match is not null) input.SelectedItem = match;
+            else await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+                "Η τιμή δεν υπάρχει στις επιλογές αυτού του πεδίου.");
+        };
     }
 
     private EditableDateInput AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)

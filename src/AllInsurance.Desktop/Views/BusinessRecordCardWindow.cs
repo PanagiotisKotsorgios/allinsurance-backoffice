@@ -555,11 +555,13 @@ public sealed partial class BusinessRecordCardWindow : Window
         Grid.SetColumn(openAgency, 1); agencyHost.Children.Add(openAgency);
         left.Children.Add(CardFieldLayout.CreateRow("Πρακτορείο", agencyHost));
         AddPolicyPartnerChoice(left, data);
+        AddPartnerLink(left);
         left.Children.Add(CardFieldLayout.CreateRow("Κλάδος",
             SearchValue(left, "branch", "κλάδου", data.Branch, _policyBranchOptions)));
         left.Children.Add(CardFieldLayout.CreateRow("Προϊόν / πακέτο",
             SearchValue(left, "product", "πακέτου", data.Product, _policyPackageOptions)));
         PolicyCustomerChoice(right, customers);
+        AddCustomerLink(right);
         AddPolicyHolderChoice(right, customers, data);
         Choice[] VehicleItems(Guid? customerId) =>
             [new Choice(null, "Χωρίς όχημα"),
@@ -613,6 +615,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         extraLeft.Spacing = 5;
         extraRight.Spacing = 5;
         CustomerChoice(left, customers);
+        AddCustomerLink(left);
         var registration = Text(left, "registration", "Αριθμός κυκλοφορίας *", data.Registration);
         var plateWarningOpen = false;
         registration.BeforeTextChanging += (_, args) =>

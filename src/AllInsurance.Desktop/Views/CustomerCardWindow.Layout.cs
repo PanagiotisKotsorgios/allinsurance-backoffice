@@ -176,6 +176,13 @@ public sealed partial class CustomerCardWindow
         }
         var input = new AutoSuggestBox { Text = _customer.City ?? "", MinHeight = 38, Height = 38,
             PlaceholderText = "Αναζήτηση πόλης από τον κατάλογο" };
+        input.AllowDrop = true;
+        input.DragOver += (_, args) =>
+        {
+            if (args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+                args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+        };
+        input.Drop += async (_, args) => input.Text = await args.DataView.GetTextAsync();
         panel.Children.Add(CreateFieldRow("Πόλη", input));
         _readFields.Add(() =>
         {
