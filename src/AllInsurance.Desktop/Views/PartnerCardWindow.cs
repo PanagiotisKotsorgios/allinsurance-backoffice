@@ -111,6 +111,7 @@ public sealed partial class PartnerCardWindow : Window
 
     public void BringToFront()
     {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "partner-card");
         var handle = WindowNative.GetWindowHandle(this);
         SetWindowOwner(handle, -8, App.MainWindowHandle());
         Activate();

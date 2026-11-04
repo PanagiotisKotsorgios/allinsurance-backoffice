@@ -135,6 +135,7 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     public void BringToFront()
     {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", _section + "-card");
         var handle = WindowNative.GetWindowHandle(this);
         SetWindowOwner(handle, -8, _ownerHandle);
         Activate();

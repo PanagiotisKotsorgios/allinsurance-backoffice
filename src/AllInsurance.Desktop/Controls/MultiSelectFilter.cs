@@ -40,6 +40,7 @@ public sealed class MultiSelectFilter : ActionButton
             foreach (var item in args.RemovedItems.OfType<string>()) _selected.Remove(item);
             _selectNewOptions = _options.Length > 0 && _selected.Count == _options.Length;
             UpdateLabel();
+            AllInsurance.Desktop.Logging.UiAuditRecorder.Record("FILTER_CHANGED", $"{_title}: {_selected.Count}/{_options.Length}");
             SelectionChanged?.Invoke(this, EventArgs.Empty);
         };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -78,6 +79,8 @@ public sealed class MultiSelectFilter : ActionButton
         _selected.UnionWith(values);
         Render();
         UpdateLabel();
+        if (_initialized)
+            AllInsurance.Desktop.Logging.UiAuditRecorder.Record("FILTER_CHANGED", $"{_title}: {_selected.Count}/{_options.Length}");
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
 

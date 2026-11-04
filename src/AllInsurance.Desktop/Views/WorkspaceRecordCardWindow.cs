@@ -113,6 +113,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
 
     public void BringToFront()
     {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", _section.Key + "-card");
         var handle = WindowNative.GetWindowHandle(this);
         SetWindowOwner(handle, -8, _ownerHandle);
         Activate();

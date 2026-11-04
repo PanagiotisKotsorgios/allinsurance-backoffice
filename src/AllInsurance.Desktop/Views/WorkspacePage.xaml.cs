@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI;
 
@@ -22,6 +23,8 @@ public sealed partial class WorkspacePage : Page
     private readonly DispatcherTimer _databaseTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly List<TextBlock> _sidebarLabels = [];
     private readonly List<ToolTip> _sidebarTooltips = [];
+    private readonly List<(string ActionId, MenuFlyoutItem Item)> _navigationShortcuts = [];
+    private AllInsurance.Desktop.Logging.BackupScheduler? _backupScheduler;
 
     public WorkspacePage()
     {
@@ -38,16 +41,24 @@ public sealed partial class WorkspacePage : Page
         BackupMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
         ErrorLogMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
         CommissionMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
+        if (_session.Current.Permissions.Contains(Permission.ManageUsers))
+        {
+            _backupScheduler = new AllInsurance.Desktop.Logging.BackupScheduler(
+                App.Services.GetRequiredService<AllInsurance.Application.Backups.IBackupService>());
+            Unloaded += (_, _) => _backupScheduler?.Dispose();
+        }
         SessionText.Text = $"Συνεδρία: {_session.Current.DisplayName} ({_session.Current.Username})";
 
         for (var index = 0; index < WorkspaceSections.All.Count; index++)
         {
             var section = WorkspaceSections.All[index];
             var sectionKey = section.Key;
-            var shortcut = $"Ctrl+{(index + 1) % 10}";
+            var actionId = "section:" + section.Key;
+            var shortcut = _preferences.GetShortcut(actionId)?.Display ?? "";
             var menuItem = new MenuFlyoutItem { Text = $"{section.Title}      {shortcut}" };
             menuItem.Click += (_, _) => NavigateToSection(sectionKey);
             NavigationMenu.Items.Add(menuItem);
+            _navigationShortcuts.Add((actionId, menuItem));
             var label = new TextBlock
             {
                 Text = section.Title,
@@ -104,6 +115,8 @@ public sealed partial class WorkspacePage : Page
         };
         SectionHost.Content = new CustomersPage();
         RegisterShortcuts();
+        _preferences.ShortcutsChanged += Preferences_ShortcutsChanged;
+        Unloaded += (_, _) => _preferences.ShortcutsChanged -= Preferences_ShortcutsChanged;
         _databaseTimer.Tick += async (_, _) => await RefreshDatabaseStatusAsync();
         Loaded += async (_, _) =>
         {
@@ -170,27 +183,41 @@ public sealed partial class WorkspacePage : Page
 
     private void RegisterShortcuts()
     {
-        var keys = new[]
+        RootGrid.KeyboardAccelerators.Clear();
+        foreach (var spec in ShortcutCatalog.All)
         {
-            VirtualKey.Number1, VirtualKey.Number2, VirtualKey.Number3, VirtualKey.Number4,
-            VirtualKey.Number5, VirtualKey.Number6, VirtualKey.Number7, VirtualKey.Number8,
-            VirtualKey.Number9, VirtualKey.Number0
-        };
-        for (var index = 0; index < keys.Length; index++)
-        {
-            var sectionKey = WorkspaceSections.All[index].Key;
-            AddShortcut(keys[index], VirtualKeyModifiers.Control, () => NavigateToSection(sectionKey));
+            var binding = _preferences.GetShortcut(spec.Id);
+            if (binding is null) continue;
+            AddShortcut(binding.Key, binding.Modifiers, () => ExecuteShortcut(spec.Id));
         }
+    }
 
-        AddShortcut(VirtualKey.U, VirtualKeyModifiers.Control, ShowUsers);
-        AddShortcut(VirtualKey.J, VirtualKeyModifiers.Control, ShowAudit);
-        AddShortcut(VirtualKey.B, VirtualKeyModifiers.Control, ShowBackups);
-        AddShortcut(VirtualKey.L, VirtualKeyModifiers.Control, ShowErrorLog);
-        AddShortcut(VirtualKey.K, VirtualKeyModifiers.Control, ShowShortcuts);
-        AddShortcut(VirtualKey.S, VirtualKeyModifiers.Control, ShowSettings);
-        AddShortcut(VirtualKey.F1, (VirtualKeyModifiers)0, () => _ = ShowInformationAsync(
-            "Οδηγός χρήσης", "Επιλέξτε ενότητα από το αριστερό μενού ή χρησιμοποιήστε τις συντομεύσεις πληκτρολογίου."));
-        AddShortcut(VirtualKey.Q, VirtualKeyModifiers.Control | VirtualKeyModifiers.Shift, SignOut);
+    private void Preferences_ShortcutsChanged(object? sender, EventArgs e)
+    {
+        RegisterShortcuts();
+        foreach (var (actionId, item) in _navigationShortcuts)
+            item.Text = WorkspaceSections.All.First(section => "section:" + section.Key == actionId).Title +
+                "      " + (_preferences.GetShortcut(actionId)?.Display ?? "");
+    }
+
+    private void ExecuteShortcut(string actionId)
+    {
+        if (actionId.StartsWith("section:", StringComparison.Ordinal))
+        {
+            NavigateToSection(actionId["section:".Length..]);
+            return;
+        }
+        switch (actionId)
+        {
+            case "users": ShowUsers(); break;
+            case "audit": ShowAudit(); break;
+            case "backups": ShowBackups(); break;
+            case "errors": ShowErrorLog(); break;
+            case "shortcuts": ShowShortcuts(); break;
+            case "settings": ShowSettings(); break;
+            case "guide": _ = ShowGuideAsync(); break;
+            case "signout": SignOut(); break;
+        }
     }
 
     private void AddShortcut(VirtualKey key, VirtualKeyModifiers modifiers, Action action)
@@ -198,7 +225,7 @@ public sealed partial class WorkspacePage : Page
         var shortcut = new KeyboardAccelerator { Key = key, Modifiers = modifiers };
         shortcut.Invoked += (_, args) =>
         {
-            if (!_preferences.ShortcutsEnabled)
+            if (!_preferences.ShortcutsEnabled || ShortcutCapture.IsCapturing)
             {
                 return;
             }
@@ -211,6 +238,7 @@ public sealed partial class WorkspacePage : Page
 
     private void NavigateToSection(string key)
     {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", key);
         var section = WorkspaceSections.All.First(candidate => candidate.Key == key);
         var item = MainNavigation.MenuItems.OfType<NavigationViewItem>()
             .First(candidate => candidate.Tag is string itemKey && itemKey == key);
@@ -228,6 +256,7 @@ public sealed partial class WorkspacePage : Page
         var section = WorkspaceSections.All.FirstOrDefault(candidate => candidate.Key == key);
         if (section is not null)
         {
+            AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", key);
             SectionHost.Content = CreateSectionPage(section);
         }
     }
@@ -236,6 +265,7 @@ public sealed partial class WorkspacePage : Page
     {
         if (UsersMenuItem.IsEnabled)
         {
+            AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "users");
             MainNavigation.SelectedItem = null;
             SectionHost.Content = new UserManagementPage();
         }
@@ -245,6 +275,7 @@ public sealed partial class WorkspacePage : Page
     {
         if (AuditMenuItem.IsEnabled)
         {
+            AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "audit");
             MainNavigation.SelectedItem = null;
             SectionHost.Content = new AuditLogPage();
         }
@@ -253,6 +284,7 @@ public sealed partial class WorkspacePage : Page
     private void ShowBackups()
     {
         if (!BackupMenuItem.IsEnabled) return;
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "backups");
         MainNavigation.SelectedItem = null;
         SectionHost.Content = new BackupPage();
     }
@@ -260,6 +292,7 @@ public sealed partial class WorkspacePage : Page
     private void ShowErrorLog()
     {
         if (!ErrorLogMenuItem.IsEnabled) return;
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "errors");
         MainNavigation.SelectedItem = null;
         SectionHost.Content = new ErrorLogPage();
     }
@@ -297,7 +330,28 @@ public sealed partial class WorkspacePage : Page
     {
         try
         {
-            var update = await ApplicationUpdater.CheckAsync();
+            var message = new TextBlock { Text = "Έλεγχος δημοσιευμένων εκδόσεων και αρχείων...", TextWrapping = TextWrapping.Wrap };
+            var checking = new ContentDialog { XamlRoot = XamlRoot, Title = "Έλεγχος αναβάθμισης",
+                Content = new StackPanel { Spacing = 14, MinWidth = 350, Children =
+                {
+                    message,
+                    new ProgressBar { IsIndeterminate = true, Height = 8 },
+                    new TextBlock { Text = "Επικοινωνία με το GitHub Releases" }
+                } } };
+            var checkingTask = checking.ShowAsync();
+            AvailableUpdate? update;
+            var minimumDelay = Task.Delay(TimeSpan.FromSeconds(4));
+            try
+            {
+                update = await ApplicationUpdater.CheckAsync();
+                message.Text = "Επαλήθευση έκδοσης και διαθέσιμου πακέτου...";
+            }
+            finally
+            {
+                await minimumDelay;
+                checking.Hide();
+                await checkingTask;
+            }
             if (update is null)
             {
                 await ShowInformationAsync("Αναβάθμιση εφαρμογής",
@@ -345,17 +399,91 @@ public sealed partial class WorkspacePage : Page
     private void Commissions_Click(object sender, RoutedEventArgs e) => ShowCommissions();
     private void Shortcuts_Click(object sender, RoutedEventArgs e) => ShowShortcuts();
 
-    private async void Guide_Click(object sender, RoutedEventArgs e) => await ShowInformationAsync(
-        "Οδηγός χρήσης",
-        "Επιλέξτε ενότητα από το αριστερό μενού ή από την Πλοήγηση. Τα Εργαλεία περιλαμβάνουν διαχείριση χρηστών, αρχείο ελέγχου, αντίγραφα ασφαλείας και ημερολόγιο σφαλμάτων για διαχειριστές. Οι συντομεύσεις φαίνονται στο μενού Πλοήγηση. Επιλέξτε Αποσύνδεση για να τερματίσετε τη συνεδρία.");
+    private async void Guide_Click(object sender, RoutedEventArgs e) => await ShowGuideAsync();
+    private async void Contact_Click(object sender, RoutedEventArgs e) => await ShowContactAsync();
+    private async void About_Click(object sender, RoutedEventArgs e) => await ShowAboutAsync();
 
-    private async void Contact_Click(object sender, RoutedEventArgs e) => await ShowInformationAsync(
-        "Επικοινωνία",
-        "KALYPSIS SOFTWARE SOLUTIONS\ninfo@mykalypsis.gr\n2631028971");
+    private async Task ShowGuideAsync()
+    {
+        var content = new StackPanel { Spacing = 13 };
+        foreach (var (title, details) in new[]
+        {
+            ("1. Σύνδεση και πλοήγηση", "Συνδεθείτε με προσωπικό λογαριασμό. Επιλέξτε ενότητα από το αριστερό μενού ή την Πλοήγηση. Στο υποσέλιδο εμφανίζονται η κατάσταση της βάσης και ο τρέχων χρήστης."),
+            ("2. Αναζήτηση και πίνακες", "Η αναζήτηση ενημερώνει ζωντανά τη λίστα. Χρησιμοποιήστε τα φίλτρα για περιορισμό αποτελεσμάτων, τις κεφαλίδες για ταξινόμηση, τα checkbox για μαζική επιλογή και το κουμπί στηλών για την προβολή τους. Διπλό κλικ ανοίγει καρτέλα, δεξί κλικ εμφανίζει γρήγορες ενέργειες."),
+            ("3. Πελάτες", "Καταχωρίστε ταυτότητα, επικοινωνία, στοιχεία οδηγού και λοιπά πεδία. Τα tabs δείχνουν συμβόλαια, οχήματα, οικονομικά και ιστορικό ενεργειών. Πατήστε Επεξεργασία στην καρτέλα και μετά Αποθήκευση."),
+            ("4. Συνεργάτες, εταιρείες και πρακτορεία", "Οι καρτέλες συνδέουν πρόσωπα, ασφαλιστήρια και οικονομικά. Οι εταιρείες και τα πρακτορεία περιλαμβάνουν πρόσωπα επικοινωνίας και αποδόσεις. Οι προμήθειες ρυθμίζονται ανά εταιρεία, κλάδο, χρήση, κάλυψη και πακέτο."),
+            ("5. Οχήματα και ασφαλιστήρια", "Συνδέστε όχημα με πελάτη και δημιουργήστε αίτηση ή ασφαλιστήριο από τη σχετική καρτέλα. Συμπληρώστε ημερομηνίες, καλύψεις, ασφάλιστρα και συνεργάτη. Οι σχετικές εγγραφές εμφανίζονται σε κάθε συνδεδεμένη καρτέλα."),
+            ("6. Ζημιές και ενημέρωση", "Καταχωρίστε ζημιές με σύνδεση σε πελάτη, όχημα και ασφαλιστήριο. Η Ενημέρωση δείχνει υποψήφιους παραλήπτες email/SMS. Η πραγματική αποστολή απαιτεί ρύθμιση παρόχων."),
+            ("7. Αναφορές και γέφυρες", "Στις Αναφορές θα βρείτε συγκεντρωτικά στοιχεία με φίλτρα. Οι Γέφυρες εισάγουν τυποποιημένα αρχεία· για ειδικές μορφές εταιρειών απαιτείται αντιστοίχιση από δείγματα."),
+            ("8. Εργαλεία διαχειριστή", "Διαχειριστείτε χρήστες και ρόλους, ελέγξτε το αρχείο ενεργειών και σφαλμάτων, δημιουργήστε ή προγραμματίστε αντίγραφα ασφαλείας. Πριν από επαναφορά ελέγξτε την καρτέλα αντιγράφου και κλείστε την εφαρμογή μετά την ολοκλήρωση."),
+            ("9. Ρυθμίσεις και αναβάθμιση", "Επιλέξτε θέμα και βασικό νόμισμα στις Ρυθμίσεις. Αλλάξτε συντομεύσεις από τη διαχείρισή τους. Η Αναβάθμιση εφαρμογής ελέγχει τις εκδόσεις GitHub και διατηρεί την τοπική βάση δεδομένων.")
+        })
+        {
+            content.Children.Add(new TextBlock { Text = title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                FontSize = 15 });
+            content.Children.Add(new TextBlock { Text = details, TextWrapping = TextWrapping.Wrap });
+        }
+        await ShowHelpAsync("Οδηγός χρήσης", content);
+    }
 
-    private async void About_Click(object sender, RoutedEventArgs e) => await ShowInformationAsync(
-        "Σχετικά",
-        "AllInsurance Backoffice Software\nΠροϊόν της KALYPSIS SOFTWARE SOLUTIONS.\nΈκδοση 0.3 – Καρτέλες πελατών και συνεργατών.\nΕικονίδια εργαλείων: Lucide (ISC/MIT).");
+    private async Task ShowContactAsync()
+    {
+        var content = new StackPanel { Spacing = 10 };
+        content.Children.Add(new TextBlock { Text = "KALYPSIS SOFTWARE SOLUTIONS",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontSize = 16 });
+        foreach (var (label, value) in new[] { ("Email", "info@mykalypsis.gr"),
+            ("Τηλέφωνο", "2631028971") })
+        {
+            var row = new Grid { ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto } }, ColumnSpacing = 12 };
+            row.Children.Add(new TextBlock { Text = $"{label}: {value}", VerticalAlignment = VerticalAlignment.Center });
+            var copy = new AllInsurance.Desktop.Controls.ActionButton { Kind = "Open", Label = "Αντιγραφή" };
+            copy.Click += (_, _) =>
+            {
+                var package = new DataPackage();
+                package.SetText(value);
+                Clipboard.SetContent(package);
+                copy.Label = "Αντιγράφηκε";
+            };
+            Grid.SetColumn(copy, 1); row.Children.Add(copy);
+            content.Children.Add(row);
+        }
+        await ShowHelpAsync("Επικοινωνία", content);
+    }
+
+    private async Task ShowAboutAsync()
+    {
+        var content = new StackPanel { Spacing = 10 };
+        foreach (var line in new[]
+        {
+            "AllInsurance Backoffice Software",
+            "Προϊόν της KALYPSIS SOFTWARE SOLUTIONS",
+            $"Έκδοση {ApplicationUpdater.CurrentVersion}",
+            "Τοπική εφαρμογή διαχείρισης ασφαλιστικού γραφείου με βάση SQLite.",
+            "Ενότητες: πελάτες, συνεργάτες, οχήματα, εταιρείες, πρακτορεία, ασφαλιστήρια, ζημιές, ενημέρωση, αναφορές και γέφυρες εταιρειών.",
+            "Δυνατότητες: συνδεδεμένες καρτέλες, οικονομικές κινήσεις, προμήθειες, αναζήτηση, φίλτρα, αρχείο ελέγχου και τοπικά αντίγραφα ασφαλείας.",
+            "Οι αναβαθμίσεις εφαρμογής διατίθενται από το GitHub Releases. Η τοπική βάση δεδομένων παραμένει στον φάκελο δεδομένων χρήστη.",
+            "Εικονίδια εργαλείων: Lucide (ISC/MIT)."
+        }) content.Children.Add(new TextBlock { Text = line, TextWrapping = TextWrapping.Wrap });
+        await ShowHelpAsync("Σχετικά", content);
+    }
+
+    private async Task ShowHelpAsync(string title, UIElement body)
+    {
+        var branding = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        branding.Children.Add(new Image { Source = new BitmapImage(new Uri("ms-appx:///Assets/logo-99.jpg")),
+            Width = 60, Height = 60 });
+        branding.Children.Add(new TextBlock { Text = "AllInsurance Backoffice Software",
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontSize = 17,
+            VerticalAlignment = VerticalAlignment.Center });
+        var stack = new StackPanel { Spacing = 16, MinWidth = 440 };
+        stack.Children.Add(branding);
+        stack.Children.Add(body);
+        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = title,
+            Content = new ScrollViewer { Content = stack, MaxHeight = 540 },
+            CloseButtonText = "Κλείσιμο" };
+        await DialogButtonStyles.ShowAsync(dialog, redClose: true);
+    }
 
     private async Task ShowInformationAsync(string title, string message)
     {

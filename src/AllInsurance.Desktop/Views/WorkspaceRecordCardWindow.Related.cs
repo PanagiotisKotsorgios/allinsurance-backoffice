@@ -16,7 +16,7 @@ public sealed partial class WorkspaceRecordCardWindow
         var index = _tabs.Count;
         var icon = title switch
         {
-            "Γενικά" or "Καρτέλα πρακτορείου" or "Καρτέλα ζημιάς" or
+            "Γενικά" or "Καρτέλα εταιρείας" or "Καρτέλα πρακτορείου" or "Καρτέλα ζημιάς" or
                 "Καρτέλα ενημέρωσης" or "Καρτέλα αναφοράς" or "Καρτέλα γέφυρας" => "file-text",
             "Επικοινωνία" => "phone", "Παραγωγή" or "Οικονομικά" or "Δεδομένα" => "chart-no-axes-combined",
             "Όχημα & συμβόλαιο" => "car-front", "Εμπλεκόμενοι" => "user-round",

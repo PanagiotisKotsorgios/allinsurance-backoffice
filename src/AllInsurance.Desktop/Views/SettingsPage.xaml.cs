@@ -2,6 +2,9 @@ using AllInsurance.Application.Authentication;
 using AllInsurance.Application.Authorization;
 using AllInsurance.Application.Settings;
 using AllInsurance.Desktop.Settings;
+using AllInsurance.Desktop.Logging;
+using AllInsurance.Desktop.Updates;
+using AllInsurance.Application.Backups;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -23,6 +26,12 @@ public sealed partial class SettingsPage : Page
         var administrator = session.Current?.Permissions.Contains(Permission.ManageUsers) == true;
         CurrencyChoice.IsEnabled = administrator;
         SaveCurrencyButton.IsEnabled = administrator;
+        BackupScheduleChoice.IsEnabled = administrator;
+        SaveBackupScheduleButton.IsEnabled = administrator;
+        var backupSchedule = BackupScheduleSettings.Load();
+        BackupScheduleChoice.SelectedItem = BackupScheduleChoice.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(item => item.Tag?.ToString() == backupSchedule.IntervalDays.ToString())
+            ?? BackupScheduleChoice.Items[0];
         Loaded += async (_, _) =>
         {
             try
@@ -42,6 +51,10 @@ public sealed partial class SettingsPage : Page
         DatabasePathText.Text = "Βάση δεδομένων: " + Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "AllInsurance", "Data", "allinsurance.db");
+        VersionText.Text = "Έκδοση εφαρμογής: " + ApplicationUpdater.CurrentVersion;
+        BackupPathText.Text = "Αντίγραφα ασφαλείας: " +
+            App.Services.GetRequiredService<IBackupService>().BackupFolder;
+        ErrorPathText.Text = "Ημερολόγιο σφαλμάτων: " + LocalErrorLogStore.PathOnDisk;
         var policy = App.Services.GetRequiredService<AuthenticationPolicyOptions>();
         LockoutPolicyText.Text = $"Κλείδωμα μετά από {policy.MaximumFailedAttempts} αποτυχημένες προσπάθειες για {policy.LockoutDurationMinutes} λεπτά.";
     }
@@ -82,5 +95,20 @@ public sealed partial class SettingsPage : Page
         {
             await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
         }
+    }
+
+    private async void SaveBackupSchedule_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (BackupScheduleChoice.SelectedItem is not ComboBoxItem item ||
+                !int.TryParse(item.Tag?.ToString(), out var days))
+                throw new ArgumentException("Επιλέξτε συχνότητα αντιγράφων.");
+            var previous = BackupScheduleSettings.Load();
+            new BackupScheduleSettings(days, previous.IntervalDays == days ? previous.LastRunUtc : null).Save();
+            BackupStatusText.Text = days == 0 ? "Το αυτόματο πρόγραμμα απενεργοποιήθηκε." :
+                $"Θα δημιουργείται αντίγραφο κάθε {days} ημέρες όταν η εφαρμογή λειτουργεί με διαχειριστή.";
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 }

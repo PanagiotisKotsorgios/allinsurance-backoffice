@@ -1,16 +1,17 @@
 using AllInsurance.Application.Authorization;
+using AllInsurance.Desktop.Controls;
 using AllInsurance.Desktop.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using System.IO;
 
 namespace AllInsurance.Desktop.Views;
 
 public sealed partial class ErrorLogPage : Page
 {
-    private LocalErrorEntry[] _entries = [];
-    private bool _showing;
+    private ErrorRow[] _rows = [];
 
     public ErrorLogPage()
     {
@@ -18,60 +19,81 @@ public sealed partial class ErrorLogPage : Page
         if (session.Current?.Permissions.Contains(Permission.ManageUsers) != true)
             throw new UnauthorizedAccessException("Απαιτούνται δικαιώματα διαχειριστή.");
         InitializeComponent();
-        AllInsurance.Desktop.Controls.TableRowStriping.Attach(ErrorsList);
-        PathText.Text = "Αρχείο: " + LocalErrorLogStore.PathOnDisk;
+        TableRowStriping.Attach(ErrorsList);
         Loaded += (_, _) => Load();
     }
-
-    private void Scroller_SizeChanged(object sender, SizeChangedEventArgs e) =>
-        PageContent.Width = Math.Max(280, Math.Min(1100, e.NewSize.Width - 48));
 
     private void Load()
     {
         try
         {
-            _entries = [.. LocalErrorLogStore.Recent()];
-            ApplyFilter();
+            _rows = LocalErrorLogStore.Recent(10000).Select(entry => new ErrorRow(entry)).ToArray();
+            CategoryFilter.Items.Clear();
+            CategoryFilter.Items.Add(new ComboBoxItem { Content = "Όλες οι ενότητες" });
+            foreach (var category in _rows.Select(row => row.Category).Distinct().OrderBy(value => value))
+                CategoryFilter.Items.Add(new ComboBoxItem { Content = category });
+            CategoryFilter.SelectedIndex = 0;
+            ApplyFilters();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         { StatusText.Text = "Δεν ήταν δυνατή η ανάγνωση του ημερολογίου: " + exception.Message; }
     }
 
-    private void Search_Changed(object sender, TextChangedEventArgs e) => ApplyFilter();
-
-    private void ApplyFilter()
+    private void Filter_Changed(object sender, object args) => ApplyFilters();
+    private void ApplyFilters()
     {
-        if (ErrorsList is null || SearchInput is null) return;
+        if (ErrorsList is null || SearchInput is null || CategoryFilter is null) return;
         var term = SearchInput.Text.Trim();
-        var selected = _entries.Where(item => term.Length == 0 ||
-            item.Category.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
-            item.Message.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
-            item.Exception?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true)
-            .Select(item => new ErrorRow(item)).ToArray();
-        ErrorsList.ItemsSource = selected;
-        StatusText.Text = selected.Length == 0 ? "Δεν υπάρχουν καταγεγραμμένα σφάλματα." :
-            $"{selected.Length} σφάλματα · Εμφανίζονται έως 300 πρόσφατες εγγραφές.";
+        var category = CategoryFilter.SelectedIndex > 0
+            ? (CategoryFilter.SelectedItem as ComboBoxItem)?.Content?.ToString() : null;
+        var from = FromDate?.Date?.Date;
+        var until = UntilDate?.Date?.Date;
+        var filtered = _rows.Where(row =>
+            (term.Length == 0 || (row.Category + row.Message + row.Entry.Exception)
+                .Contains(term, StringComparison.CurrentCultureIgnoreCase)) &&
+            (category is null || row.Category == category) &&
+            (from is null || row.Entry.TimestampUtc.ToLocalTime().Date >= from) &&
+            (until is null || row.Entry.TimestampUtc.ToLocalTime().Date <= until)).ToArray();
+        ErrorsList.ItemsSource = filtered;
+        StatusText.Text = $"{filtered.Length} από {_rows.Length} σφάλματα";
     }
 
-    private async void Errors_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void Clear_Click(object sender, RoutedEventArgs e)
     {
-        if (_showing || ErrorsList.SelectedItem is not ErrorRow row) return;
-        _showing = true;
+        SearchInput.Text = ""; CategoryFilter.SelectedIndex = 0;
+        FromDate.Date = null; UntilDate.Date = null; ApplyFilters();
+    }
+
+    private async void Errors_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (ErrorsList.SelectedItem is not ErrorRow row) return;
+        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Καρτέλα σφάλματος",
+            Content = new TextBox { Text = $"{row.When}\nΕνότητα: {row.Category}\n\n{row.Message}\n\n{row.Entry.Exception}",
+                IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+                Width = 540, Height = 320 }, CloseButtonText = "Κλείσιμο" };
+        await DialogButtonStyles.ShowAsync(dialog);
+    }
+
+    private async void Export_Click(object sender, RoutedEventArgs e) => await ExportAsync(false);
+    private async void Print_Click(object sender, RoutedEventArgs e) => await ExportAsync(true);
+    private async Task ExportAsync(bool print)
+    {
         try
         {
-            var detail = new TextBox { Text = row.Entry.Exception ?? row.Entry.Message,
-                IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
-                Width = 520, Height = 300 };
-            var dialog = new ContentDialog { XamlRoot = XamlRoot,
-                Title = row.Heading, Content = detail, CloseButtonText = "Κλείσιμο" };
-            await DialogButtonStyles.ShowAsync(dialog);
+            var rows = (ErrorsList.ItemsSource as IEnumerable<ErrorRow>) ?? [];
+            string[] headers = ["Ημερομηνία / ώρα", "Ενότητα", "Μήνυμα", "Τεχνικές λεπτομέρειες"];
+            var data = rows.Select(row => new[] { row.When, row.Category, row.Message, row.Entry.Exception ?? "" });
+            var path = print ? ToolTableExport.Print("Ημερολόγιο σφαλμάτων", headers, data)
+                : ToolTableExport.Csv("Ημερολόγιο σφαλμάτων", headers, data);
+            StatusText.Text = $"Το αρχείο δημιουργήθηκε: {path}";
         }
-        finally { ErrorsList.SelectedItem = null; _showing = false; }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
     private sealed record ErrorRow(LocalErrorEntry Entry)
     {
-        public string Heading => $"{Entry.TimestampUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss} · {Entry.Category}";
+        public string When => Entry.TimestampUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
+        public string Category => Entry.Category;
         public string Message => Entry.Message;
     }
 }

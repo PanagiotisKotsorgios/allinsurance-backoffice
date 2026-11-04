@@ -41,6 +41,7 @@ public sealed partial class CustomerCardWindow : Window
 
     public void BringToFront()
     {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "customer-card");
         var window = WindowNative.GetWindowHandle(this);
         SetWindowOwner(window, -8, App.MainWindowHandle()); // GWLP_HWNDPARENT
         Activate();

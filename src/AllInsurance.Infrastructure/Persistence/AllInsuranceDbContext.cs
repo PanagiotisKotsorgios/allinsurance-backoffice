@@ -1,10 +1,12 @@
 using AllInsurance.Application.Abstractions;
 using AllInsurance.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using AllInsurance.Application.Authorization;
 
 namespace AllInsurance.Infrastructure.Persistence;
 
-public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext> options)
+public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext> options,
+    ISessionService? session = null)
     : DbContext(options), IApplicationDbContext
 {
     public DbSet<User> Users => Set<User>();
@@ -24,6 +26,44 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<PartnerActivity> PartnerActivities => Set<PartnerActivity>();
     public DbSet<CommissionRule> CommissionRules => Set<CommissionRule>();
     public DbSet<FilterOption> FilterOptions => Set<FilterOption>();
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        RecordChanges();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void RecordChanges()
+    {
+        var actor = session?.Current;
+        if (actor is null) return;
+        ChangeTracker.DetectChanges();
+        foreach (var entry in ChangeTracker.Entries().ToArray())
+        {
+            if (entry.Entity is SecurityEvent or User or UserRole or RecoveryCode ||
+                entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted)) continue;
+            var operation = entry.State switch
+            {
+                EntityState.Added => "CREATE",
+                EntityState.Modified => "UPDATE",
+                _ => "DELETE"
+            };
+            var changed = entry.State == EntityState.Modified
+                ? string.Join(",", entry.Properties.Where(property => property.IsModified)
+                    .Select(property => property.Metadata.Name)) : string.Empty;
+            if (entry.State == EntityState.Modified && changed.Length == 0) continue;
+            var key = string.Join(",", entry.Properties.Where(property => property.Metadata.IsPrimaryKey())
+                .Select(property => property.CurrentValue?.ToString() ?? string.Empty));
+            var details = $"entity_id={key}; fields={changed}";
+            SecurityEvents.Add(new SecurityEvent
+            {
+                Id = Guid.NewGuid(), UserId = actor.UserId,
+                EventType = $"{operation}:{entry.Metadata.ClrType.Name}", Outcome = "SUCCESS",
+                CreatedAtUtc = DateTime.UtcNow,
+                Details = details[..Math.Min(details.Length, 1000)]
+            });
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

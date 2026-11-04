@@ -50,40 +50,37 @@ public sealed partial class WorkspaceRecordCardWindow
 
     private void BuildCompanyTabs()
     {
-        FormTab("Γενικά",
+        FormTab("Καρτέλα εταιρείας",
             [T("title", "Επωνυμία εταιρείας", true), T("reference", "Κωδικός"),
              S("status", "Κατάσταση", "Ενεργό", "Ανενεργό", "Σε αναστολή"),
              S("companyType", "Είδος φορέα", "Ασφαλιστική εταιρεία", "Μεσίτης", "Άλλο"),
              S("origin", "Προέλευση", "Εσωτερικό", "Εξωτερικό"),
              T("taxNumber", "ΑΦΜ"), T("taxOffice", "ΔΟΥ"),
-             T("legalName", "Νομική επωνυμία")],
+             T("legalName", "Νομική επωνυμία"),
+             S("payoutMethod", "Τρόπος απόδοσης", "Τραπεζική μεταφορά", "Συμψηφισμός", "Μετρητά"),
+             S("payoutPeriod", "Περίοδος απόδοσης", "Μηνιαία", "Εβδομαδιαία", "Ανά ασφαλιστήριο"),
+             N("creditLimit", "Πιστωτικό όριο (€)"), N("creditDays", "Πιστωτικό όριο ημερών")],
             [T("contractNumber", "Αριθμός συνεργασίας"), D("startDate", "Έναρξη συνεργασίας"),
              D("endDate", "Λήξη συνεργασίας"), T("manager", "Υπεύθυνος συνεργασίας"),
              T("licenseNumber", "Αριθμός άδειας"), T("gemi", "ΓΕΜΗ"),
+             B("taxWithholding", "Παρακράτηση φόρου"),
+             T("branchCode", "Κωδικός υποκαταστήματος"),
+             T("productionCode", "Κωδικός ομαδοποίησης"),
+             N("printDeadline", "Εκτύπωση εντός (ημέρες)"),
+             N("renewalDays", "Ημέρες ανανέωσης"), B("splitTax", "Split φόρου"),
              M("notes", "Σημειώσεις")]);
+        AppendToLastTab(OrganizationSettlementsPanel());
         FormTab("Επικοινωνία",
             [T("contact", "Πρόσωπο επικοινωνίας"), T("phone", "Τηλέφωνο"),
              T("mobile", "Κινητό"), T("email", "Email"), T("website", "Ιστότοπος")],
             [T("address", "Διεύθυνση"), T("city", "Πόλη"), T("postalCode", "Τ.Κ."),
              T("claimsEmail", "Email ζημιών"), T("accountingEmail", "Email λογιστηρίου")]);
+        AppendToLastTab(OrganizationContactsPanel());
         var production = RelatedPanel();
         production.Children.Add(RelatedTable("Ασφαλιστήρια εταιρείας", "policies",
             item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson) is var policy &&
                 (policy.CompanyId == _record.Id || policy.Insurer == _record.Title)));
-        production.Children.Add(RelatedTable("Πρακτορεία", "agencies",
-            item => WorkspaceCardData.Read(item.DetailsJson).CompanyId == _record.Id));
-        production.Children.Add(RelatedTable("Ζημιές", "claims",
-            item => WorkspaceCardData.Read(item.DetailsJson).CompanyId == _record.Id));
         AddTab("Παραγωγή", production);
-        FormTab("Παραμετρικά",
-            [S("payoutMethod", "Τρόπος απόδοσης", "Τραπεζική μεταφορά", "Συμψηφισμός", "Μετρητά"),
-             S("payoutPeriod", "Περίοδος απόδοσης", "Μηνιαία", "Εβδομαδιαία", "Ανά ασφαλιστήριο"),
-             B("taxWithholding", "Παρακράτηση φόρου"), N("creditLimit", "Πιστωτικό όριο (€)"),
-             N("creditDays", "Πιστωτικό όριο ημερών")],
-            [T("branchCode", "Κωδικός υποκαταστήματος"),
-             T("productionCode", "Κωδικός ομαδοποίησης"),
-             N("printDeadline", "Εκτύπωση εντός (ημέρες)"),
-             N("renewalDays", "Ημέρες ανανέωσης"), B("splitTax", "Split φόρου")]);
     }
 
     private void BuildAgencyTabs()
@@ -94,15 +91,18 @@ public sealed partial class WorkspaceRecordCardWindow
              S("agencyType", "Είδος φορέα", "Πρακτορείο", "Υποκατάστημα", "Συνεργαζόμενο δίκτυο"),
              S("origin", "Προέλευση", "Εσωτερικό", "Εξωτερικό"),
              L("company", "Ασφαλιστική εταιρεία"), T("area", "Περιοχή"),
-             T("manager", "Υπεύθυνος"), T("taxNumber", "ΑΦΜ")],
+             T("manager", "Υπεύθυνος"), T("taxNumber", "ΑΦΜ"),
+             S("payoutMethod", "Τρόπος απόδοσης", "Τραπεζική μεταφορά", "Συμψηφισμός", "Μετρητά")],
             [T("contractNumber", "Αριθμός σύμβασης"), D("startDate", "Έναρξη συνεργασίας"),
              D("endDate", "Λήξη συνεργασίας"), N("creditLimit", "Πιστωτικό όριο (€)"),
              T("branchCode", "Κωδικός υποκαταστήματος"), M("notes", "Σημειώσεις")]);
+        AppendToLastTab(OrganizationSettlementsPanel());
         FormTab("Επικοινωνία",
             [T("phone", "Τηλέφωνο"), T("mobile", "Κινητό"), T("email", "Email"),
              T("website", "Ιστότοπος")],
             [T("address", "Διεύθυνση"), T("city", "Πόλη"), T("postalCode", "Τ.Κ."),
              T("contact", "Πρόσωπο επικοινωνίας")]);
+        AppendToLastTab(OrganizationContactsPanel());
         var policies = RelatedPanel();
         policies.Children.Add(RelatedTable("Ασφαλιστήρια πρακτορείου", "policies",
             item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson) is var policy &&

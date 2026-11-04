@@ -44,8 +44,27 @@
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
                 <StackPanel Spacing="10">
+                    <TextBlock Text="Αυτόματα αντίγραφα ασφαλείας" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="Τα αντίγραφα δημιουργούνται στον τοπικό φάκελο, όσο λειτουργεί η εφαρμογή με συνδεδεμένο διαχειριστή."
+                               TextWrapping="Wrap" Foreground="{ThemeResource SecondaryTextBrush}" />
+                    <ComboBox x:Name="BackupScheduleChoice" Header="Συχνότητα" MinWidth="240">
+                        <ComboBoxItem Content="Χωρίς πρόγραμμα" Tag="0" />
+                        <ComboBoxItem Content="Κάθε ημέρα" Tag="1" />
+                        <ComboBoxItem Content="Κάθε 7 ημέρες" Tag="7" />
+                        <ComboBoxItem Content="Κάθε 30 ημέρες" Tag="30" />
+                    </ComboBox>
+                    <controls:ActionButton x:Name="SaveBackupScheduleButton" Kind="Save" Label="Αποθήκευση προγράμματος"
+                                           Click="SaveBackupSchedule_Click" HorizontalAlignment="Left" />
+                    <TextBlock x:Name="BackupStatusText" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
+                <StackPanel Spacing="10">
                     <TextBlock Text="Τοπική εγκατάσταση" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock x:Name="VersionText" TextWrapping="Wrap" />
                     <TextBlock x:Name="DatabasePathText" TextWrapping="Wrap" />
+                    <TextBlock x:Name="BackupPathText" TextWrapping="Wrap" />
+                    <TextBlock x:Name="ErrorPathText" TextWrapping="Wrap" />
                     <TextBlock x:Name="LockoutPolicyText" TextWrapping="Wrap" />
                     <TextBlock Text="Η γλώσσα της εφαρμογής είναι Ελληνικά." TextWrapping="Wrap" />
                 </StackPanel>

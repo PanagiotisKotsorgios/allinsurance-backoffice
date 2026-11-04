@@ -87,6 +87,16 @@ public sealed partial class SectionPage : Page
             CreatedHeader.Text = "Καύσιμο";
             ExtraHeader.Text = "Κατάσταση";
         }
+        else if (section.Key is "companies" or "agencies")
+        {
+            TitleHeader.Text = "Κωδικός";
+            CodeHeader.Text = "Επωνυμία";
+            PartyHeader.Text = "ΑΦΜ";
+            StatusHeader.Text = "Τηλέφωνο";
+            EventHeader.Text = "Email";
+            CustomerHeader.Text = "Υπόλοιπο";
+            CreatedHeader.Text = "Κατάσταση";
+        }
         StatusFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         CustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         CityFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
@@ -210,6 +220,12 @@ public sealed partial class SectionPage : Page
                         PartnerProfileData.Read(item.DetailsJson).Phone,
                         PartnerProfileData.Read(item.DetailsJson).Category,
                         PartnerProfileData.Read(item.DetailsJson).City
+                    }.Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true)) ||
+                    (_section.Key is "companies" or "agencies" && new[]
+                    {
+                        WorkspaceCardData.Read(item.DetailsJson).Fields.GetValueOrDefault("taxNumber"),
+                        WorkspaceCardData.Read(item.DetailsJson).Fields.GetValueOrDefault("phone"),
+                        WorkspaceCardData.Read(item.DetailsJson).Fields.GetValueOrDefault("email")
                     }.Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true)));
             filtered = filtered.Where(PassesSectionFilters);
             if (FromFilter.Date is DateTimeOffset fromDate)
@@ -223,9 +239,15 @@ public sealed partial class SectionPage : Page
                 filtered = filtered.Where(item => FilterDate(item) < until.AddDays(1));
             }
             IReadOnlyDictionary<Guid, decimal>? balances = null;
+            BusinessRecord[] organizationPolicies = [];
             if (_section.Key == "partners")
             {
                 balances = await _partners.GetBalancesAsync();
+                if (version != _requestVersion) return;
+            }
+            if (_section.Key is "companies" or "agencies")
+            {
+                organizationPolicies = (await _records.SearchAsync("policies")).ToArray();
                 if (version != _requestVersion) return;
             }
             _filtered = filtered.Select(item =>
@@ -234,9 +256,13 @@ public sealed partial class SectionPage : Page
                     ? PartnerProfileData.Read(item.DetailsJson) : null;
                 var vehicle = _section.Key == "vehicles"
                     ? BusinessRecordDetails.Read<VehicleCardData>(item.DetailsJson) : null;
+                var organization = _section.Key is "companies" or "agencies"
+                    ? WorkspaceCardData.Read(item.DetailsJson) : null;
                 return new BusinessRecordRow(item, profile,
                     balances is not null && balances.TryGetValue(item.Id, out var due) ? due : null,
-                    vehicle, _section.Key == "vehicles" ? VehicleDisplayStatus(item) : null);
+                    vehicle, _section.Key == "vehicles" ? VehicleDisplayStatus(item) : null,
+                    organization, organization is null ? null :
+                        OrganizationBalance.Calculate(item, organization, organizationPolicies));
             }).ToArray();
             SortRecords();
             _page = 1;
@@ -464,6 +490,26 @@ public sealed partial class SectionPage : Page
                 StringComparer.CurrentCultureIgnoreCase)).ToArray();
             return;
         }
+        if (_section.Key is "companies" or "agencies")
+        {
+            if (_sortColumn == 5)
+            {
+                Func<BusinessRecordRow, decimal> amount = row => row.OrganizationBalance ?? 0m;
+                _filtered = (_sortDescending ? _filtered.OrderByDescending(amount) :
+                    _filtered.OrderBy(amount)).ToArray();
+                return;
+            }
+            Func<BusinessRecordRow, string> organizationKey = _sortColumn switch
+            {
+                1 => row => row.Reference ?? "", 2 => row => row.RelatedParty ?? "",
+                3 => row => row.Status ?? "", 4 => row => row.EventDateDisplay,
+                6 => row => row.CreatedDisplay, _ => row => row.Title
+            };
+            _filtered = (_sortDescending ? _filtered.OrderByDescending(organizationKey,
+                StringComparer.CurrentCultureIgnoreCase) : _filtered.OrderBy(organizationKey,
+                StringComparer.CurrentCultureIgnoreCase)).ToArray();
+            return;
+        }
         if (_sortColumn is 4 or 6)
         {
             Func<BusinessRecordRow, DateTime> date = _sortColumn == 4
@@ -510,6 +556,7 @@ public sealed partial class SectionPage : Page
         {
             "partners" => 7,
             "vehicles" => 8,
+            "companies" or "agencies" => 7,
             _ => 4
         };
         if (grid.Children[statusIndex] is Border { Child: TextBlock statusText } statusCell)
@@ -529,6 +576,13 @@ public sealed partial class SectionPage : Page
                 ? new SolidColorBrush(Color.FromArgb(255, 198, 40, 40)) : null;
             balanceText.Foreground = outstanding
                 ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
+        }
+        if (_section.Key is "companies" or "agencies" &&
+            grid.Children[6] is Border { Child: TextBlock dueText } dueCell)
+        {
+            var outstanding = row.OrganizationBalance.GetValueOrDefault() != 0m;
+            dueCell.Background = outstanding ? new SolidColorBrush(Color.FromArgb(255, 198, 40, 40)) : null;
+            dueText.Foreground = outstanding ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
         }
         if (firstLoad && FindRecordContainer(grid) is ListViewItem container)
             TableRowResizer.Attach(grid, container, _section.Key, row.Record.Id);
@@ -757,28 +811,37 @@ public sealed partial class SectionPage : Page
 
     private sealed record BusinessRecordRow(BusinessRecord Record,
         PartnerProfileData? PartnerProfile = null, decimal? PartnerBalance = null,
-        VehicleCardData? VehicleProfile = null, string? VehicleInsuranceState = null)
+        VehicleCardData? VehicleProfile = null, string? VehicleInsuranceState = null,
+        WorkspaceCardData? OrganizationProfile = null, decimal? OrganizationBalance = null)
     {
-        public string Title => VehicleProfile is null ? Record.Title :
+        public string Title => OrganizationProfile is not null ? Record.Reference ?? "—" :
+            VehicleProfile is null ? Record.Title :
             !string.IsNullOrWhiteSpace(VehicleProfile.Model) ? VehicleProfile.Model :
             !string.IsNullOrWhiteSpace(VehicleProfile.Make) ? VehicleProfile.Make : Record.Title;
-        public string? Reference => VehicleProfile?.Registration ?? Record.Reference;
-        public string? RelatedParty => VehicleProfile?.Make ?? PartnerProfile?.City ?? Record.RelatedParty;
-        public string? Status => VehicleProfile is not null
+        public string? Reference => OrganizationProfile is not null ? Record.Title :
+            VehicleProfile?.Registration ?? Record.Reference;
+        public string? RelatedParty => OrganizationProfile is not null
+            ? OrganizationProfile.Fields.GetValueOrDefault("taxNumber") ?? "—" :
+            VehicleProfile?.Make ?? PartnerProfile?.City ?? Record.RelatedParty;
+        public string? Status => OrganizationProfile is not null
+            ? OrganizationProfile.Fields.GetValueOrDefault("phone") ?? "—" : VehicleProfile is not null
             ? Record.Customer is null ? "—" :
                 $"{Record.Customer.LastName} {Record.Customer.FirstName}".Trim()
             : PartnerProfile?.PersonType ?? Record.Status;
-        public string EventDateDisplay => VehicleProfile is not null
+        public string EventDateDisplay => OrganizationProfile is not null
+            ? OrganizationProfile.Fields.GetValueOrDefault("email") ?? "—" : VehicleProfile is not null
             ? VehicleProfile.Use ?? "—" : PartnerProfile is null
             ? Record.EventDate?.ToString("dd/MM/yyyy") ?? ""
             : $"{PartnerBalance.GetValueOrDefault():N2} €";
-        public string CustomerName => VehicleProfile is not null
+        public string CustomerName => OrganizationProfile is not null
+            ? $"{OrganizationBalance.GetValueOrDefault():N2} €" : VehicleProfile is not null
             ? VehicleProfile.FirstRegistrationDate?.ToString("dd/MM/yyyy") ?? "—"
             : PartnerProfile is null
             ? Record.Customer is null ? "" :
                 $"{Record.Customer.LastName} {Record.Customer.FirstName}"
             : PartnerProfile.CreditLimit is decimal limit ? $"{limit:N2} €" : "—";
-        public string CreatedDisplay => VehicleProfile is not null
+        public string CreatedDisplay => OrganizationProfile is not null
+            ? Record.Status ?? "—" : VehicleProfile is not null
             ? VehicleProfile.Fuel ?? "—" : PartnerProfile is null
             ? Record.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")
             : Record.Status ?? "";

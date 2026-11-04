@@ -12,6 +12,12 @@ public interface IUserAdministrationService
         IEnumerable<string> roleNames,
         CancellationToken cancellationToken = default);
     Task DeactivateUserAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task ActivateUserAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task UpdateUserAsync(Guid userId, string username, string displayName,
+        CancellationToken cancellationToken = default);
+    Task DeleteUserAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<string>> GetRolesAsync(CancellationToken cancellationToken = default);
+    Task CreateRoleAsync(string name, string description, CancellationToken cancellationToken = default);
     Task AssignRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default);
     Task RevokeRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default);
     Task ResetEmployeePasswordAsync(
@@ -29,4 +35,9 @@ public sealed record UserAccountSummary(
     string DisplayName,
     bool IsActive,
     bool MustChangePassword,
-    IReadOnlyList<string> Roles);
+    IReadOnlyList<string> Roles,
+    DateTime? LastLoginAtUtc = null,
+    DateTime? LockoutUntilUtc = null,
+    int FailedLoginCount = 0,
+    DateTime? CreatedAtUtc = null,
+    DateTime? UpdatedAtUtc = null);

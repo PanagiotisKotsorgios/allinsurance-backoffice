@@ -12,6 +12,8 @@ public sealed class WorkspaceCardData
     public Guid? PartnerId { get; set; }
     public Guid? ClaimId { get; set; }
     public Dictionary<string, string?> Fields { get; set; } = new(StringComparer.Ordinal);
+    public List<OrganizationContact> Contacts { get; set; } = [];
+    public List<OrganizationSettlement> Settlements { get; set; } = [];
 
     public static WorkspaceCardData Read(string? json)
     {
@@ -20,10 +22,30 @@ public sealed class WorkspaceCardData
         {
             var data = JsonSerializer.Deserialize<WorkspaceCardData>(json) ?? new WorkspaceCardData();
             data.Fields ??= new(StringComparer.Ordinal);
+            data.Contacts ??= [];
+            data.Settlements ??= [];
             return data;
         }
         catch (JsonException) { return new WorkspaceCardData(); }
     }
 
     public string Write() => JsonSerializer.Serialize(this);
+}
+
+public sealed class OrganizationContact
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public string Position { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Mobile { get; set; } = "";
+    public string Phone { get; set; } = "";
+}
+
+public sealed class OrganizationSettlement
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public DateTime Date { get; set; } = DateTime.Today;
+    public decimal Amount { get; set; }
+    public string Note { get; set; } = "";
 }

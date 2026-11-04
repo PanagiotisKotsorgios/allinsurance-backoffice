@@ -28,7 +28,9 @@ public sealed class UserAdministrationService(
             user.DisplayName,
             user.IsActive,
             user.MustChangePassword,
-            user.UserRoles.Select(membership => membership.Role.Name).OrderBy(name => name).ToArray()))
+            user.UserRoles.Select(membership => membership.Role.Name).OrderBy(name => name).ToArray(),
+            user.LastLoginAtUtc, user.LockoutUntilUtc, user.FailedLoginCount,
+            user.CreatedAtUtc, user.UpdatedAtUtc))
             .ToArray();
     }
 
@@ -135,6 +137,94 @@ public sealed class UserAdministrationService(
         {
             session.EndSession();
         }
+    }
+
+    public async Task ActivateUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await EnsurePermissionAsync(db, Permission.ManageUsers, cancellationToken);
+        var user = await db.Users.SingleOrDefaultAsync(candidate => candidate.Id == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Ο χρήστης δεν υπάρχει.");
+        if (user.IsActive) return;
+        user.IsActive = true;
+        user.UpdatedAtUtc = clock.UtcNow;
+        AddEvent(db, user.Id, "USER_ACTIVATED", "SUCCESS", clock.UtcNow,
+            $"actor_user_id={session.Current!.UserId:D}");
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateUserAsync(Guid userId, string username, string displayName,
+        CancellationToken cancellationToken = default)
+    {
+        username = username.Trim();
+        displayName = displayName.Trim();
+        ValidateIdentity(username, displayName);
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await EnsurePermissionAsync(db, Permission.ManageUsers, cancellationToken);
+        var user = await db.Users.SingleOrDefaultAsync(candidate => candidate.Id == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Ο χρήστης δεν υπάρχει.");
+        var normalized = username.ToUpperInvariant();
+        if (await db.Users.AnyAsync(candidate => candidate.Id != userId &&
+            candidate.NormalizedUsername == normalized, cancellationToken))
+            throw new InvalidOperationException("Αυτό το όνομα χρήστη χρησιμοποιείται ήδη.");
+        user.Username = username;
+        user.NormalizedUsername = normalized;
+        user.DisplayName = displayName;
+        user.UpdatedAtUtc = clock.UtcNow;
+        AddEvent(db, user.Id, "USER_UPDATED", "SUCCESS", clock.UtcNow,
+            $"actor_user_id={session.Current!.UserId:D}");
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await EnsurePermissionAsync(db, Permission.ManageUsers, cancellationToken);
+        var user = await db.Users.SingleOrDefaultAsync(candidate => candidate.Id == userId, cancellationToken)
+            ?? throw new InvalidOperationException("Ο χρήστης δεν υπάρχει.");
+        if (user.IsActive)
+            throw new InvalidOperationException("Απενεργοποιήστε πρώτα τον χρήστη.");
+        if (user.Id == session.Current!.UserId)
+            throw new InvalidOperationException("Δεν μπορείτε να διαγράψετε τον δικό σας λογαριασμό.");
+        var events = await db.SecurityEvents.Where(entry => entry.UserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var entry in events)
+        {
+            entry.Details = (entry.Details ?? "")[..Math.Min(entry.Details?.Length ?? 0, 850)] +
+                $"; actor_username={user.Username}";
+            entry.UserId = null;
+        }
+        db.Users.Remove(user);
+        AddEvent(db, session.Current.UserId, "USER_DELETED", "SUCCESS", clock.UtcNow,
+            $"target_username={user.Username}; target_user_id={user.Id:D}");
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<string>> GetRolesAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await EnsurePermissionAsync(db, Permission.ManageUsers, cancellationToken);
+        return await db.Roles.OrderBy(role => role.Name).Select(role => role.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task CreateRoleAsync(string name, string description,
+        CancellationToken cancellationToken = default)
+    {
+        name = name.Trim();
+        if (name.Length is < 2 or > 100) throw new ArgumentException("Το όνομα ρόλου πρέπει να έχει 2–100 χαρακτήρες.");
+        await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
+        await EnsurePermissionAsync(db, Permission.AssignRoles, cancellationToken);
+        var normalized = name.ToUpperInvariant();
+        if (await db.Roles.AnyAsync(role => role.NormalizedName == normalized, cancellationToken))
+            throw new InvalidOperationException("Ο ρόλος υπάρχει ήδη.");
+        db.Roles.Add(new Role { Id = Guid.NewGuid(), Name = name,
+            NormalizedName = normalized, Description = description.Trim() });
+        AddEvent(db, session.Current!.UserId, "ROLE_CREATED", "SUCCESS", clock.UtcNow,
+            $"role={normalized}; actor_user_id={session.Current.UserId:D}");
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task AssignRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default)
@@ -257,14 +347,14 @@ public sealed class UserAdministrationService(
         int limit = 100,
         CancellationToken cancellationToken = default)
     {
-        if (limit is < 1 or > 500)
+        if (limit is < 1 or > 10000)
         {
-            throw new ArgumentOutOfRangeException(nameof(limit), "Το πλήθος συμβάντων πρέπει να είναι από 1 έως 500.");
+            throw new ArgumentOutOfRangeException(nameof(limit), "Το πλήθος συμβάντων πρέπει να είναι από 1 έως 10000.");
         }
 
         await using var db = await contextFactory.CreateDbContextAsync(cancellationToken);
         await EnsurePermissionAsync(db, Permission.ReadSecurityEvents, cancellationToken);
-        return await db.SecurityEvents
+        var entries = await db.SecurityEvents
             .OrderByDescending(entry => entry.CreatedAtUtc)
             .Take(limit)
             .Select(entry => new SecurityEventSummary(
@@ -274,6 +364,21 @@ public sealed class UserAdministrationService(
                 entry.User == null ? null : entry.User.Username,
                 entry.Details))
             .ToListAsync(cancellationToken);
+        return entries.Select(entry => entry with
+        {
+            Username = entry.Username ?? ReadActorUsername(entry.Details)
+        }).ToArray();
+    }
+
+    private static string? ReadActorUsername(string? details)
+    {
+        if (details is null) return null;
+        const string marker = "actor_username=";
+        var start = details.LastIndexOf(marker, StringComparison.Ordinal);
+        if (start < 0) return null;
+        start += marker.Length;
+        var end = details.IndexOf(';', start);
+        return details[start..(end < 0 ? details.Length : end)];
     }
 
     private async Task RefreshCurrentSessionRolesAsync(Guid userId, CancellationToken cancellationToken)

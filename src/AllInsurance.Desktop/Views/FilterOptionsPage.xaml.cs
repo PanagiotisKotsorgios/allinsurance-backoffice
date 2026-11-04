@@ -3,6 +3,7 @@ using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using System.IO;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -28,9 +29,6 @@ public sealed partial class FilterOptionsPage : Page
         };
     }
 
-    private void Scroller_SizeChanged(object sender, SizeChangedEventArgs e) =>
-        PageContent.Width = Math.Max(280, Math.Min(1100, e.NewSize.Width - 48));
-
     private string Category => string.IsNullOrWhiteSpace(CustomCategory.Text)
         ? CategoryChoice.SelectedItem as string ?? "Πόλεις" : CustomCategory.Text.Trim();
 
@@ -52,18 +50,32 @@ public sealed partial class FilterOptionsPage : Page
             var options = (await _filters.ListAsync(category)).ToArray();
             if (version != _refreshVersion) return;
             _options = options;
-            OptionsList.ItemsSource = _options.Select(option => option.Value).ToArray();
-            StatusText.Text = $"{_options.Length} καταχωρισμένες τιμές στην κατηγορία «{category}».";
+            ApplyFilter();
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
     private async void Category_Changed(object sender, SelectionChangedEventArgs e) => await RefreshAsync();
     private async void CustomCategory_Changed(object sender, TextChangedEventArgs e) => await RefreshAsync();
+    private void Search_Changed(object sender, TextChangedEventArgs e) => ApplyFilter();
+
+    private void ApplyFilter()
+    {
+        if (OptionsList is null || SearchInput is null || StatusText is null) return;
+        var term = SearchInput.Text.Trim();
+        var visible = _options.Where(option => term.Length == 0 ||
+            option.Value.Contains(term, StringComparison.CurrentCultureIgnoreCase))
+            .Select(option => new OptionRow(option)).ToArray();
+        OptionsList.ItemsSource = visible;
+        StatusText.Text = $"{visible.Length} από {_options.Length} τιμές στην κατηγορία «{Category}».";
+    }
     private void Options_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (OptionsList.SelectedItem is string value) ValueInput.Text = value;
+        if (OptionsList.SelectedItem is OptionRow row) ValueInput.Text = row.Value;
     }
+
+    private void Options_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e) =>
+        ValueInput.Focus(FocusState.Programmatic);
 
     private async void Add_Click(object sender, RoutedEventArgs e) => await SaveAsync(null);
     private async void Edit_Click(object sender, RoutedEventArgs e)
@@ -101,8 +113,13 @@ public sealed partial class FilterOptionsPage : Page
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
-    private FilterOption? Selected() => OptionsList.SelectedItem is string value
-        ? _options.FirstOrDefault(item => item.Value == value) : null;
+    private FilterOption? Selected() => (OptionsList.SelectedItem as OptionRow)?.Option;
+
+    private sealed record OptionRow(FilterOption Option)
+    {
+        public string Category => Option.Category;
+        public string Value => Option.Value;
+    }
 
     private async void ImportText_Click(object sender, RoutedEventArgs e) => await ImportAsync(BulkInput.Text);
 

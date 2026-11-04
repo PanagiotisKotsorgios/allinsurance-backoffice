@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using System.IO;
 using System.Text.Json;
+using Windows.System;
 
 namespace AllInsurance.Desktop.Settings;
 
@@ -13,6 +14,8 @@ public sealed class WorkspacePreferences
 
     public ElementTheme Theme { get; private set; } = ElementTheme.Default;
     public bool ShortcutsEnabled { get; private set; } = true;
+    private Dictionary<string, ShortcutBinding?> _shortcuts = [];
+    public event EventHandler? ShortcutsChanged;
 
     public WorkspacePreferences()
     {
@@ -36,6 +39,7 @@ public sealed class WorkspacePreferences
                 _ => ElementTheme.Default
             };
             ShortcutsEnabled = saved.ShortcutsEnabled;
+            _shortcuts = saved.Shortcuts ?? [];
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -54,13 +58,39 @@ public sealed class WorkspacePreferences
     {
         ShortcutsEnabled = enabled;
         Save();
+        ShortcutsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public ShortcutBinding? GetShortcut(string actionId)
+    {
+        if (_shortcuts.TryGetValue(actionId, out var binding)) return binding;
+        return ShortcutCatalog.All.FirstOrDefault(spec => spec.Id == actionId)?.Default;
+    }
+
+    public void SetShortcut(string actionId, ShortcutBinding? binding)
+    {
+        if (!ShortcutCatalog.All.Any(spec => spec.Id == actionId))
+            throw new ArgumentException("Άγνωστη ενέργεια συντόμευσης.");
+        if (binding is not null)
+        {
+            if (binding.Modifiers == 0 && binding.Key is < VirtualKey.F1 or > VirtualKey.F12)
+                throw new ArgumentException("Χρησιμοποιήστε Ctrl, Shift, Alt ή πλήκτρο F1–F12.");
+            var conflict = ShortcutCatalog.All.FirstOrDefault(spec => spec.Id != actionId &&
+                GetShortcut(spec.Id) == binding);
+            if (conflict is not null)
+                throw new InvalidOperationException($"Ο συνδυασμός χρησιμοποιείται ήδη από: {conflict.Title}.");
+        }
+        _shortcuts[actionId] = binding;
+        Save();
+        ShortcutsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(new SavedPreferences(Theme.ToString(), ShortcutsEnabled)));
+        File.WriteAllText(_path, JsonSerializer.Serialize(new SavedPreferences(Theme.ToString(), ShortcutsEnabled, _shortcuts)));
     }
 
-    private sealed record SavedPreferences(string Theme, bool ShortcutsEnabled);
+    private sealed record SavedPreferences(string Theme, bool ShortcutsEnabled,
+        Dictionary<string, ShortcutBinding?>? Shortcuts = null);
 }

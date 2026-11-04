@@ -6,13 +6,15 @@ namespace AllInsurance.Desktop.Views;
 
 internal static class DialogButtonStyles
 {
-    public static async Task<ContentDialogResult> ShowAsync(ContentDialog dialog, bool destructive = false)
+    public static async Task<ContentDialogResult> ShowAsync(ContentDialog dialog, bool destructive = false,
+        bool redClose = false)
     {
         var resources = Microsoft.UI.Xaml.Application.Current.Resources;
         dialog.PrimaryButtonStyle = (Style)resources[destructive
             ? "DialogDangerButtonStyle" : "DialogConfirmButtonStyle"];
         dialog.SecondaryButtonStyle = (Style)resources["DialogDangerButtonStyle"];
-        dialog.CloseButtonStyle = (Style)resources["DialogCloseButtonStyle"];
+        dialog.CloseButtonStyle = (Style)resources[redClose
+            ? "DialogDangerButtonStyle" : "DialogCloseButtonStyle"];
         dialog.Loaded += (_, _) => ButtonMotion.AttachTree(dialog);
         return await dialog.ShowAsync();
     }

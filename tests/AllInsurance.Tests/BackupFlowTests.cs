@@ -17,6 +17,9 @@ public sealed class BackupFlowTests
         var backup = await backups.CreateAsync();
         Assert.True(File.Exists(backup.FullPath));
         Assert.True(backup.SizeBytes > 0);
+        var contents = await backups.InspectAsync(backup.FileName);
+        Assert.True(contents.IntegrityOk);
+        Assert.Equal(0, contents.Counts["Customers"]);
         var customers = new CustomerService(environment.ContextFactory, environment.Session);
         var customerId = await customers.SaveAsync(new Customer
         {

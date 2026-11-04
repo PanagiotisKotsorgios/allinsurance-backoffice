@@ -36,6 +36,11 @@ public class ActionButton : Button
 
     public ActionButton()
     {
+        Click += (_, _) =>
+        {
+            if (!string.IsNullOrWhiteSpace(Label))
+                AllInsurance.Desktop.Logging.UiAuditRecorder.Record("BUTTON_CLICK", Label);
+        };
         Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["ActionButtonStyle"];
         UseSystemFocusVisuals = true;
         RegisterPropertyChangedCallback(LabelProperty, (_, _) => UpdateVisual());

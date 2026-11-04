@@ -6,7 +6,9 @@ using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using System.Globalization;
+using Windows.UI;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -15,86 +17,221 @@ public sealed class CommissionSettingsPage : Page
     private readonly ICommissionRuleService _service = App.Services.GetRequiredService<ICommissionRuleService>();
     private readonly IBusinessRecordService _records = App.Services.GetRequiredService<IBusinessRecordService>();
     private readonly IFilterOptionService _filters = App.Services.GetRequiredService<IFilterOptionService>();
-    private readonly ListView _list = new() { MinHeight = 250 };
-    private readonly ListView _exposureList = new() { Height = 190 };
+    private readonly ListView _list = new() { SelectionMode = ListViewSelectionMode.Single };
+    private readonly TextBox _search = new() { PlaceholderText = "Αναζήτηση εταιρείας, κλάδου, χρήσης, κάλυψης ή πακέτου",
+        Height = 42, VerticalContentAlignment = VerticalAlignment.Center };
+    private readonly ComboBox _companyFilter = new() { Width = 175 };
+    private readonly ComboBox _branchFilter = new() { Width = 155 };
+    private readonly ComboBox _useFilter = new() { Width = 155 };
+    private readonly ComboBox _coverageFilter = new() { Width = 155 };
+    private readonly ComboBox _packageFilter = new() { Width = 155 };
+    private readonly ComboBox _statusFilter = new() { Width = 130 };
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly Grid _root;
+    private readonly Border _filterCard;
+    private readonly Border _tableCard;
+    private readonly Grid _header;
+    private bool _dark;
+    private double _tableWidth = 1200;
     private CommissionRule[] _rules = [];
 
     public CommissionSettingsPage()
     {
-        var root = new Grid { Padding = new Thickness(22), RowSpacing = 12 };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition());
-        var heading = new StackPanel { Spacing = 5 };
-        heading.Children.Add(new TextBlock { Text = "Παραμετροποίηση προμηθειών",
-            FontSize = 26, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        heading.Children.Add(new TextBlock { Text =
-            "Βασικοί κανόνες ανά εταιρεία, κλάδο, χρήση, κάλυψη και πακέτο. Τα ποσοστά υπολογίζονται επί των μικτών ασφαλίστρων. Η εκκαθάριση αποδόσεων προς εταιρείες θα εξειδικευτεί σε επόμενη φάση.",
-            TextWrapping = TextWrapping.Wrap });
-        root.Children.Add(heading);
+        _root = new Grid { Margin = new Thickness(16, 8, 16, 8), RowSpacing = 8,
+            RowDefinitions = { new RowDefinition { Height = GridLength.Auto }, new RowDefinition() } };
+        var filters = new StackPanel { Spacing = 8 };
+        var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        title.Children.Add(new TextBlock { Text = "Παραμετροποίηση προμηθειών",
+            FontSize = 18, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        title.Children.Add(_status);
+        filters.Children.Add(title);
+        _search.TextChanged += (_, _) => ApplyFilters();
+        filters.Children.Add(SearchFieldVisual.Wrap(_search));
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        foreach (var (box, label) in new[] { (_companyFilter, "Εταιρεία"), (_branchFilter, "Κλάδος"),
+            (_useFilter, "Χρήση"), (_coverageFilter, "Κάλυψη"), (_packageFilter, "Πακέτο"),
+            (_statusFilter, "Κατάσταση") })
+        {
+            box.Items.Add(new ComboBoxItem { Content = label + ": όλα" });
+            box.SelectedIndex = 0;
+            box.SelectionChanged += (_, _) => ApplyFilters();
+            actions.Children.Add(box);
+        }
+        var clear = new ActionButton { Kind = "Clear", Label = "Καθαρισμός φίλτρων" };
+        clear.Click += (_, _) =>
+        {
+            _search.Text = "";
+            foreach (var box in new[] { _companyFilter, _branchFilter, _useFilter,
+                _coverageFilter, _packageFilter, _statusFilter }) box.SelectedIndex = 0;
+            ApplyFilters();
+        };
+        actions.Children.Add(clear);
         var add = new ActionButton { Kind = "Add", Label = "Νέος κανόνας" };
         add.Click += async (_, _) => await EditAsync(null);
-        var edit = new ActionButton { Kind = "Edit", Label = "Επεξεργασία" };
-        edit.Click += async (_, _) =>
-        {
-            if (Selected() is CommissionRule rule) await EditAsync(rule);
-            else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε κανόνα.");
-        };
         var delete = new ActionButton { Kind = "Delete", Label = "Διαγραφή" };
         delete.Click += async (_, _) => await DeleteAsync();
-        actions.Children.Add(add); actions.Children.Add(edit); actions.Children.Add(delete);
-        Grid.SetRow(actions, 1); root.Children.Add(actions);
-        var content = new StackPanel { Spacing = 8 };
-        content.Children.Add(_status);
-        content.Children.Add(_list);
-        content.Children.Add(new TextBlock { Text = "Εκτίμηση προς απόδοση ανά ασφαλιστική",
-            FontSize = 19, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Margin = new Thickness(0, 14, 0, 0) });
-        content.Children.Add(new TextBlock { Text =
-            "Μικτά ασφάλιστρα μείον προμήθεια γραφείου, πριν από καταχωρήσεις αποδόσεων προς εταιρείες.",
-            TextWrapping = TextWrapping.Wrap });
-        content.Children.Add(_exposureList);
-        var scroller = new ScrollViewer { Content = content,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        Grid.SetRow(scroller, 2); root.Children.Add(scroller);
-        Content = root;
-        Loaded += async (_, _) => await RefreshAsync();
+        actions.Children.Add(add); actions.Children.Add(delete);
+        filters.Children.Add(new ScrollViewer { Content = actions,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled });
+        _filterCard = new Border { Child = filters, Padding = new Thickness(12, 8, 12, 8),
+            CornerRadius = new CornerRadius(16) };
+        _root.Children.Add(_filterCard);
+        var table = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto }, new RowDefinition() } };
+        _header = TableRow(["Εταιρεία", "Κλάδος", "Χρήση", "Κάλυψη", "Πακέτο",
+            "Έδρα %", "Συνεργάτης %", "Κατάσταση"], true);
+        table.Children.Add(_header);
+        _list.SelectionMode = ListViewSelectionMode.Single;
+        TableRowStriping.Attach(_list);
+        _list.DoubleTapped += async (_, _) =>
+        {
+            if (Selected() is CommissionRule rule) await EditAsync(rule);
+        };
+        Grid.SetRow(_list, 1); table.Children.Add(_list);
+        var tableScroll = new ScrollViewer { Content = table,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        tableScroll.SizeChanged += (_, args) =>
+        {
+            var width = Math.Max(1200, args.NewSize.Width - 2);
+            if (Math.Abs(width - _tableWidth) < 2) return;
+            _tableWidth = width;
+            ResizeRow(_header);
+            ApplyFilters();
+        };
+        Grid.SetRow(tableScroll, 1);
+        _tableCard = new Border { Child = tableScroll, Padding = new Thickness(12, 10, 12, 10),
+            CornerRadius = new CornerRadius(16) };
+        Grid.SetRow(_tableCard, 1);
+        _root.Children.Add(_tableCard);
+        Content = _root;
+        Loaded += async (_, _) => { ApplyPalette(); await RefreshAsync(); };
+        ActualThemeChanged += (_, _) => ApplyPalette();
     }
 
-    private CommissionRule? Selected() => _list.SelectedIndex is >= 0 and var index &&
-        index < _rules.Length ? _rules[index] : null;
+    private CommissionRule? Selected() => (_list.SelectedItem as ListViewItem)?.Tag as CommissionRule;
 
     private async Task RefreshAsync()
     {
         try
         {
             _rules = (await _service.ListAsync()).ToArray();
-            _list.ItemsSource = _rules.Select(rule =>
-                $"{(rule.IsActive ? "●" : "○")}  {rule.Insurer}  ·  " +
-                $"{rule.Branch ?? "Όλοι οι κλάδοι"}  ·  {rule.VehicleUse ?? "Όλες οι χρήσεις"}  ·  " +
-                $"{rule.Coverage ?? "Όλες οι καλύψεις"}  ·  {rule.Package ?? "Όλα τα πακέτα"}  ·  " +
-                $"Γραφείο {rule.OfficePercent:N2}%  ·  Συνεργάτης {rule.PartnerPercent:N2}%").ToArray();
-            _status.Text = $"{_rules.Length} κανόνες. Οι ειδικότεροι ενεργοί κανόνες έχουν προτεραιότητα.";
-            var policies = (await _records.SearchAsync("policies"))
-                .Where(item => item.DocumentType is null or "Ασφαλιστήριο")
-                .Select(item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson))
-                .Where(item => !string.IsNullOrWhiteSpace(item.Insurer)).ToArray();
-            var exposure = policies.GroupBy(item => item.Insurer!,
-                StringComparer.CurrentCultureIgnoreCase).OrderBy(group => group.Key)
-                .Select(group =>
-                {
-                    var gross = group.Sum(item => item.GrossPremium ?? 0);
-                    var office = group.Sum(item => decimal.Round((item.GrossPremium ?? 0) *
-                        (item.OfficeCommissionPercent ?? 0) / 100m, 2));
-                    return $"{group.Key}  ·  Μικτά {gross:N2} €  ·  Προμήθεια γραφείου {office:N2} €  ·  " +
-                        $"Εκτιμώμενη απόδοση {gross - office:N2} €";
-                }).ToArray();
-            _exposureList.ItemsSource = exposure.Length == 0 ?
-                ["Δεν υπάρχουν εκδομένα ασφαλιστήρια με ασφαλιστική εταιρεία."] : exposure;
+            SetFilter(_companyFilter, "Εταιρεία", _rules.Select(rule => rule.Insurer));
+            SetFilter(_branchFilter, "Κλάδος", _rules.Select(rule => rule.Branch ?? "Όλοι"));
+            SetFilter(_useFilter, "Χρήση", _rules.Select(rule => rule.VehicleUse ?? "Όλες"));
+            SetFilter(_coverageFilter, "Κάλυψη", _rules.Select(rule => rule.Coverage ?? "Όλες"));
+            SetFilter(_packageFilter, "Πακέτο", _rules.Select(rule => rule.Package ?? "Όλα"));
+            SetFilter(_statusFilter, "Κατάσταση", ["Ενεργός", "Ανενεργός"]);
+            ApplyFilters();
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+    }
+
+    private void ApplyPalette()
+    {
+        _dark = ActualTheme == ElementTheme.Dark;
+        _root.Background = Solid(_dark ? (byte)31 : (byte)221,
+            _dark ? (byte)31 : (byte)228, _dark ? (byte)31 : (byte)235);
+        Background = _root.Background;
+        _filterCard.Background = Solid(_dark ? 44 : 235, _dark ? 44 : 240, _dark ? 44 : 245);
+        _tableCard.Background = Solid(_dark ? 44 : 235, _dark ? 44 : 240, _dark ? 44 : 245);
+        _list.Background = Solid(_dark ? 38 : 235, _dark ? 43 : 240, _dark ? 49 : 245);
+        _list.Foreground = Solid(_dark ? 241 : 30, _dark ? 245 : 45, _dark ? 249 : 62);
+        _status.Foreground = Solid(_dark ? 180 : 80, _dark ? 193 : 97, _dark ? 207 : 115);
+        _header.Background = Solid(_dark ? 53 : 203, _dark ? 63 : 215, _dark ? 75 : 226);
+        foreach (var cell in _header.Children.OfType<Border>())
+            if (cell.Child is TextBlock label)
+                label.Foreground = Solid(_dark ? 241 : 30, _dark ? 245 : 45, _dark ? 249 : 62);
+        foreach (var box in new[] { _companyFilter, _branchFilter, _useFilter,
+            _coverageFilter, _packageFilter, _statusFilter })
+        {
+            box.Background = Solid(_dark ? 48 : 223, _dark ? 55 : 232, _dark ? 64 : 241);
+            box.Foreground = Solid(_dark ? 245 : 29, _dark ? 247 : 43, _dark ? 250 : 59);
+            box.BorderBrush = Solid(_dark ? 111 : 139, _dark ? 130 : 162, _dark ? 148 : 184);
+        }
+        ApplyFilters();
+    }
+
+    private static SolidColorBrush Solid(int red, int green, int blue) =>
+        new(Color.FromArgb(255, (byte)red, (byte)green, (byte)blue));
+
+    private static void SetFilter(ComboBox box, string title, IEnumerable<string> values)
+    {
+        var selected = (box.SelectedItem as ComboBoxItem)?.Content?.ToString();
+        box.Items.Clear();
+        box.Items.Add(new ComboBoxItem { Content = title + ": όλα" });
+        foreach (var value in values.Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct().OrderBy(value => value))
+            box.Items.Add(new ComboBoxItem { Content = value });
+        box.SelectedItem = box.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(item => item.Content?.ToString() == selected) ?? box.Items[0];
+    }
+
+    private static string? Chosen(ComboBox box) => box.SelectedIndex > 0
+        ? (box.SelectedItem as ComboBoxItem)?.Content?.ToString() : null;
+
+    private void ApplyFilters()
+    {
+        var term = _search.Text.Trim();
+        var company = Chosen(_companyFilter);
+        var branch = Chosen(_branchFilter);
+        var use = Chosen(_useFilter);
+        var coverage = Chosen(_coverageFilter);
+        var package = Chosen(_packageFilter);
+        var status = Chosen(_statusFilter);
+        var rows = _rules.Where(rule =>
+            (term.Length == 0 || (rule.Insurer + rule.Branch + rule.VehicleUse +
+                rule.Coverage + rule.Package).Contains(term, StringComparison.CurrentCultureIgnoreCase)) &&
+            (company is null || rule.Insurer == company) &&
+            (branch is null || (rule.Branch ?? "Όλοι") == branch) &&
+            (use is null || (rule.VehicleUse ?? "Όλες") == use) &&
+            (coverage is null || (rule.Coverage ?? "Όλες") == coverage) &&
+            (package is null || (rule.Package ?? "Όλα") == package) &&
+            (status is null || (rule.IsActive ? "Ενεργός" : "Ανενεργός") == status)).ToArray();
+        _list.Items.Clear();
+        foreach (var rule in rows)
+            _list.Items.Add(new ListViewItem { Tag = rule,
+                Content = TableRow([rule.Insurer, rule.Branch ?? "Όλοι", rule.VehicleUse ?? "Όλες",
+                    rule.Coverage ?? "Όλες", rule.Package ?? "Όλα", $"{rule.OfficePercent:N2}%",
+                    $"{rule.PartnerPercent:N2}%", rule.IsActive ? "Ενεργός" : "Ανενεργός"], false),
+                Height = 40, Width = _tableWidth, Padding = new Thickness(0),
+                Background = Solid(_dark ? 38 : 235, _dark ? 43 : 240, _dark ? 49 : 245),
+                Foreground = Solid(_dark ? 241 : 30, _dark ? 245 : 45, _dark ? 249 : 62),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch });
+        _status.Text = $"{rows.Length} από {_rules.Length} κανόνες";
+    }
+
+    private Grid TableRow(string[] values, bool header)
+    {
+        var widths = new[] { 220, 145, 145, 145, 145, 105, 125, 170 };
+        var grid = new Grid { Width = _tableWidth, Height = 40,
+            Background = header ? new SolidColorBrush(_dark
+                ? Color.FromArgb(255, 53, 63, 75) : Color.FromArgb(255, 203, 215, 226)) : null };
+        foreach (var width in widths)
+            grid.ColumnDefinitions.Add(new ColumnDefinition {
+                Width = new GridLength(width * _tableWidth / widths.Sum()) });
+        for (var index = 0; index < values.Length; index++)
+        {
+            var cell = new Border { BorderThickness = new Thickness(0, 0, 1, 1),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(255, 108, 125, 141)),
+                Padding = new Thickness(9, 5, 9, 5),
+                Child = new TextBlock { Text = values[index],
+                    Foreground = Solid(_dark ? 241 : 30, _dark ? 245 : 45, _dark ? 249 : 62),
+                    FontWeight = header ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    VerticalAlignment = VerticalAlignment.Center } };
+            Grid.SetColumn(cell, index); grid.Children.Add(cell);
+        }
+        return grid;
+    }
+
+    private void ResizeRow(Grid row)
+    {
+        var widths = new[] { 220, 145, 145, 145, 145, 105, 125, 170 };
+        row.Width = _tableWidth;
+        for (var index = 0; index < widths.Length; index++)
+            row.ColumnDefinitions[index].Width = new GridLength(widths[index] *
+                _tableWidth / widths.Sum());
     }
 
     private async Task EditAsync(CommissionRule? existing)
@@ -112,9 +249,9 @@ public sealed class CommissionSettingsPage : Page
             var use = Suggest("Χρήση οχήματος (κενό = όλες)", existing?.VehicleUse, uses);
             var coverage = Suggest("Κάλυψη (κενό = όλες)", existing?.Coverage, coverages);
             var package = Suggest("Πακέτο (κενό = όλα)", existing?.Package, packages);
-            var office = new TextBox { Header = "Προμήθεια γραφείου επί μικτών (%) *",
+            var office = new TextBox { Header = "Προμήθεια έδρας από εταιρεία επί μικτών (%) *",
                 Text = existing?.OfficePercent.ToString("N2") ?? "0" };
-            var partner = new TextBox { Header = "Προμήθεια συνεργάτη επί μικτών (%) *",
+            var partner = new TextBox { Header = "Ποσοστό που αποδίδεται σε συνεργάτη επί μικτών (%) *",
                 Text = existing?.PartnerPercent.ToString("N2") ?? "0" };
             var active = new CheckBox { Content = "Ενεργός κανόνας",
                 IsChecked = existing?.IsActive ?? true };

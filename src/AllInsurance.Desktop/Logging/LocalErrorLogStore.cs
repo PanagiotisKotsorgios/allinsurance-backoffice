@@ -16,8 +16,9 @@ public static class LocalErrorLogStore
 
     public static IReadOnlyList<LocalErrorEntry> Recent(int limit = 300)
     {
-        if (!File.Exists(PathOnDisk)) return [];
-        return File.ReadLines(PathOnDisk).TakeLast(limit)
+        var paths = new[] { PathOnDisk + ".1", PathOnDisk }.Where(File.Exists).ToArray();
+        if (paths.Length == 0) return [];
+        return paths.SelectMany(File.ReadLines).TakeLast(limit)
             .Select(line =>
             {
                 try { return JsonSerializer.Deserialize<LocalErrorEntry>(line); }
