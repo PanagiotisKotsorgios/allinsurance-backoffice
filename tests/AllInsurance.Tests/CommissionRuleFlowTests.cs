@@ -9,6 +9,45 @@ namespace AllInsurance.Tests;
 public sealed class CommissionRuleFlowTests
 {
     [Fact]
+    public async Task AgencyRuleWithCoverageOverridesCompanyRuleOnIssuedPolicy()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var rules = new CommissionRuleService(environment.ContextFactory, environment.Session);
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+        await rules.SaveAsync(new CommissionRule
+        { Insurer = "Test Insurance", OfficePercent = 12, PartnerPercent = 4 });
+        var agencyRuleId = await rules.SaveAsync(new CommissionRule
+        {
+            Insurer = "Test Agency", Coverage = "Οδική βοήθεια",
+            OfficePercent = 16, PartnerPercent = 6
+        });
+        await records.SaveAsync(new BusinessRecord
+        { SectionKey = "companies", Title = "Test Insurance" });
+        await records.SaveAsync(new BusinessRecord
+        { SectionKey = "agencies", Title = "Test Agency" });
+        var customerId = await customers.SaveAsync(new Customer
+        { LastName = "Agency", FirstName = "Customer", TaxNumber = "100000082" });
+        var policyId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "policies", Title = "POL-82", CustomerId = customerId,
+            DocumentType = "Ασφαλιστήριο",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            {
+                PolicyNumber = "POL-82", Insurer = "Test Insurance", Agency = "Test Agency",
+                GrossPremium = 500,
+                Coverages = [new PolicyCoverage { Name = "Οδική βοήθεια" }]
+            })
+        });
+        var policy = BusinessRecordDetails.Read<PolicyCardData>(
+            (await records.GetAsync(policyId))!.DetailsJson);
+        Assert.Equal(agencyRuleId, policy.CommissionRuleId);
+        Assert.Equal(16m, policy.OfficeCommissionPercent);
+    }
+
+    [Fact]
     public async Task SpecificRuleIsSnapshottedOnInsuranceIssueAndKeepsPartnerLink()
     {
         await using var environment = new TestEnvironment();

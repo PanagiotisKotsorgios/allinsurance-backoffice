@@ -48,7 +48,7 @@ public sealed class CommissionRuleService(IApplicationDbContextFactory factory, 
     {
         RequireAdministrator();
         rule.Insurer = Clean(rule.Insurer, 200) ??
-            throw new ArgumentException("Επιλέξτε ασφαλιστική εταιρεία.");
+            throw new ArgumentException("Επιλέξτε εταιρεία ή πρακτορείο.");
         rule.Branch = Clean(rule.Branch, 120);
         rule.VehicleUse = Clean(rule.VehicleUse, 120);
         rule.Coverage = Clean(rule.Coverage, 200);

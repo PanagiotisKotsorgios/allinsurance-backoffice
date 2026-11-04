@@ -256,7 +256,8 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             }
             if (record.DocumentType is null or "Ασφαλιστήριο" &&
                 details.OfficeCommissionPercent is null &&
-                !string.IsNullOrWhiteSpace(details.Insurer))
+                (!string.IsNullOrWhiteSpace(details.Insurer) ||
+                 !string.IsNullOrWhiteSpace(details.Agency)))
             {
                 string? vehicleUse = null;
                 if (details.VehicleId is Guid linkedVehicleId)
@@ -266,9 +267,15 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                         .Select(item => item.DetailsJson).SingleOrDefaultAsync(cancellationToken);
                     vehicleUse = BusinessRecordDetails.Read<VehicleCardData>(vehicleJson).Use;
                 }
-                var rule = await new CommissionRuleService(factory, session).ResolveAsync(
-                    new CommissionMatch(details.Insurer, details.Branch, vehicleUse,
-                        details.CoverageNotes, details.Product), cancellationToken);
+                var commissionRules = new CommissionRuleService(factory, session);
+                var coverageNames = string.Join(" | ", details.Coverages.Select(item => item.Name)
+                    .Append(details.CoverageNotes).Where(value => !string.IsNullOrWhiteSpace(value)));
+                var match = new CommissionMatch(details.Insurer ?? "", details.Branch, vehicleUse,
+                    coverageNames, details.Product);
+                var rule = !string.IsNullOrWhiteSpace(details.Agency)
+                    ? await commissionRules.ResolveAsync(match with { Insurer = details.Agency },
+                        cancellationToken) : null;
+                rule ??= await commissionRules.ResolveAsync(match, cancellationToken);
                 if (rule is not null)
                 {
                     details.CommissionRuleId = rule.Id;

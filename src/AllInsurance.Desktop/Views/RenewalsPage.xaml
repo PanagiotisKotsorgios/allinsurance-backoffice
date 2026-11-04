@@ -47,12 +47,13 @@
             <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
                 <Border Background="{ThemeResource TableHeaderBackgroundBrush}"
                         BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1" CornerRadius="6">
-                    <Grid ColumnDefinitions="190,*,210,140,100" Height="40">
-                        <TextBlock Text="Ασφαλιστήριο" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="Πελάτης" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="2" Text="Εταιρεία" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="3" Text="Λήξη" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="4" Text="Ημέρες" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    <Grid ColumnDefinitions="2*,1.2*,1.7*,2*,2*,2*" Height="40">
+                        <TextBlock Text="Αριθμός συμβολαίου" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="1" Text="Λήξη" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="2" Text="Ημέρες για τη λήξη" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="3" Text="Ασφαλιστική" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="4" Text="Συνεργάτης" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="5" Text="Πελάτης" Margin="10,0" VerticalAlignment="Center" FontWeight="SemiBold" />
                     </Grid>
                 </Border>
                 <ListView x:Name="RenewalsList" Grid.Row="1" SelectionMode="Single"
@@ -66,12 +67,13 @@
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="190,*,210,140,100" Height="40">
+                            <Grid ColumnDefinitions="2*,1.2*,1.7*,2*,2*,2*" Height="40">
                                 <TextBlock Text="{Binding Number}" Grid.Column="0" Margin="10,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Customer}" Grid.Column="1" Margin="10,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Insurer}" Grid.Column="2" Margin="10,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Expiry}" Grid.Column="3" Margin="10,0" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding DaysLeft}" Grid.Column="4" Margin="10,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Expiry}" Grid.Column="1" Margin="10,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding DaysLeft}" Grid.Column="2" Margin="10,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Insurer}" Grid.Column="3" Margin="10,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Partner}" Grid.Column="4" Margin="10,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Customer}" Grid.Column="5" Margin="10,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>

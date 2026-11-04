@@ -34,6 +34,9 @@ public sealed class CommissionSettingsPage : Page
     private bool _dark;
     private double _tableWidth = 1200;
     private CommissionRule[] _rules = [];
+    private string[] _organizationNames = [];
+    private sealed record CommissionCandidate(string Organization, string? Branch,
+        string? Use, string? Coverage, string? Package);
 
     public CommissionSettingsPage()
     {
@@ -48,7 +51,7 @@ public sealed class CommissionSettingsPage : Page
         _search.TextChanged += (_, _) => ApplyFilters();
         filters.Children.Add(SearchFieldVisual.Wrap(_search));
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        foreach (var (box, label) in new[] { (_companyFilter, "Εταιρεία"), (_branchFilter, "Κλάδος"),
+        foreach (var (box, label) in new[] { (_companyFilter, "Εταιρεία / πρακτορείο"), (_branchFilter, "Κλάδος"),
             (_useFilter, "Χρήση"), (_coverageFilter, "Κάλυψη"), (_packageFilter, "Πακέτο"),
             (_statusFilter, "Κατάσταση") })
         {
@@ -78,14 +81,17 @@ public sealed class CommissionSettingsPage : Page
             CornerRadius = new CornerRadius(16) };
         _root.Children.Add(_filterCard);
         var table = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto }, new RowDefinition() } };
-        _header = TableRow(["Εταιρεία", "Κλάδος", "Χρήση", "Κάλυψη", "Πακέτο",
-            "Έδρα %", "Συνεργάτης %", "Κατάσταση"], true);
+        _header = TableRow(["Εταιρεία / πρακτορείο", "Κλάδος", "Χρήση", "Κάλυψη", "Πακέτο",
+            "Εισερχόμενη %", "Προς συνεργάτη %", "Κατάσταση"], true);
         table.Children.Add(_header);
         _list.SelectionMode = ListViewSelectionMode.Single;
         TableRowStriping.Attach(_list);
         _list.DoubleTapped += async (_, _) =>
         {
-            if (Selected() is CommissionRule rule) await EditAsync(rule);
+            if (_list.SelectedItem is not ListViewItem selected) return;
+            if (selected.Tag is CommissionRule rule) await EditAsync(rule);
+            else if (selected.Tag is CommissionCandidate candidate)
+                await EditAsync(null, candidate);
         };
         Grid.SetRow(_list, 1); table.Children.Add(_list);
         var tableScroll = new ScrollViewer { Content = table,
@@ -116,15 +122,31 @@ public sealed class CommissionSettingsPage : Page
         try
         {
             _rules = (await _service.ListAsync()).ToArray();
-            SetFilter(_companyFilter, "Εταιρεία", _rules.Select(rule => rule.Insurer));
-            SetFilter(_branchFilter, "Κλάδος", _rules.Select(rule => rule.Branch ?? "Όλοι"));
-            SetFilter(_useFilter, "Χρήση", _rules.Select(rule => rule.VehicleUse ?? "Όλες"));
-            SetFilter(_coverageFilter, "Κάλυψη", _rules.Select(rule => rule.Coverage ?? "Όλες"));
-            SetFilter(_packageFilter, "Πακέτο", _rules.Select(rule => rule.Package ?? "Όλα"));
+            _organizationNames = await OrganizationNamesAsync();
+            SetFilter(_companyFilter, "Εταιρεία / πρακτορείο",
+                _organizationNames.Concat(_rules.Select(rule => rule.Insurer)));
+            SetFilter(_branchFilter, "Κλάδος",
+                (await _filters.ChoicesAsync("Κλάδοι")).Concat(_rules.Select(rule => rule.Branch))!);
+            SetFilter(_useFilter, "Χρήση",
+                (await _filters.ChoicesAsync("Χρήσεις οχημάτων")).Concat(_rules.Select(rule => rule.VehicleUse))!);
+            SetFilter(_coverageFilter, "Κάλυψη",
+                (await _filters.ChoicesAsync("Καλύψεις")).Concat(_rules.Select(rule => rule.Coverage))!);
+            SetFilter(_packageFilter, "Πακέτο",
+                (await _filters.ChoicesAsync("Πακέτα ασφαλίσεων")).Concat(_rules.Select(rule => rule.Package))!);
             SetFilter(_statusFilter, "Κατάσταση", ["Ενεργός", "Ανενεργός"]);
             ApplyFilters();
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+    }
+
+    private async Task<string[]> OrganizationNamesAsync()
+    {
+        var companies = await _records.SearchAsync("companies");
+        var agencies = await _records.SearchAsync("agencies");
+        return companies.Concat(agencies).Select(item => item.Title)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase).ToArray();
     }
 
     private void ApplyPalette()
@@ -198,7 +220,26 @@ public sealed class CommissionSettingsPage : Page
                 Background = Solid(_dark ? 38 : 235, _dark ? 43 : 240, _dark ? 49 : 245),
                 Foreground = Solid(_dark ? 241 : 30, _dark ? 245 : 45, _dark ? 249 : 62),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch });
-        _status.Text = $"{rows.Length} από {_rules.Length} κανόνες";
+        var candidates = status is null ? _organizationNames
+            .Where(name => company is null || name == company)
+            .Where(name => term.Length == 0 || name.Contains(term,
+                StringComparison.CurrentCultureIgnoreCase))
+            .Where(name => !rows.Any(rule => rule.Insurer == name &&
+                (branch is null || rule.Branch == branch) &&
+                (use is null || rule.VehicleUse == use) &&
+                (coverage is null || rule.Coverage == coverage) &&
+                (package is null || rule.Package == package)))
+            .Select(name => new CommissionCandidate(name, branch, use, coverage, package))
+            .ToArray() : [];
+        foreach (var candidate in candidates)
+            _list.Items.Add(new ListViewItem { Tag = candidate,
+                Content = TableRow([candidate.Organization, candidate.Branch ?? "Όλοι",
+                    candidate.Use ?? "Όλες", candidate.Coverage ?? "Όλες",
+                    candidate.Package ?? "Όλα", "—", "—", "Χωρίς κανόνα"], false),
+                Height = 40, Width = _tableWidth, Padding = new Thickness(0),
+                Foreground = Solid(_dark ? 241 : 30, _dark ? 245 : 45, _dark ? 249 : 62),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch });
+        _status.Text = $"{rows.Length} κανόνες · {candidates.Length} διαθέσιμες επιλογές";
     }
 
     private Grid TableRow(string[] values, bool header)
@@ -234,24 +275,23 @@ public sealed class CommissionSettingsPage : Page
                 _tableWidth / widths.Sum());
     }
 
-    private async Task EditAsync(CommissionRule? existing)
+    private async Task EditAsync(CommissionRule? existing, CommissionCandidate? candidate = null)
     {
         try
         {
-            var companies = (await _records.SearchAsync("companies"))
-                .Select(item => item.Title).Distinct().ToArray();
+            var companies = await OrganizationNamesAsync();
             var branches = (await _filters.ChoicesAsync("Κλάδοι")).ToArray();
             var uses = (await _filters.ChoicesAsync("Χρήσεις οχημάτων")).ToArray();
             var coverages = (await _filters.ChoicesAsync("Καλύψεις")).ToArray();
             var packages = (await _filters.ChoicesAsync("Πακέτα ασφαλίσεων")).ToArray();
-            var insurer = Suggest("Ασφαλιστική εταιρεία *", existing?.Insurer, companies);
-            var branch = Suggest("Κλάδος (κενό = όλοι)", existing?.Branch, branches);
-            var use = Suggest("Χρήση οχήματος (κενό = όλες)", existing?.VehicleUse, uses);
-            var coverage = Suggest("Κάλυψη (κενό = όλες)", existing?.Coverage, coverages);
-            var package = Suggest("Πακέτο (κενό = όλα)", existing?.Package, packages);
-            var office = new TextBox { Header = "Προμήθεια έδρας από εταιρεία επί μικτών (%) *",
+            var insurer = Suggest("Εταιρεία ή πρακτορείο *", existing?.Insurer ?? candidate?.Organization, companies);
+            var branch = Suggest("Κλάδος (κενό = όλοι)", existing?.Branch ?? candidate?.Branch, branches);
+            var use = Suggest("Χρήση οχήματος (κενό = όλες)", existing?.VehicleUse ?? candidate?.Use, uses);
+            var coverage = Suggest("Κάλυψη (κενό = όλες)", existing?.Coverage ?? candidate?.Coverage, coverages);
+            var package = Suggest("Πακέτο (κενό = όλα)", existing?.Package ?? candidate?.Package, packages);
+            var office = new TextBox { Header = "Εισερχόμενη προμήθεια έδρας επί μικτών (%) *",
                 Text = existing?.OfficePercent.ToString("N2") ?? "0" };
-            var partner = new TextBox { Header = "Ποσοστό που αποδίδεται σε συνεργάτη επί μικτών (%) *",
+            var partner = new TextBox { Header = "Εξερχόμενη προμήθεια προς συνεργάτη επί μικτών (%) *",
                 Text = existing?.PartnerPercent.ToString("N2") ?? "0" };
             var active = new CheckBox { Content = "Ενεργός κανόνας",
                 IsChecked = existing?.IsActive ?? true };
@@ -264,6 +304,14 @@ public sealed class CommissionSettingsPage : Page
                 Content = new ScrollViewer { Content = form, MaxHeight = 560 },
                 PrimaryButtonText = "Αποθήκευση", CloseButtonText = "Ακύρωση" };
             if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
+            if (!companies.Contains(insurer.Text.Trim(), StringComparer.CurrentCultureIgnoreCase))
+                throw new ArgumentException("Επιλέξτε καταχωρημένη εταιρεία ή πρακτορείο από τα αποτελέσματα.");
+            foreach (var (box, values, label) in new[]
+                { (branch, branches, "κλάδο"), (use, uses, "χρήση"),
+                  (coverage, coverages, "κάλυψη"), (package, packages, "πακέτο") })
+                if (!string.IsNullOrWhiteSpace(box.Text) &&
+                    !values.Contains(box.Text.Trim(), StringComparer.CurrentCultureIgnoreCase))
+                    throw new ArgumentException($"Επιλέξτε καταχωρημένο {label} από τα αποτελέσματα.");
             var rule = new CommissionRule
             {
                 Id = existing?.Id ?? Guid.Empty, Insurer = insurer.Text,
@@ -281,11 +329,17 @@ public sealed class CommissionSettingsPage : Page
     {
         var box = new AutoSuggestBox { Header = label, Text = value ?? "",
             HorizontalAlignment = HorizontalAlignment.Stretch };
-        box.TextChanged += (_, args) =>
+        void UpdateSuggestions()
         {
-            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
             box.ItemsSource = options.Where(item => item.Contains(box.Text,
                 StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+            box.IsSuggestionListOpen = box.ItemsSource is string[] { Length: > 0 };
+        }
+        box.GotFocus += (_, _) => UpdateSuggestions();
+        box.TextChanged += (_, args) =>
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+                UpdateSuggestions();
         };
         box.SuggestionChosen += (_, args) => box.Text = args.SelectedItem as string ?? box.Text;
         return box;

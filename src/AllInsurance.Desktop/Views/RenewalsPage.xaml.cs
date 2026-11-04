@@ -30,8 +30,13 @@ public sealed partial class RenewalsPage : Page
         try
         {
             var records = (await _records.SearchAsync("policies")).ToArray();
+            var partners = (await _records.SearchAsync("partners"))
+                .ToDictionary(item => item.Id, item => item.Title);
             _all = RenewalPlanning.Candidates(records)
-                .Select(item => new RenewalRow(item.Record, item.Data)).ToArray();
+                .Select(item => new RenewalRow(item.Record, item.Data,
+                    item.Data.PartnerId is Guid partnerId &&
+                    partners.TryGetValue(partnerId, out var partnerName)
+                        ? partnerName : "—")).ToArray();
             var selected = CompanyFilter.SelectedItem?.ToString();
             CompanyFilter.Items.Clear();
             CompanyFilter.Items.Add("Όλες οι εταιρείες");
@@ -55,7 +60,7 @@ public sealed partial class RenewalsPage : Page
                 (from is null || item.EndDate.Date >= from) &&
                 (until is null || item.EndDate.Date <= until) &&
                 (company is null || item.Insurer == company) &&
-                (search.Length == 0 || (item.Number + item.Customer + item.Insurer)
+                (search.Length == 0 || (item.Number + item.Customer + item.Insurer + item.Partner)
                     .Contains(search, StringComparison.CurrentCultureIgnoreCase)))
             .OrderBy(item => item.EndDate).ToArray();
         RenewalsList.ItemsSource = items;
@@ -111,7 +116,7 @@ public sealed partial class RenewalsPage : Page
         _card.BringToFront();
     }
 
-    public sealed class RenewalRow(BusinessRecord record, PolicyCardData data)
+    public sealed class RenewalRow(BusinessRecord record, PolicyCardData data, string partner)
     {
         public BusinessRecord Record { get; } = record;
         public PolicyCardData Data { get; } = data;
@@ -120,6 +125,7 @@ public sealed partial class RenewalsPage : Page
         public string Customer { get; } = record.Customer is { } customer
             ? $"{customer.LastName} {customer.FirstName}" : record.RelatedParty ?? "—";
         public string Insurer { get; } = data.Insurer ?? "—";
+        public string Partner { get; } = partner;
         public string Expiry => EndDate.ToString("dd/MM/yyyy");
         public string DaysLeft => (EndDate.Date - DateTime.Today).Days.ToString();
     }
