@@ -4,17 +4,19 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
-    <Grid x:Name="PageContent" Margin="16,10,16,10" RowDefinitions="35,Auto,Auto,*" RowSpacing="14">
-            <StackPanel Orientation="Horizontal" Spacing="12" Height="35" VerticalAlignment="Center">
-                <TextBlock Text="Πελάτες" FontSize="30" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <TextBlock x:Name="TotalBadge" Text="0 εγγραφές" VerticalAlignment="Center"
-                           Foreground="{ThemeResource BrandAccentBrush}" FontWeight="SemiBold" />
-                <TextBlock x:Name="SelectedBadge" Text="0 επιλεγμένοι" VerticalAlignment="Center"
-                           Foreground="{ThemeResource SecondaryTextBrush}" />
-            </StackPanel>
-            <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="14,10">
+    <Grid x:Name="PageContent" Margin="16,8,16,8" RowDefinitions="Auto,*" RowSpacing="8"
+          SizeChanged="PageContent_SizeChanged">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,8">
                 <StackPanel Spacing="7">
-                    <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" Height="28" VerticalAlignment="Center">
+                        <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock x:Name="TotalBadge" Text="0 εγγραφές" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource BrandAccentBrush}" FontWeight="SemiBold" />
+                        <TextBlock x:Name="SelectedBadge" Text="0 επιλεγμένοι" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource SecondaryTextBrush}" />
+                        <controls:ActionButton Kind="Columns" Label="Διαχείριση στηλών" IconOnly="True"
+                                               Width="40" Height="28" Click="Columns_Click" />
+                    </StackPanel>
                     <Border Height="46" CornerRadius="9" BorderBrush="#7C91A7"
                             BorderThickness="1.5" Padding="1">
                     <Grid>
@@ -27,29 +29,31 @@
                                               IsHitTestVisible="False" />
                     </Grid>
                     </Border>
-                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="224" ItemHeight="36">
-                        <controls:MultiSelectFilter x:Name="BalanceFilter" Title="Υπόλοιπο" Width="210" Height="36" />
-                        <controls:MultiSelectFilter x:Name="KindFilter" Title="Είδος" Width="210" Height="36" />
-                        <controls:MultiSelectFilter x:Name="CityFilter" Title="Πόλη" Width="210" Height="36" />
-                        <controls:MultiSelectFilter x:Name="PartnerFilter" Title="Συνεργάτης" Width="210" Height="36" />
-                        <controls:ActionButton Kind="Clear" Label="Καθαρισμός φίλτρων"
-                                               Width="210" Height="36" Click="ClearFilters_Click" />
-                    </VariableSizedWrapGrid>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <StackPanel x:Name="InlineFiltersHost" Orientation="Horizontal">
+                            <StackPanel x:Name="FilterBar" Orientation="Horizontal" Spacing="8">
+                                <controls:MultiSelectFilter x:Name="BalanceFilter" Title="Υπόλοιπο" Width="170" Height="36" />
+                                <controls:MultiSelectFilter x:Name="KindFilter" Title="Είδος" Width="170" Height="36" />
+                                <controls:MultiSelectFilter x:Name="CityFilter" Title="Πόλη" Width="170" Height="36" />
+                                <controls:MultiSelectFilter x:Name="PartnerFilter" Title="Συνεργάτης" Width="170" Height="36" />
+                            </StackPanel>
+                        </StackPanel>
+                        <controls:ActionButton x:Name="ShowFiltersButton" Kind="Choice" Label="Φίλτρα" Width="100"
+                                               Height="36" Visibility="Collapsed">
+                            <controls:ActionButton.Flyout>
+                                <Flyout><StackPanel x:Name="PopupFiltersHost" Width="240" Spacing="8" /></Flyout>
+                            </controls:ActionButton.Flyout>
+                        </controls:ActionButton>
+                        <controls:ActionButton x:Name="ClearFiltersButton" Kind="Clear" Label="Καθαρισμός φίλτρων"
+                                               Width="185" Height="36" Click="ClearFilters_Click" />
+                        <controls:ActionButton x:Name="AddButton" Kind="Add" Label="Προσθήκη πελάτη"
+                                               Width="180" Height="36" Click="Add_Click" />
+                        <controls:ActionButton x:Name="DeleteButton" Kind="Delete" Label="Διαγραφή πελάτη"
+                                               Width="175" Height="36" Click="Delete_Click" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
-            <Border Grid.Row="2" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="8,7" MinHeight="50">
-                <Grid x:Name="ActionsGrid" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto"
-                      SizeChanged="ActionsGrid_SizeChanged">
-                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="210" ItemHeight="36" VerticalAlignment="Center">
-                        <controls:ActionButton Kind="Add" Label="Προσθήκη πελάτη" Width="180" Height="36" Click="Add_Click" />
-                        <controls:ActionButton Kind="Columns" Label="Διαχείριση στηλών" Width="180" Height="36" Click="Columns_Click" />
-                    </VariableSizedWrapGrid>
-                    <controls:ActionButton Grid.Column="1" Kind="Delete" Label="Διαγραφή πελάτη"
-                                           Width="175" Height="36" Click="Delete_Click"
-                                           HorizontalAlignment="Right" VerticalAlignment="Center" />
-                </Grid>
-            </Border>
-            <Border Grid.Row="3" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="14,10">
+            <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="14,10">
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"
                                AutomationProperties.LiveSetting="Assertive" />

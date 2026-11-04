@@ -20,6 +20,7 @@ public sealed partial class CustomersPage : Page
     private CustomerListItem[] _allItems = [];
     private bool _loading;
     private bool _updatingSelectAll;
+    private bool _filtersInPopup;
     private readonly HashSet<Guid> _checkedCustomerIds = [];
     private string _sortKey = "LastName";
     private bool _sortDescending;
@@ -58,6 +59,7 @@ public sealed partial class CustomersPage : Page
         KindFilter.SetOptions(["Φυσικό πρόσωπο", "Επιχείρηση"]);
         foreach (var filter in new[] { BalanceFilter, KindFilter, CityFilter, PartnerFilter })
             filter.SelectionChanged += (_, _) => ApplyFilters();
+        Loaded += (_, _) => UpdateResponsiveLayout(PageContent.ActualWidth);
         Loaded += async (_, _) => await RefreshAsync();
     }
 
@@ -69,13 +71,40 @@ public sealed partial class CustomersPage : Page
         ApplyDisplayedColumnWidths();
     }
 
-    private void ActionsGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void PageContent_SizeChanged(object sender, SizeChangedEventArgs e)
+        => UpdateResponsiveLayout(e.NewSize.Width);
+
+    private void UpdateResponsiveLayout(double width)
     {
-        var narrow = e.NewSize.Width < 830;
-        Grid.SetColumnSpan((FrameworkElement)ActionsGrid.Children[0], narrow ? 2 : 1);
-        var delete = (FrameworkElement)ActionsGrid.Children[1];
-        Grid.SetRow(delete, narrow ? 1 : 0);
-        Grid.SetColumn(delete, 1);
+        if (FilterBar is null || width <= 0) return;
+        var popup = width < 1310;
+        if (popup != _filtersInPopup)
+        {
+            if (popup)
+            {
+                InlineFiltersHost.Children.Remove(FilterBar);
+                PopupFiltersHost.Children.Add(FilterBar);
+                FilterBar.Orientation = Orientation.Vertical;
+            }
+            else
+            {
+                PopupFiltersHost.Children.Remove(FilterBar);
+                InlineFiltersHost.Children.Add(FilterBar);
+                FilterBar.Orientation = Orientation.Horizontal;
+            }
+            _filtersInPopup = popup;
+        }
+        foreach (var filter in new[] { BalanceFilter, KindFilter, CityFilter, PartnerFilter })
+            filter.Width = popup ? 240 : 170;
+        ShowFiltersButton.Visibility = popup ? Visibility.Visible : Visibility.Collapsed;
+        var narrow = width < 700;
+        AddButton.IconOnly = narrow;
+        DeleteButton.IconOnly = narrow;
+        AddButton.Width = narrow ? 44 : 180;
+        DeleteButton.Width = narrow ? 44 : 175;
+        var veryNarrow = width < 480;
+        ClearFiltersButton.IconOnly = veryNarrow;
+        ClearFiltersButton.Width = veryNarrow ? 44 : 185;
     }
 
     private async Task RefreshAsync()
@@ -95,9 +124,11 @@ public sealed partial class CustomersPage : Page
             _loading = true;
             KindFilter.SetOptions(new[] { "Φυσικό πρόσωπο", "Επιχείρηση" }
                 .Concat(items.Select(item => item.CustomerKind)));
-            CityFilter.SetOptions(cities.Concat(_allItems.Select(item => item.City ?? "Χωρίς πόλη"))
+            CityFilter.SetOptions(cities.Concat(_allItems.Select(item =>
+                    string.IsNullOrWhiteSpace(item.City) ? "Χωρίς πόλη" : item.City))
                 .Concat(["Χωρίς πόλη"]));
-            PartnerFilter.SetOptions(partners.Concat(_allItems.Select(item => item.PartnerName ?? "Χωρίς συνεργάτη"))
+            PartnerFilter.SetOptions(partners.Concat(_allItems.Select(item =>
+                    string.IsNullOrWhiteSpace(item.PartnerName) ? "Χωρίς συνεργάτη" : item.PartnerName))
                 .Concat(["Χωρίς συνεργάτη"]));
             _loading = false;
             ApplyFilters();
@@ -119,8 +150,10 @@ public sealed partial class CustomersPage : Page
         rows = rows.Where(item => BalanceFilter.SelectedValues.Contains(item.Balance > 0 ? "Χρεωστικό" :
             item.Balance < 0 ? "Πιστωτικό" : "Μηδενικό"));
         rows = rows.Where(item => KindFilter.SelectedValues.Contains(item.CustomerKind));
-        rows = rows.Where(item => CityFilter.SelectedValues.Contains(item.City ?? "Χωρίς πόλη"));
-        rows = rows.Where(item => PartnerFilter.SelectedValues.Contains(item.PartnerName ?? "Χωρίς συνεργάτη"));
+        rows = rows.Where(item => CityFilter.SelectedValues.Contains(
+            string.IsNullOrWhiteSpace(item.City) ? "Χωρίς πόλη" : item.City));
+        rows = rows.Where(item => PartnerFilter.SelectedValues.Contains(
+            string.IsNullOrWhiteSpace(item.PartnerName) ? "Χωρίς συνεργάτη" : item.PartnerName));
         if (_sortKey == "Balance")
             rows = _sortDescending ? rows.OrderByDescending(item => item.Balance) :
                 rows.OrderBy(item => item.Balance);

@@ -4,26 +4,19 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
-    <Grid x:Name="PageContent" Margin="16,10,16,10" RowDefinitions="35,Auto,Auto,*" RowSpacing="14">
-            <Grid Height="35" VerticalAlignment="Center" ColumnDefinitions="Auto,*">
-                    <Border x:Name="IconBackground" Width="70" Height="70" CornerRadius="14">
-                        <Image x:Name="SectionIcon" Width="48" Height="48" />
-                    </Border>
-                    <StackPanel x:Name="HeadingPanel" Grid.Column="1" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock x:Name="SectionTitle" FontSize="30" FontWeight="SemiBold" />
-                            <TextBlock x:Name="TotalBadge" Text="0 εγγραφές" VerticalAlignment="Center"
-                                       Foreground="{ThemeResource BrandAccentBrush}" FontWeight="SemiBold" />
-                            <TextBlock x:Name="SelectedBadge" Text="0 επιλεγμένες" VerticalAlignment="Center"
-                                       Foreground="{ThemeResource SecondaryTextBrush}" FontWeight="SemiBold" />
-                        </StackPanel>
-                        <TextBlock x:Name="SectionDescription" Visibility="Collapsed" FontSize="15" TextWrapping="Wrap"
-                                   Foreground="{ThemeResource SecondaryTextBrush}" />
-                    </StackPanel>
-            </Grid>
-            <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="14,10">
+    <Grid x:Name="PageContent" Margin="16,8,16,8" RowDefinitions="Auto,*" RowSpacing="8"
+          SizeChanged="PageContent_SizeChanged">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,8">
                 <StackPanel Spacing="7">
-                    <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" Height="28" VerticalAlignment="Center">
+                        <TextBlock Text="Φίλτρα" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <TextBlock x:Name="TotalBadge" Text="0 εγγραφές" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource BrandAccentBrush}" FontWeight="SemiBold" />
+                        <TextBlock x:Name="SelectedBadge" Text="0 επιλεγμένες" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource SecondaryTextBrush}" />
+                        <controls:ActionButton Kind="Columns" Label="Διαχείριση στηλών" IconOnly="True"
+                                               Width="40" Height="28" Click="Columns_Click" />
+                    </StackPanel>
                     <Border Height="46" CornerRadius="9" BorderBrush="#7C91A7"
                             BorderThickness="1.5" Padding="1">
                     <Grid>
@@ -35,9 +28,9 @@
                                               IsHitTestVisible="False" />
                     </Grid>
                     </Border>
-                    <VariableSizedWrapGrid x:Name="FilterBar" Orientation="Horizontal"
-                                           ItemWidth="190" ItemHeight="36" HorizontalAlignment="Stretch"
-                                           SizeChanged="FilterBar_SizeChanged">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <StackPanel x:Name="InlineFiltersHost" Orientation="Horizontal">
+                    <StackPanel x:Name="FilterBar" Orientation="Horizontal" Spacing="8">
                         <controls:MultiSelectFilter x:Name="StatusFilter" Title="Κατάσταση" Height="36" />
                         <controls:MultiSelectFilter x:Name="CustomerFilter" Title="Πελάτης" Height="36" />
                         <controls:MultiSelectFilter x:Name="CityFilter" Title="Πόλη / περιοχή" Height="36" />
@@ -57,26 +50,26 @@
                                 </Flyout>
                             </controls:ActionButton.Flyout>
                         </controls:ActionButton>
-                        <controls:ActionButton x:Name="ClearFiltersButton" Kind="Clear" Label="Καθαρισμός φίλτρων"
-                                               Height="36" Click="ClearFilters_Click" />
-                    </VariableSizedWrapGrid>
+                    </StackPanel>
+                    </StackPanel>
+                    <controls:ActionButton x:Name="ShowFiltersButton" Kind="Choice" Label="Φίλτρα" Width="100"
+                                           Height="36" Visibility="Collapsed">
+                        <controls:ActionButton.Flyout>
+                            <Flyout><StackPanel x:Name="PopupFiltersHost" Width="240" Spacing="8" /></Flyout>
+                        </controls:ActionButton.Flyout>
+                    </controls:ActionButton>
+                    <controls:ActionButton x:Name="ClearFiltersButton" Kind="Clear" Label="Καθαρισμός φίλτρων"
+                                           Width="180" Height="36" Click="ClearFilters_Click" />
+                    <controls:ActionButton x:Name="AddButton" Kind="Add" Label="Προσθήκη"
+                                           Width="230" Height="36" Click="Add_Click" />
+                    <controls:ActionButton x:Name="RenewalsButton" Kind="Renewals" Label="Ανανεώσεις"
+                                           Width="155" Height="36" Click="Renewals_Click" Visibility="Collapsed" />
+                    <controls:ActionButton x:Name="DeleteButton" Kind="Delete" Label="Διαγραφή"
+                                           Width="160" Height="36" Click="Delete_Click" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
-            <Border Grid.Row="2" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="8,7" MinHeight="50">
-                <Grid x:Name="ActionsGrid" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto"
-                      SizeChanged="ActionsGrid_SizeChanged">
-                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="245" ItemHeight="36" VerticalAlignment="Center">
-                        <controls:ActionButton x:Name="AddButton" Kind="Add" Label="Προσθήκη" Width="230" Height="36" Click="Add_Click" />
-                        <controls:ActionButton Kind="Edit" Label="Επεξεργασία" Width="195" Height="36" Click="Edit_Click" />
-                        <controls:ActionButton Kind="Columns" Label="Διαχείριση στηλών" Width="180" Height="36" Click="Columns_Click" />
-                        <controls:ActionButton x:Name="RenewalsButton" Kind="Renewals" Label="Ανανεώσεις" Width="180" Height="36" Click="Renewals_Click" Visibility="Collapsed" />
-                    </VariableSizedWrapGrid>
-                    <controls:ActionButton x:Name="DeleteButton" Grid.Column="1" Kind="Delete" Label="Διαγραφή"
-                                           Width="175" Height="36" Click="Delete_Click"
-                                           HorizontalAlignment="Right" VerticalAlignment="Center" />
-                </Grid>
-            </Border>
-            <Grid Grid.Row="3" RowDefinitions="*,Auto" RowSpacing="10">
+            <Grid Grid.Row="1" RowDefinitions="*,Auto" RowSpacing="10">
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="14,10">
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap"

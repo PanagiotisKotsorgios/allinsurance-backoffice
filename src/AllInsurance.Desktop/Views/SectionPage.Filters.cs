@@ -38,18 +38,15 @@ public sealed partial class SectionPage
             PersonTypeFilter, DateRangeFilter })
             element.Visibility = visible.Contains(element) ? Visibility.Visible : Visibility.Collapsed;
         DateBasisFilter.Visibility = _section.Key == "policies" ? Visibility.Visible : Visibility.Collapsed;
-        _visibleFilterCount = visible.Length + 1;
+        _visibleFilterCount = visible.Length;
         FilterBar.Children.Clear();
         foreach (var element in visible)
         {
-            element.Width = double.NaN;
+            element.Width = 180;
             element.HorizontalAlignment = HorizontalAlignment.Stretch;
-            element.Margin = new Thickness(0, 0, 14, 0);
+            element.Margin = new Thickness(0);
             FilterBar.Children.Add(element);
         }
-        ClearFiltersButton.Margin = new Thickness(0, 0, 14, 0);
-        ClearFiltersButton.HorizontalAlignment = HorizontalAlignment.Stretch;
-        FilterBar.Children.Add(ClearFiltersButton);
         if (_section.Key is "vehicles")
         {
             DateRangeFilter.Label = "Πρώτη άδεια";
@@ -70,12 +67,6 @@ public sealed partial class SectionPage
             UntilFilter.PlaceholderText = "Έως ημερομηνία";
         }
         UpdateDateRangeLabel();
-    }
-
-    private void FilterBar_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        if (_visibleFilterCount == 0 || e.NewSize.Width <= 0) return;
-        FilterBar.ItemWidth = Math.Max(170, Math.Floor(e.NewSize.Width / _visibleFilterCount));
     }
 
     private void UpdateDateRangeLabel()

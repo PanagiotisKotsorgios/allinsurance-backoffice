@@ -11,6 +11,7 @@ namespace AllInsurance.Desktop.Controls;
 public class ActionButton : Button
 {
     private string _kind = "Open";
+    private bool _iconOnly;
     public static readonly DependencyProperty LabelProperty = DependencyProperty.Register(
         nameof(Label), typeof(string), typeof(ActionButton),
         new PropertyMetadata(""));
@@ -25,6 +26,12 @@ public class ActionButton : Button
     {
         get => (string)GetValue(LabelProperty);
         set => SetValue(LabelProperty, value);
+    }
+
+    public bool IconOnly
+    {
+        get => _iconOnly;
+        set { if (_iconOnly == value) return; _iconOnly = value; UpdateVisual(); }
     }
 
     public ActionButton()
@@ -67,21 +74,48 @@ public class ActionButton : Button
         };
         Background = new SolidColorBrush(ParseColor(color));
         Foreground = new SolidColorBrush(Colors.White);
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center };
-        content.Children.Add(new Image
+        if (_iconOnly)
+        {
+            MinHeight = 28;
+            MinWidth = 40;
+            Padding = new Thickness(7, 3, 7, 3);
+        }
+        else
+        {
+            ClearValue(MinHeightProperty);
+            ClearValue(PaddingProperty);
+            ClearValue(MinWidthProperty);
+        }
+        var image = new Image
         {
             Source = new SvgImageSource(new Uri($"ms-appx:///Assets/Icons/action-{icon}.svg")),
             Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center
-        });
-        content.Children.Add(new TextBlock
+        };
+        if (_iconOnly)
+        {
+            Content = image;
+            AutomationProperties.SetName(this, Label);
+            ToolTipService.SetToolTip(this, Label);
+            return;
+        }
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center };
+        content.Children.Add(image);
+        var label = new TextBlock
         {
             Text = Label, Foreground = new SolidColorBrush(Colors.White),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center
-        });
+        };
+        content.Children.Add(label);
+        if (this is not MultiSelectFilter)
+        {
+            label.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+            MinWidth = Math.Ceiling(label.DesiredSize.Width + 56);
+        }
         Content = content;
         AutomationProperties.SetName(this, Label);
+        ToolTipService.SetToolTip(this, Label);
     }
 
     private static Color ParseColor(string value) => Color.FromArgb(

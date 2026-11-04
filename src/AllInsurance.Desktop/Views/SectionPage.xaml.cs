@@ -8,7 +8,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.UI;
 
 namespace AllInsurance.Desktop.Views;
@@ -36,6 +35,7 @@ public sealed partial class SectionPage : Page
     private bool _sortDescending;
     private bool _updatingSelectAll;
     private bool _syncingChecks;
+    private bool _filtersInPopup;
     private readonly HashSet<Guid> _checkedRecordIds = [];
     private int _page = 1;
     private double _lastTableViewportWidth;
@@ -58,20 +58,9 @@ public sealed partial class SectionPage : Page
             () => { try { SectionColumnOrder.SaveWidths(_section.Key, _columnWidths); }
                 catch (Exception exception) { StatusText.Text = exception.Message; } });
         ApplyColumnOrder(RecordsHeader);
-        var accent = Color.FromArgb(255,
-            Convert.ToByte(section.Accent.Substring(1, 2), 16),
-            Convert.ToByte(section.Accent.Substring(3, 2), 16),
-            Convert.ToByte(section.Accent.Substring(5, 2), 16));
-        IconBackground.Background = new SolidColorBrush(Color.FromArgb(28, accent.R, accent.G, accent.B));
-        SectionIcon.Source = new BitmapImage(new Uri(section.Icon));
-        SectionTitle.Text = section.Title;
-        SectionDescription.Text = section.Description;
         AddButton.Label = "Προσθήκη " + Singular(section.Title);
         RenewalsButton.Visibility = section.Key == "policies" ? Visibility.Visible : Visibility.Collapsed;
         SearchInput.PlaceholderText = section.SearchHint;
-        IconBackground.Visibility = Visibility.Collapsed;
-        Grid.SetColumn(HeadingPanel, 0);
-        Grid.SetColumnSpan(HeadingPanel, 2);
         ConfigureFilterBar();
         TitleHeader.Text = section.Columns[0];
         PartyHeader.Text = section.Columns.Length > 1 ? section.Columns[1] : "Στοιχεία";
@@ -79,6 +68,7 @@ public sealed partial class SectionPage : Page
         CustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         CityFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         PersonTypeFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
+        Loaded += (_, _) => UpdateResponsiveLayout(PageContent.ActualWidth);
         Loaded += async (_, _) =>
         {
             await LoadCustomersAsync();
@@ -98,12 +88,44 @@ public sealed partial class SectionPage : Page
                 container.Width = DisplayTableWidth;
     }
 
-    private void ActionsGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    private void PageContent_SizeChanged(object sender, SizeChangedEventArgs e)
+        => UpdateResponsiveLayout(e.NewSize.Width);
+
+    private void UpdateResponsiveLayout(double width)
     {
-        var narrow = e.NewSize.Width < (_section.Key == "policies" ? 1160 : 930);
-        Grid.SetColumnSpan((FrameworkElement)ActionsGrid.Children[0], narrow ? 2 : 1);
-        Grid.SetRow(DeleteButton, narrow ? 1 : 0);
-        Grid.SetColumn(DeleteButton, 1);
+        if (FilterBar is null || _visibleFilterCount == 0 || width <= 0) return;
+        var requiredWidth = _visibleFilterCount * 188 + 180 + 230 + 160 +
+            (_section.Key == "policies" ? 155 : 0) + 56;
+        var popup = width < requiredWidth;
+        if (popup != _filtersInPopup)
+        {
+            if (popup)
+            {
+                InlineFiltersHost.Children.Remove(FilterBar);
+                PopupFiltersHost.Children.Add(FilterBar);
+                FilterBar.Orientation = Orientation.Vertical;
+            }
+            else
+            {
+                PopupFiltersHost.Children.Remove(FilterBar);
+                InlineFiltersHost.Children.Add(FilterBar);
+                FilterBar.Orientation = Orientation.Horizontal;
+            }
+            _filtersInPopup = popup;
+        }
+        foreach (var filter in FilterBar.Children.OfType<FrameworkElement>())
+            filter.Width = popup ? 240 : 180;
+        ShowFiltersButton.Visibility = popup ? Visibility.Visible : Visibility.Collapsed;
+        var narrow = width < (_section.Key == "policies" ? 930 : 760);
+        AddButton.IconOnly = narrow;
+        RenewalsButton.IconOnly = narrow;
+        DeleteButton.IconOnly = narrow;
+        AddButton.Width = narrow ? 44 : 230;
+        RenewalsButton.Width = narrow ? 44 : 155;
+        DeleteButton.Width = narrow ? 44 : 160;
+        var veryNarrow = width < 480;
+        ClearFiltersButton.IconOnly = veryNarrow;
+        ClearFiltersButton.Width = veryNarrow ? 44 : 180;
     }
 
     private async Task LoadCustomersAsync()
@@ -324,9 +346,12 @@ public sealed partial class SectionPage : Page
         var menu = new MenuFlyout();
         var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
         open.Click += async (_, _) => await EditRecordAsync(row.Record);
+        var edit = new MenuFlyoutItem { Text = "Επεξεργασία" };
+        edit.Click += async (_, _) => await EditRecordAsync(row.Record, beginEditing: true);
         var delete = new MenuFlyoutItem { Text = "Διαγραφή" };
         delete.Click += async (_, _) => await DeleteRecordAsync(row);
         menu.Items.Add(open);
+        menu.Items.Add(edit);
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(delete);
         return menu;
@@ -468,12 +493,6 @@ public sealed partial class SectionPage : Page
         ApplyPage();
     }
     private async void Add_Click(object sender, RoutedEventArgs e) => await EditRecordAsync(null);
-    private async void Edit_Click(object sender, RoutedEventArgs e)
-    {
-        if (RecordsList.SelectedItems.Count == 1 &&
-            RecordsList.SelectedItems[0] is BusinessRecordRow row) await EditRecordAsync(row.Record, beginEditing: true);
-        else await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε εγγραφή από τον πίνακα.");
-    }
     private async Task EditRecordAsync(BusinessRecord? existing, bool beginEditing = false)
     {
         if (_section.Key == "partners")
