@@ -397,7 +397,12 @@ public sealed partial class WorkspaceRecordCardWindow
         foreach (var input in _inputs.Values)
         {
             if (input is TextBox text) text.IsReadOnly = !_editing;
-            else if (input is Control control) control.IsEnabled = _editing;
+            else if (input is Control control)
+            {
+                control.IsEnabled = true;
+                control.IsHitTestVisible = _editing;
+                control.IsTabStop = _editing;
+            }
         }
         foreach (var (key, badge) in _booleanBadges)
         {
@@ -483,6 +488,7 @@ public sealed partial class WorkspaceRecordCardWindow
             BuildTabs(preserve: true);
             RecordSaved?.Invoke(this, EventArgs.Empty);
             _status.Text = "Η καρτέλα αποθηκεύτηκε.";
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η εργασία σας αποθηκεύτηκε επιτυχώς.");
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }

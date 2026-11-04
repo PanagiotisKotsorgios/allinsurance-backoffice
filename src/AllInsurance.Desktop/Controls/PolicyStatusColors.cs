@@ -13,6 +13,8 @@ internal static class PolicyStatusColors
         if (Contains(documentType, "πράσινη κάρτα")) return Brush(44, 128, 70);
         if (Contains(documentType, "πρόσθετη πράξη") || Contains(status, "πρόσθετη πράξη"))
             return Brush(89, 153, 118);
+        if (Contains(documentType, "προσφορά")) return Brush(86, 112, 145);
+        if (Contains(documentType, "ειδοποιητήριο")) return Brush(65, 125, 165);
         if (Contains(documentType, "αίτηση") || Contains(status, "σε εξέλιξη"))
             return Brush(177, 126, 39);
         if (expiry is DateTime end && end.Date < DateTime.Today) return Brush(166, 62, 62);

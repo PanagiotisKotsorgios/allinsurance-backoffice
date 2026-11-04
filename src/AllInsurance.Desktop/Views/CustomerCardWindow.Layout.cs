@@ -267,13 +267,14 @@ public sealed partial class CustomerCardWindow
         var sourceChoice = AddCatalogChoice(business, "Πηγή", "Πηγές πελατών",
             () => _customer.Source, value => _customer.Source = value);
         _referralChoice = new ComboBox { PlaceholderText = "Επιλέξτε πελάτη",
-            DisplayMemberPath = "FullName", SelectedValuePath = "Id", IsEnabled = _editing,
+            DisplayMemberPath = "FullName", SelectedValuePath = "Id",
+            IsHitTestVisible = _editing, IsTabStop = _editing,
             MinHeight = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
         var customerReferralRow = CreateFieldRow("Σύσταση από πελάτη", _referralChoice);
         business.Children.Add(customerReferralRow);
         _ = LoadReferrersAsync();
         _referralPartnerChoice = new ComboBox { PlaceholderText = "Επιλέξτε συνεργάτη",
-            MinHeight = 40, Height = 40, IsEnabled = _editing,
+            MinHeight = 40, Height = 40, IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var partnerReferralRow = CreateFieldRow("Σύσταση από συνεργάτη", _referralPartnerChoice);
         business.Children.Add(partnerReferralRow);

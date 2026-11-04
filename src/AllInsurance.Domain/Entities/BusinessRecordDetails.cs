@@ -4,11 +4,13 @@ namespace AllInsurance.Domain.Entities;
 
 public sealed class PolicyCardData
 {
+    public string? OfferNumber { get; set; }
     public string? ApplicationNumber { get; set; }
     public string? NoticeNumber { get; set; }
     public string? PolicyNumber { get; set; }
     public string? RenewalNumber { get; set; }
     public Guid? PreviousPolicyId { get; set; }
+    public string? PreviousPolicyNumber { get; set; }
     public DateTime? RenewalDate { get; set; }
     public DateTime? CompanyRenewalDate { get; set; }
     public string? Insurer { get; set; }
@@ -23,6 +25,11 @@ public sealed class PolicyCardData
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public int? CoverageDurationMonths { get; set; }
+    public int? CoverageDurationValue { get; set; }
+    public string? CoverageDurationUnit { get; set; }
+    public string? PreferredPaymentMethod { get; set; }
+    public DateTime? CompanyPaymentDueDate { get; set; }
+    public DateTime? CustomerReceivedAt { get; set; }
     public decimal? InsuredValue { get; set; }
     public decimal? GrossPremium { get; set; }
     public decimal? NetPremium { get; set; }

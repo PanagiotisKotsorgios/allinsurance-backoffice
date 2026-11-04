@@ -321,7 +321,8 @@ public sealed partial class CustomerCardWindow : Window
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var stateFilter = new ComboBox { Width = 195, Height = 38,
             ItemsSource = category == "policies"
-                ? new[] { "Όλα", "Σε εξέλιξη", "Ενεργά", "Ιστορικά", "Αιτήσεις", "Ειδοποιητήρια", "Ασφαλιστήρια" }
+                ? new[] { "Όλα", "Σε εξέλιξη", "Ενεργά", "Ιστορικά", "Αιτήσεις", "Ειδοποιητήρια",
+                    "Ασφαλιστήρια", "Προσφορές", "Πρόσθετες πράξεις", "Πράσινες κάρτες" }
                 : new[] { "Όλα", "Ενεργά", "Ανενεργά" }, SelectedIndex = 0 };
         var dateBasis = new ComboBox { Width = 195, Height = 38,
             ItemsSource = new[] { "Ημ. έναρξης", "Ημ. έκδοσης" }, SelectedIndex = 0 };
@@ -456,6 +457,9 @@ public sealed partial class CustomerCardWindow : Window
                 4 => item.DocumentType == "Αίτηση",
                 5 => item.DocumentType == "Ειδοποιητήριο",
                 6 => item.DocumentType == "Ασφαλιστήριο",
+                7 => item.DocumentType == "Προσφορά",
+                8 => item.DocumentType == "Πρόσθετη πράξη",
+                9 => item.DocumentType == "Πράσινη κάρτα",
                 _ => true
             } : state == 1 ? item.Status == "Ενεργό" : item.Status == "Ανενεργό"))
             .Where(item => !from.HasValue || FilterDate(item, category, dateBasis) >= from)
@@ -494,6 +498,7 @@ public sealed partial class CustomerCardWindow : Window
                 var policy = BusinessRecordDetails.Read<PolicyCardData>(policyRecord.DetailsJson);
                 cell.Background = PolicyStatusColors.Background(policyRecord.DocumentType,
                     policyRecord.Status, policy.EndDate);
+                text.Text = "✓ " + text.Text;
                 text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
             }
             if (index == cells.Length - 1 && cells[index] is "Ενεργό" or "Σε εξέλιξη")
@@ -702,7 +707,13 @@ public sealed partial class CustomerCardWindow : Window
         try
         {
             _currency = await _transactionSettings.GetCurrencyAsync();
-            methods = await _filterService.ChoicesAsync("Τρόποι πληρωμής");
+            methods = (await _filterService.ChoicesAsync("Τρόποι πληρωμής"))
+                .Concat(_customer.BusinessRecords.Where(item => item.SectionKey == "policies")
+                    .Select(item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson)
+                        .PreferredPaymentMethod)
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(value => value!))
+                .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         }
         catch (Exception exception)
         {
@@ -714,7 +725,6 @@ public sealed partial class CustomerCardWindow : Window
         var method = new ComboBox { Header = RequiredHeader.Create("Τρόπος πληρωμής"),
             ItemsSource = methods, HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Επιλέξτε τρόπο πληρωμής" };
-        method.SelectedItem = methods.FirstOrDefault(value => value == "Μετρητά") ?? methods.FirstOrDefault();
         var currency = new TextBox { Header = "Νόμισμα", Text = $"{_currency} ({CurrencySymbol})",
             IsReadOnly = true, IsTabStop = false };
         var reference = new TextBox { Header = "Αριθμός συναλλαγής / αναφορά",
@@ -728,6 +738,14 @@ public sealed partial class CustomerCardWindow : Window
         var policy = new ComboBox { Header = "Σύνδεση με ασφαλιστήριο", ItemsSource = policies,
             DisplayMemberPath = nameof(PolicyChoice.Name), SelectedIndex = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch };
+        policy.SelectionChanged += (_, _) =>
+        {
+            var selectedId = (policy.SelectedItem as PolicyChoice)?.Id;
+            var selectedPolicy = _customer.BusinessRecords.FirstOrDefault(item => item.Id == selectedId);
+            var preferred = selectedPolicy is null ? null :
+                BusinessRecordDetails.Read<PolicyCardData>(selectedPolicy.DetailsJson).PreferredPaymentMethod;
+            method.SelectedItem = methods.FirstOrDefault(value => value == preferred);
+        };
         var description = new TextBox { Header = "Αιτιολογία / σημειώσεις", AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap, Height = 74 };
         var form = new StackPanel { Spacing = 10, Width = 420 };
@@ -756,6 +774,7 @@ public sealed partial class CustomerCardWindow : Window
             UpdateHeader();
             CustomerChanged?.Invoke(this, EventArgs.Empty);
             _status.Text = $"Η κίνηση καταχωρίστηκε. Νέο υπόλοιπο: {CustomerService.Balance(_customer):N2} {CurrencySymbol}";
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η οικονομική κίνηση καταχωρίστηκε επιτυχώς.");
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
@@ -794,6 +813,7 @@ public sealed partial class CustomerCardWindow : Window
             UpdateActionState();
             CustomerChanged?.Invoke(this, EventArgs.Empty);
             _status.Text = "Η καρτέλα πελάτη αποθηκεύτηκε.";
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η εργασία σας αποθηκεύτηκε επιτυχώς.");
             return true;
         }
         catch (Exception exception)
@@ -912,7 +932,8 @@ public sealed partial class CustomerCardWindow : Window
     private void AddChoice(StackPanel form, string label, Func<string> getter,
         Action<string> setter, string[] options)
     {
-        var input = new ComboBox { ItemsSource = options, IsEnabled = _editing,
+        var input = new ComboBox { ItemsSource = options,
+            IsHitTestVisible = _editing, IsTabStop = _editing,
             MinHeight = 38, Height = 38,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             SelectedItem = options.Contains(getter()) ? getter() : options[0] };
@@ -926,7 +947,8 @@ public sealed partial class CustomerCardWindow : Window
         Func<string?> getter, Action<string?> setter)
     {
         var selected = getter();
-        var input = new ComboBox { IsEnabled = _editing, MinHeight = 38, Height = 38,
+        var input = new ComboBox { IsHitTestVisible = _editing, IsTabStop = _editing,
+            MinHeight = 38, Height = 38,
             PlaceholderText = "Επιλέξτε", HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
@@ -985,7 +1007,7 @@ public sealed partial class CustomerCardWindow : Window
         var input = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             MinHeight = 38, Height = 38,
             Date = getter() is DateTime value ? new DateTimeOffset(value) : null,
-            IsEnabled = _editing };
+            IsHitTestVisible = _editing, IsTabStop = _editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         var row = CreateFieldRow(label, input);
         form.Children.Add(row);

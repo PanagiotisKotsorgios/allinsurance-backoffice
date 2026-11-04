@@ -30,13 +30,13 @@ public sealed partial class SectionPage
             "partners" => new FrameworkElement[] { StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter },
             "vehicles" => [StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter, DateRangeFilter],
             "companies" or "agencies" => [StatusFilter, CustomerFilter, CityFilter],
-            "policies" => [StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter,
+            "policies" => [StatusFilter, PolicyDocumentFilter, CustomerFilter, CityFilter, PersonTypeFilter,
                 PolicyCustomerFilter, PolicyPartnerFilter, DateRangeFilter],
             "claims" => [StatusFilter, CustomerFilter, DateRangeFilter],
             _ => [StatusFilter, CustomerFilter, DateRangeFilter]
         };
         foreach (var element in new FrameworkElement[] { StatusFilter, CustomerFilter, CityFilter,
-            PersonTypeFilter, PolicyCustomerFilter, PolicyPartnerFilter, DateRangeFilter })
+            PersonTypeFilter, PolicyCustomerFilter, PolicyPartnerFilter, PolicyDocumentFilter, DateRangeFilter })
             element.Visibility = visible.Contains(element) ? Visibility.Visible : Visibility.Collapsed;
         DateBasisFilter.Visibility = _section.Key == "policies" ? Visibility.Visible : Visibility.Collapsed;
         _visibleFilterCount = visible.Length;
@@ -92,7 +92,7 @@ public sealed partial class SectionPage
             ? records.Select(VehicleDisplayStatus) : records.Select(StatusKey);
         if (_section.Key == "policies")
             statuses = statuses.Concat(["Ενεργό", "Πιθανό", "Ληγμένο", "Ακυρωμένο", "Ανανεωμένο",
-                "Αίτηση", "Ειδοποιητήριο", "Πρόσθετη πράξη", "Πρόσθετη πράξη ακύρωσης"]);
+                "Σε εξέλιξη", "Πρόσθετη πράξη", "Πρόσθετη πράξη ακύρωσης"]);
         else if (_section.Key == "claims")
             statuses = statuses.Concat(["Δηλωμένη", "Σε αναμονή", "Σε εξέλιξη", "Εγκρίθηκε",
                 "Πληρωμένη", "Κλειστή", "Απορρίφθηκε"]);
@@ -102,6 +102,10 @@ public sealed partial class SectionPage
             statuses = statuses.Concat(["Ασφαλισμένο", "Σε εξέλιξη",
                 "Χωρίς ενεργό συμβόλαιο", "Ανενεργό"]);
         StatusFilter.SetOptions(statuses);
+        if (_section.Key == "policies")
+            PolicyDocumentFilter.SetOptions(records.Select(item => item.DocumentType ?? "Ασφαλιστήριο")
+                .Concat(["Προσφορά", "Αίτηση", "Ειδοποιητήριο", "Ασφαλιστήριο",
+                    "Πρόσθετη πράξη", "Πράσινη κάρτα"]));
         switch (_section.Key)
         {
             case "partners":
@@ -149,6 +153,8 @@ public sealed partial class SectionPage
         var displayedStatus = _section.Key == "vehicles"
             ? VehicleDisplayStatus(item) : StatusKey(item);
         if (!StatusFilter.SelectedValues.Contains(displayedStatus)) return false;
+        if (_section.Key == "policies" &&
+            !PolicyDocumentFilter.SelectedValues.Contains(item.DocumentType ?? "Ασφαλιστήριο")) return false;
         var second = _section.Key switch
         {
             "partners" => PartnerProfileData.Read(item.DetailsJson).Category ?? "Χωρίς κατηγορία",
@@ -220,9 +226,8 @@ public sealed partial class SectionPage
         item.Status == "Ανενεργό" ? "Ανενεργό" :
         _vehicleInsuranceStates.GetValueOrDefault(item.Id) ?? item.Status ?? "—";
 
-    private static string StatusKey(BusinessRecord item) => item.SectionKey == "policies" &&
-        item.DocumentType is "Αίτηση" or "Ειδοποιητήριο"
-            ? item.DocumentType : string.IsNullOrWhiteSpace(item.Status) ? "Χωρίς κατάσταση" : item.Status;
+    private static string StatusKey(BusinessRecord item) =>
+        string.IsNullOrWhiteSpace(item.Status) ? "Χωρίς κατάσταση" : item.Status;
 
     private static VehicleCardData Vehicle(BusinessRecord item) =>
         BusinessRecordDetails.Read<VehicleCardData>(item.DetailsJson);

@@ -170,6 +170,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                 _record.DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
                 {
                     PreviousPolicyId = previousId, Insurer = old.Insurer, Agency = old.Agency,
+                    PreviousPolicyNumber = previous.Reference ?? old.PolicyNumber,
                     CompanyId = old.CompanyId, AgencyId = old.AgencyId,
                     Branch = old.Branch, Product = old.Product, VehicleId = old.VehicleId,
                     HolderCustomerId = old.HolderCustomerId, PartnerId = old.PartnerId,
@@ -251,8 +252,8 @@ public sealed partial class BusinessRecordCardWindow : Window
             Background = gradient };
         _heading.Text = _section == "vehicles"
             ? (_record.Id == Guid.Empty ? "Νέο όχημα" : _record.Title)
-            : (_record.Id == Guid.Empty ? "Νέα αίτηση ασφάλισης" :
-                $"{_record.DocumentType ?? "Ασφαλιστήριο"} · {_record.Title}");
+            : (_record.Id == Guid.Empty ? "Νέο έγγραφο ασφάλισης" :
+                $"✓ {_record.DocumentType ?? "Ασφαλιστήριο"} · {_record.Title}");
         _headerState.Text = $"● {_record.Status ?? (_section == "vehicles" ? "Ενεργό" : "Σε εξέλιξη")}";
         _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "Νέο");
         var bannerText = new StackPanel { Spacing = 8 };
@@ -280,7 +281,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         if (_section == "policies")
         {
-            _convertButton = new ActionButton { Kind = "Edit", Label = "Μετατροπή σε ασφαλιστήριο" };
+            _convertButton = new ActionButton { Kind = "Edit", Label = "Έκδοση και παραλαβή συμβολαίου" };
             _convertButton.Click += async (_, _) => await ConvertAsync();
             actions.Children.Add(_convertButton);
         }
@@ -310,7 +311,12 @@ public sealed partial class BusinessRecordCardWindow : Window
         if (_saveButton is not null) _saveButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
         if (_editButton is not null) _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
         foreach (var field in _text.Values) field.IsReadOnly = !_editing;
-        foreach (var field in _dates.Values) field.IsEnabled = _editing;
+        foreach (var field in _dates.Values)
+        {
+            field.IsEnabled = true;
+            field.IsHitTestVisible = _editing;
+            field.IsTabStop = _editing;
+        }
         foreach (var (key, field) in _vehicleChecks)
         {
             field.IsEnabled = _editing;
@@ -322,14 +328,17 @@ public sealed partial class BusinessRecordCardWindow : Window
                 ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115));
             if (badge.Child is TextBlock mark) mark.Text = checkedValue ? "✓" : "";
         }
-        if (_customerChoice is not null) _customerChoice.IsEnabled = _editing && _fixedCustomerId is null;
-        if (_vehicleChoice is not null) _vehicleChoice.IsEnabled = _editing;
-        if (_typeChoice is not null) _typeChoice.IsEnabled = _editing;
-        if (_statusChoice is not null) _statusChoice.IsEnabled = _editing;
-        if (_kteoStatusChoice is not null) _kteoStatusChoice.IsEnabled = _editing;
-        if (_policyPartnerChoice is not null) _policyPartnerChoice.IsEnabled = _editing;
-        if (_policyHolderChoice is not null) _policyHolderChoice.IsEnabled = _editing;
-        if (_policyDurationChoice is not null) _policyDurationChoice.IsEnabled = _editing;
+        LockChoice(_customerChoice, _editing && _fixedCustomerId is null);
+        LockChoice(_vehicleChoice, _editing);
+        LockChoice(_typeChoice, _editing);
+        LockChoice(_statusChoice, _editing);
+        LockChoice(_kteoStatusChoice, _editing);
+        LockChoice(_policyPartnerChoice, _editing);
+        LockChoice(_policyHolderChoice, _editing);
+        LockChoice(_policyDurationChoice, _editing);
+        LockChoice(_durationUnit, _editing);
+        LockChoice(_preferredPaymentMethod, _editing);
+        if (_durationValue is not null) _durationValue.IsReadOnly = !_editing;
         if (_payInInstallments is not null)
         {
             _payInInstallments.IsEnabled = _editing;
@@ -344,10 +353,18 @@ public sealed partial class BusinessRecordCardWindow : Window
                     mark.Text = checkedValue ? "✓" : "";
             }
         }
-        if (_insurerSuggest is not null) _insurerSuggest.IsEnabled = _editing;
-        foreach (var search in _policySearchFields) search.IsEnabled = _editing;
-        if (_convertButton is not null) _convertButton.IsEnabled = _editing;
+        LockChoice(_insurerSuggest, _editing);
+        foreach (var search in _policySearchFields) LockChoice(search, _editing);
+        if (_convertButton is not null) _convertButton.IsEnabled = true;
         foreach (var button in _editControls) button.IsEnabled = _editing;
+    }
+
+    private static void LockChoice(Control? control, bool editable)
+    {
+        if (control is null) return;
+        control.IsEnabled = true;
+        control.IsHitTestVisible = editable;
+        control.IsTabStop = editable;
     }
 
     private Button OrganizationLinkButton(string section, Func<string> name,
@@ -507,19 +524,20 @@ public sealed partial class BusinessRecordCardWindow : Window
         if (_record.DocumentType is null && _record.Id != Guid.Empty)
             data.PolicyNumber ??= _record.Reference ?? _record.Title;
         var main = TwoColumns(out var left, out var right);
-        var availableTypes = _record.Id == Guid.Empty ||
-            _record.DocumentType is ("Αίτηση" or "Ειδοποιητήριο")
-            ? new[] { "Αίτηση", "Ειδοποιητήριο" }
-            : new[] { "Αίτηση", "Ειδοποιητήριο", "Ασφαλιστήριο" };
+        var availableTypes = new[] { "Προσφορά", "Αίτηση", "Ειδοποιητήριο", "Ασφαλιστήριο",
+            "Πρόσθετη πράξη", "Πράσινη κάρτα" };
         _typeChoice = Choices(left, "Τύπος εγγράφου *", availableTypes,
-            _record.DocumentType ?? "Ασφαλιστήριο");
+            _record.DocumentType ?? "Αίτηση");
+        Text(left, "offer", "Αριθμός προσφοράς", data.OfferNumber);
         Text(left, "application", "Αριθμός αίτησης", data.ApplicationNumber);
         Text(left, "notice", "Αριθμός ειδοποιητηρίου", data.NoticeNumber);
         Text(left, "policy", "Αριθμός ασφαλιστηρίου", data.PolicyNumber);
         Text(left, "renewalnumber", "Αριθμός ανανεωτηρίου", data.RenewalNumber);
+        Text(left, "previouspolicy", "Προηγούμενο ασφαλιστήριο", data.PreviousPolicyNumber);
         void UpdateRequiredNumber()
         {
             var type = _typeChoice?.SelectedItem as string;
+            CardFieldLayout.SetRequired(left, _text["offer"], "Αριθμός προσφοράς", type == "Προσφορά");
             CardFieldLayout.SetRequired(left, _text["application"], "Αριθμός αίτησης", type == "Αίτηση");
             CardFieldLayout.SetRequired(left, _text["notice"], "Αριθμός ειδοποιητηρίου", type == "Ειδοποιητήριο");
             CardFieldLayout.SetRequired(left, _text["policy"], "Αριθμός ασφαλιστηρίου", type == "Ασφαλιστήριο");
@@ -583,10 +601,73 @@ public sealed partial class BusinessRecordCardWindow : Window
         _statusChoice = Choices(right, "Κατάσταση", ["Σε εξέλιξη", "Ενεργό", "Πιθανό", "Ληγμένο",
             "Ακυρωμένο", "Ανανεωμένο", "Πρόσθετη πράξη", "Πρόσθετη πράξη ακύρωσης", "Ανενεργό", "Ολοκληρωμένο"],
             _record.Status ?? (_record.Id == Guid.Empty ? "Σε εξέλιξη" : "Ενεργό"));
+        void UpdateStatuses()
+        {
+            var previous = _statusChoice.SelectedItem as string;
+            string[] options = (_typeChoice?.SelectedItem as string) switch
+            {
+                "Προσφορά" => ["Πιθανό", "Σε αναμονή", "Αποδεκτή", "Απορρίφθηκε", "Ακυρωμένο"],
+                "Αίτηση" => ["Σε εξέλιξη", "Προς έκδοση", "Εκδόθηκε", "Ακυρωμένο"],
+                "Ειδοποιητήριο" => ["Σε αναμονή πληρωμής", "Πληρωμένο", "Ακυρωμένο"],
+                "Πράσινη κάρτα" => ["Σε εξέλιξη", "Εκδόθηκε", "Παραδόθηκε", "Ακυρωμένο"],
+                "Πρόσθετη πράξη" => ["Σε εξέλιξη", "Εκδόθηκε", "Παραδόθηκε", "Ακυρωμένο"],
+                _ => ["Ενεργό", "Ανανεωμένο", "Ληγμένο", "Ακυρωμένο", "Ανενεργό"]
+            };
+            if (_record.Id != Guid.Empty && !string.IsNullOrWhiteSpace(previous) &&
+                !options.Contains(previous)) options = [.. options, previous];
+            _statusChoice.ItemsSource = options;
+            _statusChoice.SelectedItem = options.Contains(previous) ? previous : options[0];
+        }
+        _typeChoice.SelectionChanged += (_, _) => UpdateStatuses();
+        UpdateStatuses();
         Date(right, "issue", "Ημερομηνία έκδοσης", data.IssueDate);
         Date(right, "start", "Έναρξη κάλυψης", data.StartDate);
         AddPolicyDurationChoice(right, data);
         Date(right, "end", "Λήξη κάλυψης", data.EndDate);
+        Date(right, "companydue", "Πληρωμή προς ασφαλιστική έως", data.CompanyPaymentDueDate);
+        DateTimeOffset? calculatedDue = null;
+        void ApplyCompanyPaymentTerms()
+        {
+            var company = companies.FirstOrDefault(item => string.Equals(item.Title,
+                _insurerSuggest?.Text.Trim(), StringComparison.CurrentCultureIgnoreCase));
+            var creditDaysText = company is null ? null :
+                WorkspaceCardData.Read(company.DetailsJson).Fields.GetValueOrDefault("creditDays");
+            if (!int.TryParse(creditDaysText, out var creditDays) || creditDays < 0 || creditDays > 3650 ||
+                _dates["issue"].Date is not DateTimeOffset issue) return;
+            var dueField = _dates["companydue"];
+            if (dueField.Date is not null && dueField.Date != calculatedDue) return;
+            calculatedDue = new DateTimeOffset(issue.Date.AddDays(creditDays));
+            dueField.Date = calculatedDue;
+        }
+        _dates["issue"].DateChanged += (_, _) => ApplyCompanyPaymentTerms();
+        _insurerSuggest.TextChanged += (_, _) => ApplyCompanyPaymentTerms();
+        ApplyCompanyPaymentTerms();
+        var dueText = new TextBlock { Foreground = new SolidColorBrush(Colors.White),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+        var dueBadge = new Border { Child = dueText, CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(9, 5, 9, 5) };
+        void UpdateDueCountdown()
+        {
+            if (_dates["companydue"].Date is not DateTimeOffset due)
+            {
+                dueText.Text = "Δεν έχει οριστεί προθεσμία απόδοσης";
+                dueBadge.Background = new SolidColorBrush(Color.FromArgb(255, 101, 111, 123));
+                return;
+            }
+            var days = (due.Date - DateTime.Today).Days;
+            dueText.Text = days < 0 ? $"Εκπρόθεσμο κατά {-days} ημέρες" :
+                days == 0 ? "Η απόδοση λήγει σήμερα" : $"Απόδοση σε {days} ημέρες";
+            dueBadge.Background = new SolidColorBrush(days < 0
+                ? Color.FromArgb(255, 166, 62, 62)
+                : days <= 30 ? Color.FromArgb(255, 177, 126, 39)
+                : Color.FromArgb(255, 52, 132, 79));
+        }
+        _dates["companydue"].DateChanged += (_, _) => UpdateDueCountdown();
+        UpdateDueCountdown();
+        right.Children.Add(CardFieldLayout.CreateRow("Προθεσμία απόδοσης", dueBadge));
+        _preferredPaymentMethod = Choices(right, "Συνήθης τρόπος πληρωμής",
+            ["", "Μετρητά", "Κάρτα", "Τραπεζική μεταφορά", "POS", "Πάγια εντολή"],
+            data.PreferredPaymentMethod);
         Text(right, "net", "Καθαρά ασφάλιστρα", data.NetPremium?.ToString("N2"));
         Text(right, "gross", "Μικτά ασφάλιστρα", data.GrossPremium?.ToString("N2"));
         AddPolicyBalanceBadge(right, data);
@@ -718,7 +799,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                 var type = _typeChoice?.SelectedItem as string ?? "Αίτηση";
                 if (_record.Id != Guid.Empty && _record.DocumentType is ("Αίτηση" or "Ειδοποιητήριο") &&
                     type == "Ασφαλιστήριο" && !_conversionRequested)
-                    throw new InvalidOperationException("Χρησιμοποιήστε «Μετατροπή σε ασφαλιστήριο».");
+                    throw new InvalidOperationException("Χρησιμοποιήστε «Έκδοση και παραλαβή συμβολαίου».");
                 var data = new PolicyCardData
                 {
                     PartnerId = (_policyPartnerChoice?.SelectedItem as Choice)?.Id,
@@ -726,16 +807,24 @@ public sealed partial class BusinessRecordCardWindow : Window
                         ? _policyData.PartnerCommissionPercent : null,
                     OfficeCommissionPercent = _policyData.OfficeCommissionPercent,
                     CommissionRuleId = _policyData.CommissionRuleId,
-                    ApplicationNumber = Value("application"), NoticeNumber = Value("notice"),
+                    OfferNumber = Value("offer"), ApplicationNumber = Value("application"), NoticeNumber = Value("notice"),
                     PolicyNumber = Value("policy"), RenewalNumber = Value("renewalnumber"),
                     PreviousPolicyId = _policyData.PreviousPolicyId,
+                    PreviousPolicyNumber = Value("previouspolicy"),
                     HolderCustomerId = (_policyHolderChoice?.SelectedItem as Choice)?.Id,
                     Insurer = _insurerSuggest?.Text.Trim(),
                     Agency = Value("agency"), Branch = Value("branch"), Product = Value("product"),
                     VehicleId = (_vehicleChoice?.SelectedItem as Choice)?.Id,
                     IssueDate = DateValue("issue"), StartDate = DateValue("start"), EndDate = DateValue("end"),
                     RenewalDate = DateValue("renewal"), CompanyRenewalDate = DateValue("companyrenewal"),
-                    CoverageDurationMonths = (_policyDurationChoice?.SelectedItem as DurationChoice)?.Months,
+                    CoverageDurationMonths = _durationUnit?.SelectedItem as string == "Μήνες" &&
+                        int.TryParse(_durationValue?.Text, out var months) ? months : null,
+                    CoverageDurationValue = int.TryParse(_durationValue?.Text, out var durationValue)
+                        ? durationValue : null,
+                    CoverageDurationUnit = _durationUnit?.SelectedItem as string,
+                    PreferredPaymentMethod = _preferredPaymentMethod?.SelectedItem as string,
+                    CompanyPaymentDueDate = DateValue("companydue"),
+                    CustomerReceivedAt = _policyData.CustomerReceivedAt,
                     GrossPremium = DecimalValue(Value("gross"), "Μικτά ασφάλιστρα"),
                     NetPremium = DecimalValue(Value("net"), "Καθαρά ασφάλιστρα"),
                     InsuredValue = DecimalValue(Value("insuredvalue"), "Ασφαλιστική αξία"),
@@ -753,13 +842,24 @@ public sealed partial class BusinessRecordCardWindow : Window
                 };
                 if (data.StartDate > data.EndDate)
                     throw new ArgumentException("Η λήξη κάλυψης πρέπει να είναι μετά την έναρξη.");
+                if (!string.IsNullOrWhiteSpace(_durationValue?.Text) &&
+                    data.CoverageDurationValue is null)
+                    throw new ArgumentException("Συμπληρώστε θετικό ακέραιο αριθμό στη διάρκεια.");
+                if (data.CoverageDurationValue is int duration &&
+                    (duration < 1 || duration > (data.CoverageDurationUnit == "Έτη" ? 10 :
+                        data.CoverageDurationUnit == "Μήνες" ? 120 : 3650)))
+                    throw new ArgumentException("Η διάρκεια επιτρέπεται έως 10 έτη, 120 μήνες ή 3650 ημέρες.");
+                if (type == "Ασφαλιστήριο" && data.RenewalDate is null)
+                    throw new ArgumentException("Συμπληρώστε ημερομηνία ανανέωσης.");
                 if (data.DiscountPercent is > 100)
                     throw new ArgumentException("Η έκπτωση δεν μπορεί να ξεπερνά το 100%.");
                 var number = type switch
                 {
+                    "Προσφορά" => data.OfferNumber,
                     "Αίτηση" => data.ApplicationNumber,
                     "Ειδοποιητήριο" => data.NoticeNumber,
-                    _ => data.PolicyNumber
+                    "Ασφαλιστήριο" => data.PolicyNumber,
+                    _ => data.RenewalNumber ?? data.PolicyNumber
                 };
                 if (string.IsNullOrWhiteSpace(number))
                     throw new ArgumentException($"Συμπληρώστε αριθμό για τον τύπο «{type}».");
@@ -837,25 +937,29 @@ public sealed partial class BusinessRecordCardWindow : Window
                 if (_addVehicleClaimButton is not null) _addVehicleClaimButton.IsEnabled = true;
             }
             if (_section == "policies" && _typeChoice is not null &&
-                _record.DocumentType is "Αίτηση" or "Ειδοποιητήριο")
+            _record.DocumentType is "Προσφορά" or "Αίτηση" or "Ειδοποιητήριο")
             {
                 var selected = _record.DocumentType;
-                _typeChoice.ItemsSource = new[] { "Αίτηση", "Ειδοποιητήριο" };
+                _typeChoice.ItemsSource = new[] { "Προσφορά", "Αίτηση", "Ειδοποιητήριο" };
                 _typeChoice.SelectedItem = selected;
             }
             if (_historyText is not null)
                 _historyText.Text = $"Δημιουργία: {_record.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
                     $"Τελευταία ενημέρωση: {_record.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}";
             _heading.Text = _section == "policies"
-                ? $"{_record.DocumentType} · {_record.Title}" : _record.Title;
+                ? $"✓ {_record.DocumentType} · {_record.Title}" : _record.Title;
             _headerState.Text = $"● {_record.Status ?? "—"}";
             _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "—");
+            var wasConversion = _conversionRequested;
             _conversionRequested = false;
             _editing = false;
             UpdateConvertButton();
             ApplyEditMode();
             RecordSaved?.Invoke(this, EventArgs.Empty);
             _status.Text = "Η καρτέλα αποθηκεύτηκε.";
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot,
+                wasConversion ? "Το ασφαλιστήριο εκδόθηκε και παραδόθηκε στον πελάτη." :
+                    "Η εργασία σας αποθηκεύτηκε επιτυχώς.");
             return true;
         }
         catch (Exception exception)
@@ -869,7 +973,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     {
         if (_convertButton is null) return;
         _convertButton.Visibility = _record.Id != Guid.Empty &&
-            _record.DocumentType is "Αίτηση" or "Ειδοποιητήριο"
+            _record.DocumentType is "Προσφορά" or "Αίτηση" or "Ειδοποιητήριο"
             ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -906,20 +1010,45 @@ public sealed partial class BusinessRecordCardWindow : Window
     {
         var number = new TextBox { Header = "Αριθμός ασφαλιστηρίου *",
             PlaceholderText = "Συμπληρώστε τον αριθμό που εκδόθηκε" };
+        var renewal = new EditableDateInput { Date = _dates.GetValueOrDefault("renewal")?.Date ??
+            (_dates.GetValueOrDefault("end")?.Date), MinHeight = 40 };
+        var form = new StackPanel { Spacing = 10, Width = 400 };
+        form.Children.Add(number);
+        form.Children.Add(new TextBlock { Text = "Ημερομηνία ανανέωσης *" });
+        form.Children.Add(renewal);
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
-            Title = "Μετατροπή σε ασφαλιστήριο", Content = number,
-            PrimaryButtonText = "Μετατροπή", CloseButtonText = "Ακύρωση" };
+            Title = "Έκδοση και παραλαβή συμβολαίου", Content = form,
+            PrimaryButtonText = "Έκδοση και παραλαβή", CloseButtonText = "Ακύρωση" };
         if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
         if (string.IsNullOrWhiteSpace(number.Text))
         {
             await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Συμπληρώστε αριθμό ασφαλιστηρίου.");
             return;
         }
+        if (renewal.Date is null)
+        {
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Συμπληρώστε ημερομηνία ανανέωσης.");
+            return;
+        }
+        var oldNumber = _text["policy"].Text;
+        var oldRenewal = _dates["renewal"].Date;
+        var oldType = _typeChoice?.SelectedItem as string;
+        var oldStatus = _statusChoice?.SelectedItem as string;
+        var oldReceivedAt = _policyData.CustomerReceivedAt;
         _text["policy"].Text = number.Text.Trim();
+        _dates["renewal"].Date = renewal.Date;
         _typeChoice!.ItemsSource = new[] { "Αίτηση", "Ειδοποιητήριο", "Ασφαλιστήριο" };
         _typeChoice.SelectedItem = "Ασφαλιστήριο";
         _statusChoice!.SelectedItem = "Ενεργό";
+        _policyData.CustomerReceivedAt = DateTime.UtcNow;
         _conversionRequested = true;
-        await SaveAsync();
+        if (await SaveAsync()) return;
+        _conversionRequested = false;
+        _text["policy"].Text = oldNumber;
+        _dates["renewal"].Date = oldRenewal;
+        _typeChoice.ItemsSource = new[] { "Προσφορά", "Αίτηση", "Ειδοποιητήριο" };
+        _typeChoice.SelectedItem = oldType;
+        _statusChoice.SelectedItem = oldStatus;
+        _policyData.CustomerReceivedAt = oldReceivedAt;
     }
 }

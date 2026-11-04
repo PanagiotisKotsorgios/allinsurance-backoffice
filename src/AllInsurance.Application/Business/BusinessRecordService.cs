@@ -65,7 +65,7 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
         record.DocumentType = Normalize(record.DocumentType, 40);
         record.DetailsJson = Normalize(record.DetailsJson, 100000);
         if (record.SectionKey == "policies" && record.DocumentType is not null &&
-            record.DocumentType is not ("Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο"))
+            record.DocumentType is not ("Προσφορά" or "Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο" or "Πρόσθετη πράξη" or "Πράσινη κάρτα"))
             throw new ArgumentException("Μη έγκυρος τύπος εγγράφου ασφάλισης.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         if (record.SectionKey is "companies" or "agencies" or "claims" or "updates" or "reports" or "bridges")
@@ -203,7 +203,11 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                     BusinessRecordDetails.Read<PolicyCardData>(json).PreviousPolicyId == previousId))
                     throw new ArgumentException("Υπάρχει ήδη ανανέωση για το επιλεγμένο ασφαλιστήριο.");
             }
-            if (details.StartDate > details.EndDate || details.CoverageDurationMonths is < 1 or > 60 ||
+            if (details.StartDate > details.EndDate || details.CoverageDurationMonths is < 1 or > 120 ||
+                details.CoverageDurationValue is < 1 or > 3650 ||
+                details.CoverageDurationValue is int duration &&
+                    duration > (details.CoverageDurationUnit == "Έτη" ? 10 :
+                        details.CoverageDurationUnit == "Μήνες" ? 120 : 3650) ||
                 details.InsuredValue is < 0 || details.DiscountPercent is < 0 or > 100 ||
                 details.DiscountAmount is < 0 || details.Coverages?.Any(item =>
                     string.IsNullOrWhiteSpace(item.Name) || item.SumInsured is < 0 ||
@@ -432,9 +436,11 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                     $"Η εγγραφή {record.Title} αποσυνδέθηκε από τον πελάτη.", session.Current!.DisplayName);
             if (record.CustomerId is Guid activityCustomerId)
                 CustomerActivityLog.Add(db, activityCustomerId, "Επεξεργασία εγγραφής",
-                    (previousType is "Αίτηση" or "Ειδοποιητήριο") &&
+                    (previousType is "Προσφορά" or "Αίτηση" or "Ειδοποιητήριο") &&
                     record.DocumentType == "Ασφαλιστήριο"
-                        ? $"Η αίτηση {record.Title} μετατράπηκε σε ασφαλιστήριο."
+                        ? $"Εκδόθηκε το ασφαλιστήριο {record.Title}." +
+                            (BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson).CustomerReceivedAt is not null
+                                ? " Καταχωρίστηκε η παραλαβή του πελάτη." : "")
                         : $"Ενημερώθηκε η εγγραφή {record.Title}. " +
                             string.Join(" ", changes),
                     session.Current!.DisplayName);

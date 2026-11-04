@@ -24,6 +24,9 @@ public sealed partial class BusinessRecordCardWindow
     private string[] _policyPackageOptions = [];
     private ComboBox? _policyHolderChoice;
     private ComboBox? _policyDurationChoice;
+    private TextBox? _durationValue;
+    private ComboBox? _durationUnit;
+    private ComboBox? _preferredPaymentMethod;
     private CheckBox? _payInInstallments;
     private Border? _payInInstallmentsBadge;
     private TextBlock? _policyBalanceText;
@@ -146,13 +149,51 @@ public sealed partial class BusinessRecordCardWindow
         _policyDurationChoice.SelectedItem = values.FirstOrDefault(item => item.Months == data.CoverageDurationMonths)
             ?? values[0];
         panel.Children.Add(CardFieldLayout.CreateRow("Διάρκεια κάλυψης", _policyDurationChoice));
+        var duration = new Grid { ColumnSpacing = 6 };
+        duration.ColumnDefinitions.Add(new ColumnDefinition());
+        duration.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
+        _durationValue = new TextBox { Text = data.CoverageDurationValue?.ToString() ??
+            data.CoverageDurationMonths?.ToString() ?? "", PlaceholderText = "π.χ. 3M ή 15Η", MinHeight = 40 };
+        _durationUnit = new ComboBox { ItemsSource = new[] { "Ημέρες", "Μήνες", "Έτη" },
+            SelectedItem = data.CoverageDurationUnit ?? "Μήνες", MinHeight = 40 };
+        duration.Children.Add(_durationValue);
+        Grid.SetColumn(_durationUnit, 1);
+        duration.Children.Add(_durationUnit);
+        panel.Children.Add(CardFieldLayout.CreateRow("Ακριβής διάρκεια", duration));
         void UpdateEnd()
         {
-            if (!_editing || _policyDurationChoice.SelectedItem is not DurationChoice { Months: int months } ||
-                _dates.GetValueOrDefault("start")?.Date is not DateTimeOffset start) return;
-            _dates["end"].Date = new DateTimeOffset(start.Date.AddMonths(months));
+            if (!_editing || _dates.GetValueOrDefault("start")?.Date is not DateTimeOffset start ||
+                !int.TryParse(_durationValue.Text, out var count) || count < 1) return;
+            var unit = _durationUnit.SelectedItem as string;
+            if (count > (unit == "Έτη" ? 10 : unit == "Μήνες" ? 120 : 3650)) return;
+            var end = (_durationUnit.SelectedItem as string) switch
+            {
+                "Ημέρες" => start.Date.AddDays(count), "Έτη" => start.Date.AddYears(count),
+                _ => start.Date.AddMonths(count)
+            };
+            _dates["end"].Date = new DateTimeOffset(end);
         }
-        _policyDurationChoice.SelectionChanged += (_, _) => UpdateEnd();
+        _policyDurationChoice.SelectionChanged += (_, _) =>
+        {
+            if (_policyDurationChoice.SelectedItem is DurationChoice { Months: int months })
+            { _durationValue.Text = months.ToString(); _durationUnit.SelectedItem = "Μήνες"; }
+            UpdateEnd();
+        };
+        _durationValue.TextChanged += (_, _) =>
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(_durationValue.Text,
+                @"^\s*(\d+)\s*([DdMmYyΗηΜμΕε])\s*$");
+            if (match.Success)
+            {
+                _durationUnit.SelectedItem = match.Groups[2].Value.ToUpperInvariant() switch
+                {
+                    "D" or "Η" => "Ημέρες", "Y" or "Ε" => "Έτη", _ => "Μήνες"
+                };
+                _durationValue.Text = match.Groups[1].Value;
+            }
+            UpdateEnd();
+        };
+        _durationUnit.SelectionChanged += (_, _) => UpdateEnd();
         _dates["start"].DateChanged += (_, _) => UpdateEnd();
     }
 
@@ -200,7 +241,7 @@ public sealed partial class BusinessRecordCardWindow
         Text(extraLeft, "discountamount", "Έκπτωση (€)", data.DiscountAmount?.ToString("N2"));
         Text(extraLeft, "discountreason", "Αιτιολογία έκπτωσης", data.DiscountReason);
         Text(extraLeft, "previousinsurer", "Προηγούμενη ασφαλιστική", data.PreviousInsurer);
-        Date(extraRight, "renewal", "Ημερομηνία ανανέωσης", data.RenewalDate);
+        Date(extraRight, "renewal", "Ημερομηνία ανανέωσης *", data.RenewalDate);
         Date(extraRight, "companyrenewal", "Ανανέωση από εταιρεία", data.CompanyRenewalDate);
         Text(extraRight, "renewalnotes", "Σημειώσεις ανανέωσης", data.RenewalNotes, multiline: true);
         Text(extraRight, "notes", "Σημειώσεις", _record.Notes, multiline: true);

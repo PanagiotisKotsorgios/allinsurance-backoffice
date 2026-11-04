@@ -295,7 +295,8 @@ public sealed partial class PartnerCardWindow : Window
         var choices = options.Prepend("").Concat(value is null ? [] : [value])
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var field = new ComboBox { ItemsSource = choices,
-            SelectedItem = value ?? "", MinHeight = 40, Height = 40, IsEnabled = _editing,
+            SelectedItem = value ?? "", MinHeight = 40, Height = 40,
+            IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _choice[key] = field;
         return field;
@@ -305,7 +306,7 @@ public sealed partial class PartnerCardWindow : Window
     {
         var field = new EditableDateInput {
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 40, Height = 40, IsEnabled = _editing,
+            MinHeight = 40, Height = 40, IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _date[key] = field;
         return field;
@@ -337,7 +338,8 @@ public sealed partial class PartnerCardWindow : Window
     private AutoSuggestBox Suggest(StackPanel panel, string key, string label,
         string? value, string[] options)
     {
-        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 40, Height = 40, IsEnabled = _editing,
+        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 40, Height = 40,
+            IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Πληκτρολογήστε για αναζήτηση" };
         field.TextChanged += (_, args) =>
@@ -403,6 +405,7 @@ public sealed partial class PartnerCardWindow : Window
             UpdateEditState();
             RecordSaved?.Invoke(this, EventArgs.Empty);
             _status.Text = "Η καρτέλα συνεργάτη αποθηκεύτηκε.";
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η εργασία σας αποθηκεύτηκε επιτυχώς.");
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }

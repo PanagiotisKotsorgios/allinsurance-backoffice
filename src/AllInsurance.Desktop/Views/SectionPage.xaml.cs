@@ -185,6 +185,7 @@ public sealed partial class SectionPage : Page
         PersonTypeFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         PolicyCustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         PolicyPartnerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
+        PolicyDocumentFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         Loaded += (_, _) => UpdateResponsiveLayout(PageContent.ActualWidth);
         Loaded += async (_, _) =>
         {
@@ -403,6 +404,7 @@ public sealed partial class SectionPage : Page
         PersonTypeFilter.SelectAll();
         PolicyCustomerFilter.SelectAll();
         PolicyPartnerFilter.SelectAll();
+        PolicyDocumentFilter.SelectAll();
         if (_section.Key == "policies") DateBasisFilter.SelectedIndex = 0;
         FromFilter.Date = null;
         UntilFilter.Date = null;
@@ -736,6 +738,8 @@ public sealed partial class SectionPage : Page
             policyCell.Background = PolicyStatusColors.Background(row.Record.DocumentType,
                 row.Record.Status, policy.EndDate);
             policyText.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+            if (!policyText.Text.StartsWith("✓ ", StringComparison.Ordinal))
+                policyText.Text = "✓ " + policyText.Text;
         }
         var statusIndex = _section.Key switch
         {

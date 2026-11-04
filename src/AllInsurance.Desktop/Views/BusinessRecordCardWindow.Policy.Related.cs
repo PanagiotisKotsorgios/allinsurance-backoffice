@@ -98,12 +98,15 @@ public sealed partial class BusinessRecordCardWindow
         try
         {
             _policyCurrency = await _policySettings.GetCurrencyAsync();
-            var methods = await _policyFilters.ChoicesAsync("Τρόποι πληρωμής");
+            var methods = (await _policyFilters.ChoicesAsync("Τρόποι πληρωμής"))
+                .Concat(string.IsNullOrWhiteSpace(_policyData.PreferredPaymentMethod)
+                    ? [] : [_policyData.PreferredPaymentMethod])
+                .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
             var amount = new TextBox { Header = RequiredHeader.Create("Ποσό"),
                 PlaceholderText = "π.χ. 125,50" };
             var method = new ComboBox { Header = RequiredHeader.Create("Τρόπος πληρωμής"),
-                ItemsSource = methods, SelectedItem = methods.FirstOrDefault(value => value == "Μετρητά")
-                    ?? methods.FirstOrDefault() };
+                ItemsSource = methods, SelectedItem = methods.FirstOrDefault(value =>
+                    value == _policyData.PreferredPaymentMethod) };
             var currency = new TextBox { Header = "Νόμισμα", IsReadOnly = true,
                 Text = $"{_policyCurrency} ({TransactionSettingsService.Symbol(_policyCurrency)})" };
             var reference = new TextBox { Header = "Αριθμός συναλλαγής / αναφορά" };
@@ -124,6 +127,7 @@ public sealed partial class BusinessRecordCardWindow
             UpdatePolicyFinanceSummary(_policyData);
             _status.Text = "Η οικονομική κίνηση καταχωρίστηκε.";
             RecordSaved?.Invoke(this, EventArgs.Empty);
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η οικονομική κίνηση καταχωρίστηκε επιτυχώς.");
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }

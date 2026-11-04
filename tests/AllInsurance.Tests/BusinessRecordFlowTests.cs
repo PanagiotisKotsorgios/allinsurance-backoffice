@@ -291,7 +291,7 @@ public sealed class BusinessRecordFlowTests
         Assert.Equal(policyId, Assert.Single(loaded!.Transactions).BusinessRecordId);
         Assert.Equal("Ασφαλιστήριο", (await records.GetAsync(policyId))!.DocumentType);
         var history = await customers.GetActivitiesAsync(customerId);
-        Assert.Contains(history, item => item.Description.Contains("μετατράπηκε"));
+        Assert.Contains(history, item => item.Description.Contains("Εκδόθηκε το ασφαλιστήριο"));
         Assert.Contains(history, item => item.Action == "Πληρωμή" && item.Description.Contains("POL-1"));
         await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(policyId));
         await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(vehicleId));

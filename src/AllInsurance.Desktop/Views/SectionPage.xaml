@@ -37,6 +37,7 @@
                         <controls:MultiSelectFilter x:Name="PersonTypeFilter" Title="Τύπος προσώπου" Height="36" />
                         <controls:MultiSelectFilter x:Name="PolicyCustomerFilter" Title="Πελάτης" Height="36" />
                         <controls:MultiSelectFilter x:Name="PolicyPartnerFilter" Title="Συνεργάτης" Height="36" />
+                        <controls:MultiSelectFilter x:Name="PolicyDocumentFilter" Title="Τύπος εγγράφου" Height="36" />
                         <controls:ActionButton x:Name="DateRangeFilter" Kind="Choice" Label="Ημερομηνία" Height="36">
                             <controls:ActionButton.Flyout>
                                 <Flyout>
