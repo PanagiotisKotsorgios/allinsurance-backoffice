@@ -56,7 +56,7 @@ public sealed partial class SectionPage : Page
         InitializeTableActions();
         TableColumnResizer.Attach(RecordsHeader, ResizeColumn,
             () => { try { SectionColumnOrder.SaveWidths(_section.Key, _columnWidths); }
-                catch (Exception exception) { StatusText.Text = exception.Message; } });
+                catch (Exception exception) { ShowStatus(exception.Message); } });
         ApplyColumnOrder(RecordsHeader);
         AddButton.Label = "Προσθήκη " + Singular(section.Title);
         RenewalsButton.Visibility = section.Key == "policies" ? Visibility.Visible : Visibility.Collapsed;
@@ -142,7 +142,7 @@ public sealed partial class SectionPage : Page
                 .. customers.Select(item => new CustomerChoice(item.Id, item.FullName))];
             CustomerFilter.SetOptions(_customerChoices.Select(item => item.Name));
         }
-        catch (Exception exception) { StatusText.Text = exception.Message; }
+        catch (Exception exception) { ShowStatus(exception.Message); }
     }
 
     private async Task RefreshAsync()
@@ -193,7 +193,7 @@ public sealed partial class SectionPage : Page
             SortRecords();
             _page = 1;
             ApplyPage();
-            StatusText.Text = $"{_filtered.Length} από {records.Count} καταχωρίσεις";
+            ShowStatus(null);
             if (_section.Key is "vehicles" or "policies" or "claims")
             {
                 var related = await _customers.GetRelatedRecordsAsync(_section.Key, SearchInput.Text);
@@ -202,7 +202,7 @@ public sealed partial class SectionPage : Page
                 RelatedRecordsBorder.Visibility = related.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             }
         }
-        catch (Exception exception) { StatusText.Text = exception.Message; }
+        catch (Exception exception) { ShowStatus(exception.Message); }
     }
 
     private async void Filter_Changed(object sender, TextChangedEventArgs e) => await RefreshAsync();
@@ -396,7 +396,7 @@ public sealed partial class SectionPage : Page
         (_columnOrder[position], _columnOrder[target]) = (_columnOrder[target], _columnOrder[position]);
         try { SectionColumnOrder.Save(_section.Key, _columnOrder); }
         catch (Exception exception) when (exception is System.IO.IOException or UnauthorizedAccessException)
-        { StatusText.Text = exception.Message; }
+        { ShowStatus(exception.Message); }
         ApplyColumnOrder(RecordsHeader);
         RecordsList.ItemsSource = null;
         ApplyPage();
@@ -522,7 +522,7 @@ public sealed partial class SectionPage : Page
             };
             _partnerCard.BringToFront();
         }
-        catch (Exception exception) { _partnerCard = null; StatusText.Text = exception.Message; }
+        catch (Exception exception) { _partnerCard = null; ShowStatus(exception.Message); }
     }
 
     private void OpenBusinessRecordCard(Guid? id, bool beginEditing = false)
@@ -540,7 +540,7 @@ public sealed partial class SectionPage : Page
             };
             _businessCard.BringToFront();
         }
-        catch (Exception exception) { _businessCard = null; StatusText.Text = exception.Message; }
+        catch (Exception exception) { _businessCard = null; ShowStatus(exception.Message); }
     }
 
     private void OpenWorkspaceCard(Guid? id, bool beginEditing = false)
@@ -557,7 +557,7 @@ public sealed partial class SectionPage : Page
             };
             _workspaceCard.BringToFront();
         }
-        catch (Exception exception) { _workspaceCard = null; StatusText.Text = exception.Message; }
+        catch (Exception exception) { _workspaceCard = null; ShowStatus(exception.Message); }
     }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
@@ -614,7 +614,7 @@ public sealed partial class SectionPage : Page
             _card.BringToFront();
             DispatcherQueue.TryEnqueue(() => _card?.BringToFront());
         }
-        catch (Exception exception) { _card = null; StatusText.Text = exception.Message; }
+        catch (Exception exception) { _card = null; ShowStatus(exception.Message); }
     }
 
     private static string Singular(string title) => title switch
@@ -630,6 +630,13 @@ public sealed partial class SectionPage : Page
         "Γέφυρες Εταιρειών" => "γέφυρας",
         _ => "εγγραφής"
     };
+
+    private void ShowStatus(string? message)
+    {
+        StatusText.Text = message ?? "";
+        StatusText.Visibility = string.IsNullOrWhiteSpace(message)
+            ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     private sealed record CustomerChoice(Guid? Id, string Name);
 

@@ -53,6 +53,8 @@ public sealed class PartnerFlowTests
                 FirstName = "Συνεργάτης", LastName = "Δοκιμή", TaxNumber = "123456789",
                 DefaultCommissionPercent = 12m, GemiNumber = "123456789012",
                 BirthPlace = "Πάτρα", Nationality = "Ελληνική",
+                ThirdEmail = "third@example.test", SecondaryMobile = "6900000002",
+                ThirdMobile = "6900000003",
                 BankAccounts =
                 [
                     new PartnerBankAccount { BankName = "Πρώτη", Iban = "GR1601101250000000012300695" },
@@ -64,6 +66,9 @@ public sealed class PartnerFlowTests
         Assert.Equal(2, persistedProfile.BankAccounts.Count);
         Assert.Equal("123456789012", persistedProfile.GemiNumber);
         Assert.Equal("Πάτρα", persistedProfile.BirthPlace);
+        Assert.Equal("third@example.test", persistedProfile.ThirdEmail);
+        Assert.Equal("6900000002", persistedProfile.SecondaryMobile);
+        Assert.Equal("6900000003", persistedProfile.ThirdMobile);
         await Assert.ThrowsAsync<InvalidOperationException>(() => records.SaveAsync(new BusinessRecord
         {
             SectionKey = "partners", Title = "ΔΕΥΤΕΡΟΣ",

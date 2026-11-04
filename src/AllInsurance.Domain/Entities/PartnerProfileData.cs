@@ -38,8 +38,11 @@ public sealed class PartnerProfileData
     public DateTime? RegistryExpiry { get; set; }
     public string? Chamber { get; set; }
     public string? SecondaryEmail { get; set; }
+    public string? ThirdEmail { get; set; }
     public string? SecondaryPhone { get; set; }
     public string? Mobile { get; set; }
+    public string? SecondaryMobile { get; set; }
+    public string? ThirdMobile { get; set; }
     public string? Website { get; set; }
     public string? WorkAddress { get; set; }
     public string? WorkCity { get; set; }

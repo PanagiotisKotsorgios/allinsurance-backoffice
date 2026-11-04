@@ -53,7 +53,7 @@ public sealed partial class CustomersPage : Page
         InitializeHeaderActions();
         TableColumnResizer.Attach(TableHeader, ResizeColumn,
             () => { try { CustomerColumns.SaveWidths(); }
-                catch (Exception exception) { StatusText.Text = exception.Message; } });
+                catch (Exception exception) { ShowStatus(exception.Message); } });
         ApplyColumnLayout();
         BalanceFilter.SetOptions(["Χρεωστικό", "Πιστωτικό", "Μηδενικό"]);
         KindFilter.SetOptions(["Φυσικό πρόσωπο", "Επιχείρηση"]);
@@ -176,7 +176,14 @@ public sealed partial class CustomersPage : Page
         _filtered = rows.ToArray();
         _page = 1;
         ApplyPage();
-        StatusText.Text = $"{_filtered.Length} από {_allItems.Length} πελάτες";
+        ShowStatus(null);
+    }
+
+    private void ShowStatus(string? message)
+    {
+        StatusText.Text = message ?? "";
+        StatusText.Visibility = string.IsNullOrWhiteSpace(message)
+            ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static bool ContainsGreek(string source, string term) =>

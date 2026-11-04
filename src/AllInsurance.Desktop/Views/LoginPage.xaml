@@ -21,6 +21,7 @@
                 <Grid>
                     <PasswordBox x:Name="PasswordInput" PasswordChanged="PasswordChanged"
                                  PasswordRevealMode="Hidden" Padding="12,0,52,0"
+                                 Height="44" MinHeight="44" VerticalContentAlignment="Center"
                                  KeyDown="PasswordKeyDown" AutomationProperties.Name="Κωδικός πρόσβασης" />
                     <ToggleButton x:Name="ShowPasswordButton" Width="40" Height="36" MinHeight="36"
                                   Padding="0" Margin="0,0,5,0" HorizontalAlignment="Right"

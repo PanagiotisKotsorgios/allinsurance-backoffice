@@ -21,6 +21,7 @@ public sealed partial class WorkspacePage : Page
     private readonly WorkspacePreferences _preferences;
     private readonly DispatcherTimer _databaseTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly List<TextBlock> _sidebarLabels = [];
+    private readonly List<ToolTip> _sidebarTooltips = [];
 
     public WorkspacePage()
     {
@@ -77,6 +78,19 @@ public sealed partial class WorkspacePage : Page
                 Tag = section.Key,
                 MinHeight = 62
             };
+            var tooltip = new ToolTip
+            {
+                Content = new TextBlock
+                {
+                    Text = section.Title,
+                    FontSize = 20,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                },
+                Padding = new Thickness(14, 9, 14, 9),
+                IsEnabled = false
+            };
+            ToolTipService.SetToolTip(item, tooltip);
+            _sidebarTooltips.Add(tooltip);
             MainNavigation.MenuItems.Add(item);
         }
 
@@ -116,6 +130,8 @@ public sealed partial class WorkspacePage : Page
     {
         foreach (var label in _sidebarLabels)
             label.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var tooltip in _sidebarTooltips)
+            tooltip.IsEnabled = !visible;
     }
 
     private void AnimateSidebarLabels()

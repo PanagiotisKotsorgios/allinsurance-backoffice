@@ -310,7 +310,23 @@ public sealed partial class PartnerCardWindow : Window
     private CheckBox Check(StackPanel panel, string key, string label, bool value)
     {
         var field = new CheckBox { IsChecked = value, MinHeight = 34, Height = 34, IsEnabled = _editing };
-        panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _check[key] = field;
+        if (_editing) panel.Children.Add(CardFieldLayout.CreateRow(label, field));
+        else
+        {
+            var mark = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Background = new SolidColorBrush(value
+                    ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115)),
+                Child = new TextBlock { Text = value ? "✓" : "",
+                    Foreground = new SolidColorBrush(Colors.White), FontSize = 16,
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center } };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(mark,
+                label + (value ? ": Ναι" : ": Όχι"));
+            panel.Children.Add(CardFieldLayout.CreateRow(label, mark));
+        }
+        _check[key] = field;
         return field;
     }
 
@@ -404,8 +420,9 @@ public sealed partial class PartnerCardWindow : Window
         Nationality = Optional("nationality"), PassportNumber = Optional("passport"),
         Education = Optional("education"),
         RegistryNumber = Optional("registry"), RegistryExpiry = Day("registryexpiry"),
-        Chamber = Optional("chamber"), SecondaryEmail = Optional("email2"),
-        SecondaryPhone = Optional("phone2"), Mobile = Optional("mobile"), Website = Optional("website"),
+        Chamber = Optional("chamber"), SecondaryEmail = Optional("email2"), ThirdEmail = Optional("email3"),
+        SecondaryPhone = Optional("phone2"), Mobile = Optional("mobile"),
+        SecondaryMobile = Optional("mobile2"), ThirdMobile = Optional("mobile3"), Website = Optional("website"),
         WorkAddress = Optional("workaddress"), WorkCity = Suggested("workcity"),
         WorkPostalCode = Optional("workpostal"), WorkPhone = Optional("workphone"),
         WorkEmail = Optional("workemail"), ContractNumber = Optional("contract"),

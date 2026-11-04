@@ -60,8 +60,8 @@ public sealed partial class PartnerCardWindow
             ["Ενεργός", "Πιθανός", "Αναστολή", "Λήξη συνεργασίας"], _record.Status ?? "Ενεργός");
         Choice(left, "category", "Κατηγορία συνεργάτη", _categories, _profile.Category);
         Check(left, "contractactive", "Ενεργή σύμβαση", _profile.HasActiveContract);
-        Text(right, "email", "Κύριο email", _profile.Email);
-        Text(right, "phone", "Κύριο τηλέφωνο", _profile.Phone);
+        Text(right, "email", "1ο email", _profile.Email);
+        Text(right, "phone", "Σταθερό τηλέφωνο", _profile.Phone);
         Text(right, "address", "Κύρια διεύθυνση", _profile.Address);
         Suggest(right, "city", "Πόλη", _profile.City, _cities);
         Text(right, "postal", "Ταχυδρομικός κώδικας", _profile.PostalCode);
@@ -83,9 +83,11 @@ public sealed partial class PartnerCardWindow
         BuildBankAccounts(right);
         var body = new StackPanel { Spacing = 4 };
         body.Children.Add(form);
-        body.Children.Add(new Expander { Header = "Πρόσθετα στοιχεία συνεργάτη",
+        body.Children.Add(new Expander { Header = "Πρόσθετα στοιχεία συνεργάτη  ▾",
             Content = BuildExtraFields(), Margin = new Thickness(20, 0, 20, 16),
-            HorizontalAlignment = HorizontalAlignment.Stretch });
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 34, 116, 185)),
+            BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(7) });
         AddTab("Καρτέλα συνεργάτη", body);
     }
 
@@ -115,9 +117,12 @@ public sealed partial class PartnerCardWindow
         Text(left, "registry", "Αριθμός μητρώου διαμεσολαβητή", _profile.RegistryNumber);
         Date(left, "registryexpiry", "Λήξη εγγραφής μητρώου", _profile.RegistryExpiry);
         Text(left, "chamber", "Επιμελητήριο", _profile.Chamber);
-        Text(right, "email2", "Δεύτερο email", _profile.SecondaryEmail);
-        Text(right, "phone2", "Δεύτερο τηλέφωνο", _profile.SecondaryPhone);
-        Text(right, "mobile", "Κινητό", _profile.Mobile);
+        Text(right, "email2", "2ο email", _profile.SecondaryEmail);
+        Text(right, "email3", "3ο email", _profile.ThirdEmail);
+        Text(right, "phone2", "2ο σταθερό τηλέφωνο", _profile.SecondaryPhone);
+        Text(right, "mobile", "Κινητό τηλέφωνο", _profile.Mobile);
+        Text(right, "mobile2", "2ο κινητό τηλέφωνο", _profile.SecondaryMobile);
+        Text(right, "mobile3", "3ο κινητό τηλέφωνο", _profile.ThirdMobile);
         Text(right, "website", "Ιστότοπος", _profile.Website);
         Text(right, "workaddress", "Διεύθυνση εργασίας", _profile.WorkAddress);
         Suggest(right, "workcity", "Πόλη εργασίας", _profile.WorkCity, _cities);
@@ -177,8 +182,8 @@ public sealed partial class PartnerCardWindow
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold } });
         var paid = _snapshot.Payouts.Where(item => item.Kind != "receipt").Sum(item => item.Amount);
         var received = _snapshot.Payouts.Where(item => item.Kind == "receipt").Sum(item => item.Amount);
-        panel.Children.Add(Info($"Δεδουλευμένες προμήθειες: {_snapshot.Earned:N2} €   ·   " +
-            $"Αποδόθηκαν: {paid:N2} €   ·   Εισπράχθηκαν: {received:N2} €"));
+        panel.Children.Add(Info($"Προμήθειες που δικαιούται ο συνεργάτης: {_snapshot.Earned:N2} €   ·   " +
+            $"Πληρώθηκαν στον συνεργάτη: {paid:N2} €   ·   Εισπράχθηκαν από τον συνεργάτη: {received:N2} €"));
         var entries = _snapshot.Production.Select(item => new PartnerLedgerEntry(
             item.RecordedAtUtc, "Προμήθεια", item.Number,
             $"{item.CustomerName} · Ασφαλιστήριο {item.Number}", item.Commission, 0, 0,
@@ -201,7 +206,7 @@ public sealed partial class PartnerCardWindow
                 $"{balance:N2} €"], item.PolicyId);
         }).ToArray();
         panel.Children.Add(Table(["Ημερομηνία", "Κίνηση", "Αναφορά", "Περιγραφή",
-                "Δεδουλευμένα", "Αποδόθηκαν", "Εισπράχθηκαν", "Υπόλοιπο"],
+                "Προμήθεια", "Πληρώθηκαν", "Εισπράχθηκαν", "Υπόλοιπο"],
             [150, 125, 125, 235, 125, 115, 125, 120], rows,
             "Αναζήτηση ασφαλιστηρίου, αναφοράς ή οικονομικής κίνησης...",
             async id => await OpenPolicyAsync(id)));
@@ -211,7 +216,7 @@ public sealed partial class PartnerCardWindow
     private void BuildCommissionsTab()
     {
         var panel = Panel();
-        panel.Children.Add(Info($"Δεδουλευμένες προμήθειες: {_snapshot.Earned:N2} €"));
+        panel.Children.Add(Info($"Σύνολο προμηθειών συνεργάτη: {_snapshot.Earned:N2} €"));
         var rows = _snapshot.Production.Select(item => new PartnerTableRow([
             item.Number, item.CustomerName, item.GrossPremium.ToString("N2") + " €",
             item.CommissionPercent.ToString("N2") + " %", item.Commission.ToString("N2") + " €"],
