@@ -139,7 +139,7 @@ public sealed partial class PartnerCardWindow
         panel.Children.Add(Info("Τα ασφαλιστήρια ανοίγουν με διπλό κλικ."));
         var rows = _snapshot.Production.Select(item => new PartnerTableRow([
             item.Number, item.CustomerName, item.StartDate?.ToString("dd/MM/yyyy") ?? "—",
-            item.GrossPremium.ToString("N2") + " €", item.CommissionPercent.ToString("N2") + " %",
+            item.NetPremium.ToString("N2") + " €", item.CommissionPercent.ToString("N2") + " %",
             item.Commission.ToString("N2") + " €"], item.PolicyId)).ToArray();
         panel.Children.Add(Table(["Ασφαλιστήριο", "Πελάτης", "Έναρξη", "Ασφάλιστρα", "Ποσοστό", "Προμήθεια"],
             [190, 240, 150, 170, 150, 170], rows,
@@ -218,10 +218,10 @@ public sealed partial class PartnerCardWindow
         var panel = Panel();
         panel.Children.Add(Info($"Σύνολο προμηθειών συνεργάτη: {_snapshot.Earned:N2} €"));
         var rows = _snapshot.Production.Select(item => new PartnerTableRow([
-            item.Number, item.CustomerName, item.GrossPremium.ToString("N2") + " €",
+            item.Number, item.CustomerName, item.NetPremium.ToString("N2") + " €",
             item.CommissionPercent.ToString("N2") + " %", item.Commission.ToString("N2") + " €"],
             item.PolicyId)).ToArray();
-        panel.Children.Add(Table(["Ασφαλιστήριο", "Πελάτης", "Μικτά ασφάλιστρα", "Ποσοστό", "Προμήθεια"],
+        panel.Children.Add(Table(["Ασφαλιστήριο", "Πελάτης", "Καθαρά ασφάλιστρα", "Ποσοστό", "Προμήθεια"],
             [195, 265, 200, 170, 200], rows,
             "Αναζήτηση προμήθειας ή ασφαλιστηρίου...", async id => await OpenPolicyAsync(id)));
         AddTab("Προμήθειες", panel);

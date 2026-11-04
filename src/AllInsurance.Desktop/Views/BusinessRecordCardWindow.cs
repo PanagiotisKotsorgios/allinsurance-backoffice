@@ -856,6 +856,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         if (_policyFinanceSummary is null || _policyCommissionSummary is null) return;
         var symbol = AllInsurance.Application.Settings.TransactionSettingsService.Symbol(_policyCurrency);
         var gross = data.GrossPremium ?? 0;
+        var net = data.NetPremium ?? 0;
         var receipts = _policyTransactions.Where(item => item.Type == "receipt").Sum(item => item.Amount);
         var payments = _policyTransactions.Where(item => item.Type == "payment").Sum(item => item.Amount);
         _policyFinanceSummary.Text = $"Καθαρά: {data.NetPremium?.ToString("N2") ?? "—"} {symbol}  ·  " +
@@ -864,17 +865,17 @@ public sealed partial class BusinessRecordCardWindow : Window
             $"Πληρωμές προς πελάτη: {payments:N2} {symbol}";
         var office = data.OfficeCommissionPercent is decimal officeRate
             ? $"Εισερχόμενη προμήθεια έδρας: {officeRate:N2}% " +
-              $"({decimal.Round(gross * officeRate / 100m, 2):N2} {symbol})"
+              $"({decimal.Round(net * officeRate / 100m, 2, MidpointRounding.AwayFromZero):N2} {symbol})"
             : "Εισερχόμενη προμήθεια έδρας: χωρίς κανόνα";
         var partner = data.PartnerId is null ? "Χωρίς συνεργάτη" :
             data.PartnerCommissionPercent is decimal partnerRate
                 ? $"Εξερχόμενη προμήθεια συνεργάτη: {partnerRate:N2}% " +
-                  $"({decimal.Round(gross * partnerRate / 100m, 2):N2} {symbol})"
+                  $"({decimal.Round(net * partnerRate / 100m, 2, MidpointRounding.AwayFromZero):N2} {symbol})"
                 : "Εξερχόμενη προμήθεια συνεργάτη: χωρίς κανόνα";
         _policyCommissionSummary.Text = office + "  ·  " + partner +
             (data.OfficeCommissionPercent is decimal rate
                 ? $"  ·  Εκτιμώμενη απόδοση στην εταιρεία: " +
-                  $"{(gross - decimal.Round(gross * rate / 100m, 2)):N2} {symbol}"
+                  $"{(gross - decimal.Round(net * rate / 100m, 2, MidpointRounding.AwayFromZero)):N2} {symbol}"
                 : "");
         UpdatePolicyBalance(data);
     }

@@ -176,7 +176,7 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Coverage")
-                        .HasMaxLength(200)
+                        .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAtUtc")

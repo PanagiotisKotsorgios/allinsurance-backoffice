@@ -130,7 +130,8 @@ public sealed class CommissionSettingsPage : Page
             SetFilter(_useFilter, "Χρήση",
                 (await _filters.ChoicesAsync("Χρήσεις οχημάτων")).Concat(_rules.Select(rule => rule.VehicleUse))!);
             SetFilter(_coverageFilter, "Κάλυψη",
-                (await _filters.ChoicesAsync("Καλύψεις")).Concat(_rules.Select(rule => rule.Coverage))!);
+                (await _filters.ChoicesAsync("Καλύψεις")).Concat(_rules.SelectMany(rule =>
+                    CommissionCoverageSelection.Read(rule.Coverage))));
             SetFilter(_packageFilter, "Πακέτο",
                 (await _filters.ChoicesAsync("Πακέτα ασφαλίσεων")).Concat(_rules.Select(rule => rule.Package))!);
             SetFilter(_statusFilter, "Κατάσταση", ["Ενεργός", "Ανενεργός"]);
@@ -207,14 +208,16 @@ public sealed class CommissionSettingsPage : Page
             (company is null || rule.Insurer == company) &&
             (branch is null || (rule.Branch ?? "Όλοι") == branch) &&
             (use is null || (rule.VehicleUse ?? "Όλες") == use) &&
-            (coverage is null || (rule.Coverage ?? "Όλες") == coverage) &&
+            (coverage is null || CommissionCoverageSelection.Read(rule.Coverage)
+                .Contains(coverage, StringComparer.CurrentCultureIgnoreCase)) &&
             (package is null || (rule.Package ?? "Όλα") == package) &&
             (status is null || (rule.IsActive ? "Ενεργός" : "Ανενεργός") == status)).ToArray();
         _list.Items.Clear();
         foreach (var rule in rows)
             _list.Items.Add(new ListViewItem { Tag = rule,
                 Content = TableRow([rule.Insurer, rule.Branch ?? "Όλοι", rule.VehicleUse ?? "Όλες",
-                    rule.Coverage ?? "Όλες", rule.Package ?? "Όλα", $"{rule.OfficePercent:N2}%",
+                    CommissionCoverageSelection.Display(rule.Coverage), rule.Package ?? "Όλα",
+                    $"{rule.OfficePercent:N2}%",
                     $"{rule.PartnerPercent:N2}%", rule.IsActive ? "Ενεργός" : "Ανενεργός"], false),
                 Height = 40, Width = _tableWidth, Padding = new Thickness(0),
                 Background = Solid(_dark ? 38 : 235, _dark ? 43 : 240, _dark ? 49 : 245),
@@ -227,7 +230,8 @@ public sealed class CommissionSettingsPage : Page
             .Where(name => !rows.Any(rule => rule.Insurer == name &&
                 (branch is null || rule.Branch == branch) &&
                 (use is null || rule.VehicleUse == use) &&
-                (coverage is null || rule.Coverage == coverage) &&
+                (coverage is null || CommissionCoverageSelection.Read(rule.Coverage)
+                    .Contains(coverage, StringComparer.CurrentCultureIgnoreCase)) &&
                 (package is null || rule.Package == package)))
             .Select(name => new CommissionCandidate(name, branch, use, coverage, package))
             .ToArray() : [];
@@ -261,6 +265,7 @@ public sealed class CommissionSettingsPage : Page
                     FontWeight = header ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center } };
+            ToolTipService.SetToolTip(cell, values[index]);
             Grid.SetColumn(cell, index); grid.Children.Add(cell);
         }
         return grid;
@@ -282,22 +287,54 @@ public sealed class CommissionSettingsPage : Page
             var companies = await OrganizationNamesAsync();
             var branches = (await _filters.ChoicesAsync("Κλάδοι")).ToArray();
             var uses = (await _filters.ChoicesAsync("Χρήσεις οχημάτων")).ToArray();
-            var coverages = (await _filters.ChoicesAsync("Καλύψεις")).ToArray();
+            var selectedCoverages = CommissionCoverageSelection.Read(existing?.Coverage ?? candidate?.Coverage);
+            var coverages = (await _filters.ChoicesAsync("Καλύψεις"))
+                .Concat(selectedCoverages).Distinct(StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase).ToArray();
             var packages = (await _filters.ChoicesAsync("Πακέτα ασφαλίσεων")).ToArray();
             var insurer = Suggest("Εταιρεία ή πρακτορείο *", existing?.Insurer ?? candidate?.Organization, companies);
             var branch = Suggest("Κλάδος (κενό = όλοι)", existing?.Branch ?? candidate?.Branch, branches);
             var use = Suggest("Χρήση οχήματος (κενό = όλες)", existing?.VehicleUse ?? candidate?.Use, uses);
-            var coverage = Suggest("Κάλυψη (κενό = όλες)", existing?.Coverage ?? candidate?.Coverage, coverages);
+            var coveragePanel = new StackPanel { Spacing = 6 };
+            coveragePanel.Children.Add(new TextBlock { Text = "Καλύψεις (χωρίς επιλογή = όλες)",
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            var coverageSearch = new TextBox { PlaceholderText = "Αναζήτηση κάλυψης…",
+                Height = 36, VerticalContentAlignment = VerticalAlignment.Center };
+            coveragePanel.Children.Add(coverageSearch);
+            var coverageChecks = coverages.Select(value => new CheckBox
+            {
+                Content = value, IsChecked = selectedCoverages.Contains(value,
+                    StringComparer.CurrentCultureIgnoreCase)
+            }).ToArray();
+            var coverageItems = new StackPanel { Spacing = 2 };
+            foreach (var check in coverageChecks) coverageItems.Children.Add(check);
+            coveragePanel.Children.Add(new ScrollViewer { Content = coverageItems,
+                MaxHeight = 150, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+            coverageSearch.TextChanged += (_, _) =>
+            {
+                foreach (var check in coverageChecks)
+                    check.Visibility = check.Content?.ToString()?.Contains(coverageSearch.Text,
+                        StringComparison.CurrentCultureIgnoreCase) == true
+                        ? Visibility.Visible : Visibility.Collapsed;
+            };
+            var coverageActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            var selectAll = new Button { Content = "Επιλογή όλων" };
+            selectAll.Click += (_, _) => { foreach (var check in coverageChecks) check.IsChecked = true; };
+            var clearAll = new Button { Content = "Αποεπιλογή όλων" };
+            clearAll.Click += (_, _) => { foreach (var check in coverageChecks) check.IsChecked = false; };
+            coverageActions.Children.Add(selectAll);
+            coverageActions.Children.Add(clearAll);
+            coveragePanel.Children.Add(coverageActions);
             var package = Suggest("Πακέτο (κενό = όλα)", existing?.Package ?? candidate?.Package, packages);
-            var office = new TextBox { Header = "Εισερχόμενη προμήθεια έδρας επί μικτών (%) *",
+            var office = new TextBox { Header = "Εισερχόμενη προμήθεια έδρας επί καθαρών (%) *",
                 Text = existing?.OfficePercent.ToString("N2") ?? "0" };
-            var partner = new TextBox { Header = "Εξερχόμενη προμήθεια προς συνεργάτη επί μικτών (%) *",
+            var partner = new TextBox { Header = "Εξερχόμενη προμήθεια προς συνεργάτη επί καθαρών (%) *",
                 Text = existing?.PartnerPercent.ToString("N2") ?? "0" };
             var active = new CheckBox { Content = "Ενεργός κανόνας",
                 IsChecked = existing?.IsActive ?? true };
             var form = new StackPanel { Spacing = 8, Width = 460 };
             foreach (var control in new UIElement[]
-                { insurer, branch, use, coverage, package, office, partner, active })
+                { insurer, branch, use, coveragePanel, package, office, partner, active })
                 form.Children.Add(control);
             var dialog = new ContentDialog { XamlRoot = XamlRoot,
                 Title = existing is null ? "Νέος κανόνας προμηθειών" : "Επεξεργασία κανόνα",
@@ -308,14 +345,17 @@ public sealed class CommissionSettingsPage : Page
                 throw new ArgumentException("Επιλέξτε καταχωρημένη εταιρεία ή πρακτορείο από τα αποτελέσματα.");
             foreach (var (box, values, label) in new[]
                 { (branch, branches, "κλάδο"), (use, uses, "χρήση"),
-                  (coverage, coverages, "κάλυψη"), (package, packages, "πακέτο") })
+                  (package, packages, "πακέτο") })
                 if (!string.IsNullOrWhiteSpace(box.Text) &&
                     !values.Contains(box.Text.Trim(), StringComparer.CurrentCultureIgnoreCase))
                     throw new ArgumentException($"Επιλέξτε καταχωρημένο {label} από τα αποτελέσματα.");
             var rule = new CommissionRule
             {
                 Id = existing?.Id ?? Guid.Empty, Insurer = insurer.Text,
-                Branch = branch.Text, VehicleUse = use.Text, Coverage = coverage.Text,
+                Branch = branch.Text, VehicleUse = use.Text,
+                Coverage = CommissionCoverageSelection.Write(coverageChecks
+                    .Where(check => check.IsChecked == true)
+                    .Select(check => check.Content?.ToString() ?? "")),
                 Package = package.Text, OfficePercent = Percentage(office.Text),
                 PartnerPercent = Percentage(partner.Text), IsActive = active.IsChecked == true
             };

@@ -21,7 +21,8 @@ public sealed class CommissionRuleFlowTests
         { Insurer = "Test Insurance", OfficePercent = 12, PartnerPercent = 4 });
         var agencyRuleId = await rules.SaveAsync(new CommissionRule
         {
-            Insurer = "Test Agency", Coverage = "Οδική βοήθεια",
+            Insurer = "Test Agency", Coverage = CommissionCoverageSelection.Write(
+                ["Οδική βοήθεια", "Θραύση κρυστάλλων"]),
             OfficePercent = 16, PartnerPercent = 6
         });
         await records.SaveAsync(new BusinessRecord
@@ -37,7 +38,7 @@ public sealed class CommissionRuleFlowTests
             DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
             {
                 PolicyNumber = "POL-82", Insurer = "Test Insurance", Agency = "Test Agency",
-                GrossPremium = 500,
+                GrossPremium = 500, NetPremium = 400,
                 Coverages = [new PolicyCoverage { Name = "Οδική βοήθεια" }]
             })
         });
@@ -45,6 +46,12 @@ public sealed class CommissionRuleFlowTests
             (await records.GetAsync(policyId))!.DetailsJson);
         Assert.Equal(agencyRuleId, policy.CommissionRuleId);
         Assert.Equal(16m, policy.OfficeCommissionPercent);
+        Assert.Equal(2, CommissionCoverageSelection.Read((await rules.ListAsync())
+            .Single(rule => rule.Id == agencyRuleId).Coverage).Length);
+        Assert.Equal(agencyRuleId, (await rules.ResolveAsync(new CommissionMatch(
+            "Test Agency", null, null, "Θραύση κρυστάλλων", null)))?.Id);
+        Assert.Null(await rules.ResolveAsync(new CommissionMatch(
+            "Test Agency", null, null, "Νομική προστασία", null)));
     }
 
     [Fact]
@@ -93,7 +100,7 @@ public sealed class CommissionRuleFlowTests
             {
                 ApplicationNumber = "APP-81", VehicleId = vehicleId,
                 Insurer = "Test Insurance", Branch = "Αυτοκίνητο", Product = "Plus",
-                GrossPremium = 1000
+                GrossPremium = 1000, NetPremium = 800
             })
         });
         var application = (await records.GetAsync(policyId))!;
@@ -109,7 +116,7 @@ public sealed class CommissionRuleFlowTests
         Assert.Equal(18m, issued.OfficeCommissionPercent);
         Assert.Equal(partnerId, issued.PartnerId);
         Assert.Equal(8m, issued.PartnerCommissionPercent);
-        Assert.Equal(80m, (await partners.GetSnapshotAsync(partnerId)).Earned);
+        Assert.Equal(64m, (await partners.GetSnapshotAsync(partnerId)).Earned);
         var rule = (await rules.ListAsync()).Single(item => item.Id == specificId);
         rule.OfficePercent = 25;
         await rules.SaveAsync(rule);

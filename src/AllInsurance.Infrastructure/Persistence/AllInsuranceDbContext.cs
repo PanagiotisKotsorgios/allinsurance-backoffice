@@ -325,7 +325,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(item => item.Insurer).IsRequired().HasMaxLength(200);
             entity.Property(item => item.Branch).HasMaxLength(120);
             entity.Property(item => item.VehicleUse).HasMaxLength(120);
-            entity.Property(item => item.Coverage).HasMaxLength(200);
+            entity.Property(item => item.Coverage).HasMaxLength(4000);
             entity.Property(item => item.Package).HasMaxLength(200);
             entity.Property(item => item.OfficePercent).HasPrecision(5, 2);
             entity.Property(item => item.PartnerPercent).HasPrecision(5, 2);

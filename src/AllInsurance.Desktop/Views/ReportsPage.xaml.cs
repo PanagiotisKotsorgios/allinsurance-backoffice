@@ -110,7 +110,7 @@ public sealed partial class ReportsPage : Page
         foreach (var row in _shown) ReportList.Items.Add(BuildRow(row));
         SummaryText.Text = $"{_shown.Length} γραμμές στην αναφορά";
         DetailText.Text = kind == 2
-            ? "* Η προς απόδοση αξία εκτιμάται από τα μικτά ασφάλιστρα μείον την προμήθεια γραφείου. Οι καταβολές προς εταιρείες δεν καταχωρίζονται ακόμη."
+            ? "* Η προς απόδοση αξία εκτιμάται από τα μικτά ασφάλιστρα μείον την προμήθεια γραφείου επί των καθαρών. Οι καταβολές προς εταιρείες δεν καταχωρίζονται ακόμη."
             : "Τα στοιχεία υπολογίζονται από τις αποθηκευμένες εγγραφές και τα επιλεγμένα φίλτρα.";
     }
 
@@ -126,9 +126,13 @@ public sealed partial class ReportsPage : Page
             .OrderBy(group => group.Key)
             .Select(group => new ReportEntry(group.Key, group.Count().ToString(),
                 Money(group.Sum(item => item.Data.GrossPremium ?? 0)),
-                Money(group.Sum(item => (item.Data.GrossPremium ?? 0) * (item.Data.OfficeCommissionPercent ?? 0) / 100)),
-                Money(group.Sum(item => (item.Data.GrossPremium ?? 0) *
-                    (1 - (item.Data.OfficeCommissionPercent ?? 0) / 100))),
+                Money(group.Sum(item => decimal.Round((item.Data.NetPremium ?? 0) *
+                    (item.Data.OfficeCommissionPercent ?? 0) / 100, 2,
+                    MidpointRounding.AwayFromZero))),
+                Money(group.Sum(item => (item.Data.GrossPremium ?? 0) -
+                    decimal.Round((item.Data.NetPremium ?? 0) *
+                        (item.Data.OfficeCommissionPercent ?? 0) / 100, 2,
+                        MidpointRounding.AwayFromZero))),
                 string.Join(", ", group.Select(item => item.Data.Branch).Where(value => !string.IsNullOrWhiteSpace(value))
                     .Distinct().Take(3)))).ToArray();
 
@@ -140,8 +144,9 @@ public sealed partial class ReportsPage : Page
                 var data = PartnerProfileData.Read(partner.DetailsJson);
                 var related = policies.Where(item => item.Data.PartnerId == partner.Id ||
                     item.Data.PartnerId is null && item.Record.Customer?.PartnerName == partner.Title).ToArray();
-                var earned = related.Sum(item => (item.Data.GrossPremium ?? 0) *
-                    (item.Data.PartnerCommissionPercent ?? data.DefaultCommissionPercent ?? 0) / 100);
+                var earned = related.Sum(item => decimal.Round((item.Data.NetPremium ?? 0) *
+                    (item.Data.PartnerCommissionPercent ?? data.DefaultCommissionPercent ?? 0) / 100,
+                    2, MidpointRounding.AwayFromZero));
                 var paid = _payouts.Where(item => item.PartnerId == partner.Id && InPeriod(item.OccurredAtUtc))
                     .Sum(item => item.Kind == "receipt" ? -item.Amount : item.Amount);
                 return new ReportEntry(partner.Title, related.Length.ToString(), Money(earned), Money(paid),

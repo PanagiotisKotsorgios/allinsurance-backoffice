@@ -51,7 +51,8 @@ public sealed class CommissionRuleService(IApplicationDbContextFactory factory, 
             throw new ArgumentException("Επιλέξτε εταιρεία ή πρακτορείο.");
         rule.Branch = Clean(rule.Branch, 120);
         rule.VehicleUse = Clean(rule.VehicleUse, 120);
-        rule.Coverage = Clean(rule.Coverage, 200);
+        rule.Coverage = CommissionCoverageSelection.Write(
+            CommissionCoverageSelection.Read(Clean(rule.Coverage, 4000)));
         rule.Package = Clean(rule.Package, 200);
         if (rule.OfficePercent is < 0 or > 100 || rule.PartnerPercent is < 0 or > 100 ||
             rule.PartnerPercent > rule.OfficePercent)
@@ -114,8 +115,9 @@ public sealed class CommissionRuleService(IApplicationDbContextFactory factory, 
     private static bool OptionalMatch(string? ruleValue, string? actual) =>
         string.IsNullOrWhiteSpace(ruleValue) || Equal(ruleValue, actual);
     private static bool OptionalCoverage(string? ruleValue, string? actual) =>
-        string.IsNullOrWhiteSpace(ruleValue) ||
-        (actual?.Contains(ruleValue, StringComparison.CurrentCultureIgnoreCase) ?? false);
+        CommissionCoverageSelection.Read(ruleValue) is not { Length: > 0 } selected ||
+        selected.Any(coverage => actual?.Contains(coverage,
+            StringComparison.CurrentCultureIgnoreCase) == true);
     private static string? Clean(string? text, int max)
     {
         var value = text?.Trim();

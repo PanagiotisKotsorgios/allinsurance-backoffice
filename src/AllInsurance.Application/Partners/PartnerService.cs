@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AllInsurance.Application.Partners;
 
 public sealed record PartnerProductionItem(Guid PolicyId, string Number, string CustomerName,
-    DateTime? StartDate, DateTime RecordedAtUtc, decimal GrossPremium,
+    DateTime? StartDate, DateTime RecordedAtUtc, decimal NetPremium,
     decimal CommissionPercent, decimal Commission);
 
 public sealed record PartnerSnapshot(IReadOnlyList<PartnerProductionItem> Production,
@@ -59,7 +59,7 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
             {
                 var rate = details.PartnerCommissionPercent ??
                     profiles[id].DefaultCommissionPercent ?? 0m;
-                var premium = details.GrossPremium ?? 0m;
+                var premium = details.NetPremium ?? 0m;
                 balances[id] += decimal.Round(premium * rate / 100m, 2,
                     MidpointRounding.AwayFromZero);
             }
@@ -92,7 +92,7 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
                     partner.Title, StringComparison.CurrentCultureIgnoreCase)))
             .Select(item =>
             {
-                var premium = item.Details.GrossPremium ?? 0m;
+                var premium = item.Details.NetPremium ?? 0m;
                 var rate = item.Details.PartnerCommissionPercent ?? profile.DefaultCommissionPercent ?? 0m;
                 return new PartnerProductionItem(item.Record.Id, item.Record.Title,
                     item.Record.Customer is null ? "—" :

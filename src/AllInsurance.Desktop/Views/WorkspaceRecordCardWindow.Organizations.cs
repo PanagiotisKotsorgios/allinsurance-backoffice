@@ -102,7 +102,7 @@ public sealed partial class WorkspaceRecordCardWindow
         var badge = new Border { Child = balance, Padding = new Thickness(12, 8, 12, 8),
             CornerRadius = new CornerRadius(8), HorizontalAlignment = HorizontalAlignment.Left };
         panel.Children.Add(badge);
-        panel.Children.Add(new TextBlock { Text = "Υπολογισμός: μικτά ασφάλιστρα μείον προμήθεια γραφείου και καταχωρημένες αποδόσεις.",
+        panel.Children.Add(new TextBlock { Text = "Υπολογισμός: μικτά ασφάλιστρα μείον προμήθεια γραφείου επί των καθαρών και καταχωρημένες αποδόσεις.",
             TextWrapping = TextWrapping.Wrap });
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var add = new ActionButton { Kind = "Add", Label = "Καταχώριση απόδοσης" };

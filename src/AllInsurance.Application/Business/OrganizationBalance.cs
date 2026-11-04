@@ -18,8 +18,10 @@ public static class OrganizationBalance
                 : policy.AgencyId is null && string.IsNullOrWhiteSpace(policy.Agency) &&
                     (policy.CompanyId == organization.Id || policy.CompanyId is null &&
                     string.Equals(policy.Insurer, organization.Title, StringComparison.CurrentCultureIgnoreCase)))
-            .Sum(policy => decimal.Round((policy.GrossPremium ?? 0m) *
-                (100m - (policy.OfficeCommissionPercent ?? 0m)) / 100m, 2));
+            .Sum(policy => (policy.GrossPremium ?? 0m) -
+                decimal.Round((policy.NetPremium ?? 0m) *
+                    (policy.OfficeCommissionPercent ?? 0m) / 100m, 2,
+                    MidpointRounding.AwayFromZero));
         return due - data.Settlements.Sum(settlement => settlement.Amount);
     }
 }
