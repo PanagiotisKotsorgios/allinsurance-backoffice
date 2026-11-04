@@ -22,6 +22,7 @@ public sealed partial class BusinessRecordCardWindow
     private ComboBox? _policyHolderChoice;
     private ComboBox? _policyDurationChoice;
     private CheckBox? _payInInstallments;
+    private Border? _payInInstallmentsBadge;
     private TextBlock? _policyBalanceText;
     private Border? _policyBalanceBadge;
     private ListView? _policyMovementsList;

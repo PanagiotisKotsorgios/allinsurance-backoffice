@@ -29,8 +29,8 @@
                         <ComboBoxItem Content="Αιτήσεις" /><ComboBoxItem Content="Ειδοποιητήρια" />
                     </ComboBox>
                     <ComboBox x:Name="CompanyFilter" Header="Εταιρεία" Width="195" SelectionChanged="FiltersChanged" />
-                    <CalendarDatePicker x:Name="FromDate" Header="Λήξη από" Width="195" DateChanged="FiltersChanged" />
-                    <CalendarDatePicker x:Name="UntilDate" Header="Λήξη έως" Width="195" DateChanged="FiltersChanged" />
+                    <StackPanel><TextBlock Text="Λήξη από" /><controls:EditableDateInput x:Name="FromDate" Width="195" Height="42" DateChanged="FiltersChanged" /></StackPanel>
+                    <StackPanel><TextBlock Text="Λήξη έως" /><controls:EditableDateInput x:Name="UntilDate" Width="195" Height="42" DateChanged="FiltersChanged" /></StackPanel>
                 </VariableSizedWrapGrid>
             </StackPanel>
         </Border>

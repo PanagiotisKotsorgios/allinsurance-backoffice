@@ -31,7 +31,7 @@ public sealed partial class WorkspaceRecordCardWindow
         _building = true;
         _tabContent.Content = null;
         _tabStrip.Children.Clear(); _tabs.Clear(); _forms.Clear();
-        _inputs.Clear(); _specs.Clear();
+        _inputs.Clear(); _specs.Clear(); _booleanBadges.Clear();
         switch (_section.Key)
         {
             case "companies": BuildCompanyTabs(); break;
@@ -241,7 +241,7 @@ public sealed partial class WorkspaceRecordCardWindow
         {
             DateTime? value = spec.Key == "eventDate" ? _record.EventDate :
                 DateTime.TryParse(GetText(spec.Key), out var parsed) ? parsed : null;
-            var picker = new CalendarDatePicker { Date = value is DateTime date ?
+            var picker = new EditableDateInput { Date = value is DateTime date ?
                     new DateTimeOffset(date) : null,
                 MinHeight = 36, Height = 36, PlaceholderText = "Επιλέξτε ημερομηνία",
                 HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -261,7 +261,18 @@ public sealed partial class WorkspaceRecordCardWindow
         {
             var box = new CheckBox { IsChecked = GetText(spec.Key) == "true",
                 MinHeight = 34, Height = 34 };
-            control = box; display = box;
+            var badge = new Border { Width = 22, Height = 22,
+                CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left,
+                Child = new TextBlock { FontSize = 16,
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center } };
+            var host = new Grid();
+            host.Children.Add(box);
+            host.Children.Add(badge);
+            _booleanBadges[spec.Key] = badge;
+            control = box; display = host;
         }
         else
         {
@@ -387,6 +398,16 @@ public sealed partial class WorkspaceRecordCardWindow
             if (input is TextBox text) text.IsReadOnly = !_editing;
             else if (input is Control control) control.IsEnabled = _editing;
         }
+        foreach (var (key, badge) in _booleanBadges)
+        {
+            var box = (CheckBox)_inputs[key];
+            box.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
+            badge.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
+            var checkedValue = box.IsChecked == true;
+            badge.Background = new SolidColorBrush(checkedValue
+                ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115));
+            if (badge.Child is TextBlock mark) mark.Text = checkedValue ? "✓" : "";
+        }
     }
 
     private async Task SaveAsync()
@@ -406,7 +427,7 @@ public sealed partial class WorkspaceRecordCardWindow
                 }
                 if (spec.Kind == "date")
                 {
-                    var date = (input as CalendarDatePicker)?.Date?.Date;
+                    var date = (input as EditableDateInput)?.GetValidatedDate(spec.Label);
                     if (key == "eventDate") _record.EventDate = date;
                     else _data.Fields[key] = date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                     continue;

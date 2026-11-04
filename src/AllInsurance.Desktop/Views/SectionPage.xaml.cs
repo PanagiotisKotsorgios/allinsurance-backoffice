@@ -27,6 +27,7 @@ public sealed partial class SectionPage : Page
     private CustomerChoice[] _customerChoices = [];
     private string[] _partnerCategories = [];
     private HashSet<Guid> _vehiclesWithActivePolicy = [];
+    private Dictionary<Guid, string> _vehicleInsuranceStates = [];
     private int _requestVersion;
     private BusinessRecordRow[] _filtered = [];
     private readonly int[] _columnOrder = [0, 1, 2, 3, 4, 5, 6];
@@ -74,6 +75,17 @@ public sealed partial class SectionPage : Page
             EventHeader.Text = "Υπόλοιπο";
             CustomerHeader.Text = "Πιστωτικό όριο";
             CreatedHeader.Text = "Κατάσταση";
+        }
+        else if (section.Key == "vehicles")
+        {
+            TitleHeader.Text = "Όχημα";
+            CodeHeader.Text = "Πινακίδα";
+            PartyHeader.Text = "Μάρκα";
+            StatusHeader.Text = "Πελάτης";
+            EventHeader.Text = "Χρήση";
+            CustomerHeader.Text = "Πρώτη άδεια";
+            CreatedHeader.Text = "Καύσιμο";
+            ExtraHeader.Text = "Κατάσταση";
         }
         StatusFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
         CustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
@@ -172,6 +184,16 @@ public sealed partial class SectionPage : Page
                 _vehiclesWithActivePolicy = policies.Where(IsActivePolicy)
                     .Select(item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).VehicleId)
                     .OfType<Guid>().ToHashSet();
+                _vehicleInsuranceStates = policies
+                    .Select(item => (Record: item,
+                        VehicleId: BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).VehicleId))
+                    .Where(item => item.VehicleId.HasValue)
+                    .GroupBy(item => item.VehicleId!.Value)
+                    .ToDictionary(group => group.Key, group =>
+                        group.Any(item => IsActivePolicy(item.Record)) ? "Ασφαλισμένο" :
+                        group.Any(item => item.Record.DocumentType is "Αίτηση" or "Ειδοποιητήριο" ||
+                            item.Record.Status == "Σε εξέλιξη") ? "Σε εξέλιξη" :
+                        "Χωρίς ενεργό συμβόλαιο");
             }
             ConfigureFilterOptions(records);
             IEnumerable<BusinessRecord> filtered = records;
@@ -210,8 +232,11 @@ public sealed partial class SectionPage : Page
             {
                 var profile = _section.Key == "partners"
                     ? PartnerProfileData.Read(item.DetailsJson) : null;
+                var vehicle = _section.Key == "vehicles"
+                    ? BusinessRecordDetails.Read<VehicleCardData>(item.DetailsJson) : null;
                 return new BusinessRecordRow(item, profile,
-                    balances is not null && balances.TryGetValue(item.Id, out var due) ? due : null);
+                    balances is not null && balances.TryGetValue(item.Id, out var due) ? due : null,
+                    vehicle, _section.Key == "vehicles" ? VehicleDisplayStatus(item) : null);
             }).ToArray();
             SortRecords();
             _page = 1;
@@ -229,7 +254,7 @@ public sealed partial class SectionPage : Page
     }
 
     private async void Filter_Changed(object sender, TextChangedEventArgs e) => await RefreshAsync();
-    private async void DateFilter_Changed(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args)
+    private async void DateFilter_Changed(object? sender, EventArgs args)
     { UpdateDateRangeLabel(); await RefreshAsync(); }
     private async void DateBasis_Changed(object sender, SelectionChangedEventArgs e)
     { UpdateDateRangeLabel(); await RefreshAsync(); }
@@ -390,6 +415,31 @@ public sealed partial class SectionPage : Page
 
     private void SortRecords()
     {
+        if (_section.Key == "vehicles")
+        {
+            if (_sortColumn == 5)
+            {
+                Func<BusinessRecordRow, DateTime> date = row =>
+                    row.VehicleProfile?.FirstRegistrationDate ?? DateTime.MinValue;
+                _filtered = (_sortDescending ? _filtered.OrderByDescending(date) :
+                    _filtered.OrderBy(date)).ToArray();
+                return;
+            }
+            Func<BusinessRecordRow, string> vehicleKey = _sortColumn switch
+            {
+                1 => row => row.Reference ?? "",
+                2 => row => row.RelatedParty ?? "",
+                3 => row => row.Status ?? "",
+                4 => row => row.EventDateDisplay,
+                6 => row => row.CreatedDisplay,
+                7 => row => row.ExtraDisplay,
+                _ => row => row.Title
+            };
+            _filtered = (_sortDescending ? _filtered.OrderByDescending(vehicleKey,
+                StringComparer.CurrentCultureIgnoreCase) : _filtered.OrderBy(vehicleKey,
+                StringComparer.CurrentCultureIgnoreCase)).ToArray();
+            return;
+        }
         if (_section.Key == "partners")
         {
             if (_sortColumn is 4 or 5)
@@ -456,11 +506,18 @@ public sealed partial class SectionPage : Page
         ApplyColumnOrder(grid);
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
-        var statusIndex = _section.Key == "partners" ? 7 : 4;
+        var statusIndex = _section.Key switch
+        {
+            "partners" => 7,
+            "vehicles" => 8,
+            _ => 4
+        };
         if (grid.Children[statusIndex] is Border { Child: TextBlock statusText } statusCell)
         {
-            var highlighted = row.Record.Status is "Ενεργό" or "Ενεργός" or "Σε εξέλιξη" or "Πιθανός";
-            statusCell.Background = highlighted ? new SolidColorBrush(row.Record.Status is "Ενεργό" or "Ενεργός"
+            var status = _section.Key == "vehicles" ? row.ExtraDisplay : row.Record.Status;
+            var highlighted = status is "Ενεργό" or "Ενεργός" or "Ασφαλισμένο" or
+                "Σε εξέλιξη" or "Πιθανός";
+            statusCell.Background = highlighted ? new SolidColorBrush(status is "Ενεργό" or "Ενεργός" or "Ασφαλισμένο"
                 ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 204, 111, 25)) : null;
             statusText.Foreground = highlighted ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
         }
@@ -529,8 +586,9 @@ public sealed partial class SectionPage : Page
     }
     private async void Columns_Click(object sender, RoutedEventArgs e)
     {
-        var names = new[] { TitleHeader.Text, "Κωδικός", PartyHeader.Text,
-            StatusHeader.Text, EventHeader.Text, CustomerHeader.Text, CreatedHeader.Text };
+        var names = new[] { TitleHeader.Text, CodeHeader.Text, PartyHeader.Text,
+            StatusHeader.Text, EventHeader.Text, CustomerHeader.Text, CreatedHeader.Text }
+            .Concat(_section.Key == "vehicles" ? [ExtraHeader.Text] : []).ToArray();
         var fields = names.Select((name, index) => new CheckBox
         {
             Content = name, IsChecked = _columnVisible[index], IsEnabled = index != 0
@@ -698,22 +756,33 @@ public sealed partial class SectionPage : Page
     private sealed record CustomerChoice(Guid? Id, string Name);
 
     private sealed record BusinessRecordRow(BusinessRecord Record,
-        PartnerProfileData? PartnerProfile = null, decimal? PartnerBalance = null)
+        PartnerProfileData? PartnerProfile = null, decimal? PartnerBalance = null,
+        VehicleCardData? VehicleProfile = null, string? VehicleInsuranceState = null)
     {
-        public string Title => Record.Title;
-        public string? Reference => Record.Reference;
-        public string? RelatedParty => PartnerProfile?.City ?? Record.RelatedParty;
-        public string? Status => PartnerProfile?.PersonType ?? Record.Status;
-        public string EventDateDisplay => PartnerProfile is null
+        public string Title => VehicleProfile is null ? Record.Title :
+            !string.IsNullOrWhiteSpace(VehicleProfile.Model) ? VehicleProfile.Model :
+            !string.IsNullOrWhiteSpace(VehicleProfile.Make) ? VehicleProfile.Make : Record.Title;
+        public string? Reference => VehicleProfile?.Registration ?? Record.Reference;
+        public string? RelatedParty => VehicleProfile?.Make ?? PartnerProfile?.City ?? Record.RelatedParty;
+        public string? Status => VehicleProfile is not null
+            ? Record.Customer is null ? "—" :
+                $"{Record.Customer.LastName} {Record.Customer.FirstName}".Trim()
+            : PartnerProfile?.PersonType ?? Record.Status;
+        public string EventDateDisplay => VehicleProfile is not null
+            ? VehicleProfile.Use ?? "—" : PartnerProfile is null
             ? Record.EventDate?.ToString("dd/MM/yyyy") ?? ""
             : $"{PartnerBalance.GetValueOrDefault():N2} €";
-        public string CustomerName => PartnerProfile is null
+        public string CustomerName => VehicleProfile is not null
+            ? VehicleProfile.FirstRegistrationDate?.ToString("dd/MM/yyyy") ?? "—"
+            : PartnerProfile is null
             ? Record.Customer is null ? "" :
                 $"{Record.Customer.LastName} {Record.Customer.FirstName}"
             : PartnerProfile.CreditLimit is decimal limit ? $"{limit:N2} €" : "—";
-        public string CreatedDisplay => PartnerProfile is null
+        public string CreatedDisplay => VehicleProfile is not null
+            ? VehicleProfile.Fuel ?? "—" : PartnerProfile is null
             ? Record.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")
             : Record.Status ?? "";
+        public string ExtraDisplay => VehicleInsuranceState ?? Record.Status ?? "—";
         public override string ToString() => Record.Title;
     }
 }

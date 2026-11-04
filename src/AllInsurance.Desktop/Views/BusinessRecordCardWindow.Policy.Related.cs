@@ -28,9 +28,22 @@ public sealed partial class BusinessRecordCardWindow
         _policyCommissionSummary = new TextBlock { FontSize = 15, TextWrapping = TextWrapping.Wrap };
         panel.Children.Add(_policyFinanceSummary);
         panel.Children.Add(_policyCommissionSummary);
-        _payInInstallments = new CheckBox { Content = "Πληρωμή με δόσεις",
-            IsChecked = data.PayInInstallments, MinHeight = 32 };
-        panel.Children.Add(_payInInstallments);
+        _payInInstallments = new CheckBox { IsChecked = data.PayInInstallments,
+            MinHeight = 32 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_payInInstallments,
+            "Πληρωμή με δόσεις");
+        _payInInstallmentsBadge = new Border { Width = 22, Height = 22,
+            CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left,
+            Child = new TextBlock { Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center } };
+        var installmentsHost = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        installmentsHost.Children.Add(_payInInstallments);
+        installmentsHost.Children.Add(_payInInstallmentsBadge);
+        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
+            Children = { new TextBlock { Text = "Πληρωμή με δόσεις",
+                VerticalAlignment = VerticalAlignment.Center }, installmentsHost } });
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
         _policyReceiptButton = new ActionButton { Kind = "Receipt", Label = "Είσπραξη για ασφαλιστήριο" };
         _policyPaymentButton = new ActionButton { Kind = "Payment", Label = "Πληρωμή προς πελάτη" };

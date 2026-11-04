@@ -17,20 +17,23 @@ internal static class SectionColumnOrder
 
     public static bool[] LoadVisibility(string sectionKey)
     {
+        var defaults = Enumerable.Repeat(true, ColumnCount(sectionKey)).ToArray();
         try
         {
-            if (!File.Exists(VisiblePath)) return [true, true, true, true, true, true, true];
+            if (!File.Exists(VisiblePath)) return defaults;
             var saved = JsonSerializer.Deserialize<Dictionary<string, bool[]>>(File.ReadAllText(VisiblePath));
-            if (saved?.TryGetValue(sectionKey, out var flags) == true && flags.Length == 7 && flags[0])
+            if (saved?.TryGetValue(sectionKey, out var flags) == true &&
+                flags.Length == defaults.Length && flags[0])
                 return flags;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
-        return [true, true, true, true, true, true, true];
+        return defaults;
     }
 
     public static void SaveVisibility(string sectionKey, bool[] flags)
     {
-        if (flags.Length != 7 || !flags[0]) throw new ArgumentException("Η βασική στήλη πρέπει να παραμένει ορατή.");
+        if (flags.Length != ColumnCount(sectionKey) || !flags[0])
+            throw new ArgumentException("Η βασική στήλη πρέπει να παραμένει ορατή.");
         Dictionary<string, bool[]> saved;
         try { saved = File.Exists(VisiblePath)
             ? JsonSerializer.Deserialize<Dictionary<string, bool[]>>(File.ReadAllText(VisiblePath)) ?? []
@@ -43,9 +46,12 @@ internal static class SectionColumnOrder
 
     public static double[] LoadWidths(string sectionKey)
     {
-        var defaults = sectionKey == "partners"
-            ? new double[] { 240, 140, 165, 175, 150, 160, 130 }
-            : [240, 140, 190, 130, 130, 240, 100];
+        var defaults = sectionKey switch
+        {
+            "partners" => new double[] { 240, 140, 165, 175, 150, 160, 130 },
+            "vehicles" => [180, 135, 145, 210, 140, 165, 125, 125],
+            _ => [240, 140, 190, 130, 130, 240, 100]
+        };
         try
         {
             if (!File.Exists(WidthsPath)) return defaults;
@@ -74,15 +80,15 @@ internal static class SectionColumnOrder
         try
         {
             var saved = Read();
-            if (saved.TryGetValue(sectionKey, out var order) && Valid(order)) return order;
+            if (saved.TryGetValue(sectionKey, out var order) && Valid(order, sectionKey)) return order;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
-        return [0, 1, 2, 3, 4, 5, 6];
+        return Enumerable.Range(0, ColumnCount(sectionKey)).ToArray();
     }
 
     public static void Save(string sectionKey, int[] order)
     {
-        if (!Valid(order)) throw new ArgumentException("Η σειρά στηλών δεν είναι έγκυρη.");
+        if (!Valid(order, sectionKey)) throw new ArgumentException("Η σειρά στηλών δεν είναι έγκυρη.");
         Dictionary<string, int[]> saved;
         try { saved = Read(); }
         catch (JsonException) { saved = []; }
@@ -95,6 +101,10 @@ internal static class SectionColumnOrder
         ? JsonSerializer.Deserialize<Dictionary<string, int[]>>(File.ReadAllText(PathOnDisk)) ?? []
         : [];
 
-    private static bool Valid(int[]? order) => order is { Length: 7 } &&
-        order.Distinct().OrderBy(value => value).SequenceEqual(Enumerable.Range(0, 7));
+    private static int ColumnCount(string sectionKey) => sectionKey == "vehicles" ? 8 : 7;
+
+    private static bool Valid(int[]? order, string sectionKey) =>
+        order is not null && order.Length == ColumnCount(sectionKey) &&
+        order.Distinct().OrderBy(value => value)
+            .SequenceEqual(Enumerable.Range(0, ColumnCount(sectionKey)));
 }

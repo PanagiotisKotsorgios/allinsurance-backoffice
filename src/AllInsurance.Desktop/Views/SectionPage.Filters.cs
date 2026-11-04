@@ -87,7 +87,8 @@ public sealed partial class SectionPage
 
     private void ConfigureFilterOptions(IReadOnlyList<BusinessRecord> records)
     {
-        IEnumerable<string> statuses = records.Select(StatusKey);
+        IEnumerable<string> statuses = _section.Key == "vehicles"
+            ? records.Select(VehicleDisplayStatus) : records.Select(StatusKey);
         if (_section.Key == "policies")
             statuses = statuses.Concat(["Ενεργό", "Πιθανό", "Ληγμένο", "Ακυρωμένο", "Ανανεωμένο",
                 "Αίτηση", "Ειδοποιητήριο", "Πρόσθετη πράξη", "Πρόσθετη πράξη ακύρωσης"]);
@@ -97,7 +98,8 @@ public sealed partial class SectionPage
         else if (_section.Key is "companies" or "agencies")
             statuses = statuses.Concat(["Ενεργό", "Ανενεργό"]);
         else if (_section.Key == "vehicles")
-            statuses = statuses.Concat(["Ενεργό", "Ανενεργό"]);
+            statuses = statuses.Concat(["Ασφαλισμένο", "Σε εξέλιξη",
+                "Χωρίς ενεργό συμβόλαιο", "Ανενεργό"]);
         StatusFilter.SetOptions(statuses);
         switch (_section.Key)
         {
@@ -140,7 +142,9 @@ public sealed partial class SectionPage
 
     private bool PassesSectionFilters(BusinessRecord item)
     {
-        if (!StatusFilter.SelectedValues.Contains(StatusKey(item))) return false;
+        var displayedStatus = _section.Key == "vehicles"
+            ? VehicleDisplayStatus(item) : StatusKey(item);
+        if (!StatusFilter.SelectedValues.Contains(displayedStatus)) return false;
         var second = _section.Key switch
         {
             "partners" => PartnerProfileData.Read(item.DetailsJson).Category ?? "Χωρίς κατηγορία",
@@ -192,6 +196,10 @@ public sealed partial class SectionPage
             (policy.StartDate is null || policy.StartDate.Value.Date <= today) &&
             (policy.EndDate is null || policy.EndDate.Value.Date >= today);
     }
+
+    private string VehicleDisplayStatus(BusinessRecord item) =>
+        item.Status == "Ανενεργό" ? "Ανενεργό" :
+        _vehicleInsuranceStates.GetValueOrDefault(item.Id) ?? item.Status ?? "—";
 
     private static string StatusKey(BusinessRecord item) => item.SectionKey == "policies" &&
         item.DocumentType is "Αίτηση" or "Ειδοποιητήριο"

@@ -54,9 +54,10 @@ public sealed partial class BusinessRecordCardWindow : Window
     private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White),
         Margin = new Thickness(68, 2, 0, 0) };
     private readonly Dictionary<string, TextBox> _text = [];
-    private readonly Dictionary<string, CalendarDatePicker> _dates = [];
+    private readonly Dictionary<string, EditableDateInput> _dates = [];
     private readonly List<Grid> _formGrids = [];
     private readonly Dictionary<string, CheckBox> _vehicleChecks = [];
+    private readonly Dictionary<string, Border> _vehicleCheckBadges = [];
     private readonly List<VehiclePerson> _vehiclePeople = [];
     private IReadOnlyList<CustomerListItem> _vehicleCustomers = [];
     private IReadOnlyList<BusinessRecord> _vehiclePolicies = [];
@@ -303,7 +304,17 @@ public sealed partial class BusinessRecordCardWindow : Window
         if (_editButton is not null) _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
         foreach (var field in _text.Values) field.IsReadOnly = !_editing;
         foreach (var field in _dates.Values) field.IsEnabled = _editing;
-        foreach (var field in _vehicleChecks.Values) field.IsEnabled = _editing;
+        foreach (var (key, field) in _vehicleChecks)
+        {
+            field.IsEnabled = _editing;
+            field.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
+            var badge = _vehicleCheckBadges[key];
+            var checkedValue = field.IsChecked == true;
+            badge.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
+            badge.Background = new SolidColorBrush(checkedValue
+                ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115));
+            if (badge.Child is TextBlock mark) mark.Text = checkedValue ? "✓" : "";
+        }
         if (_customerChoice is not null) _customerChoice.IsEnabled = _editing && _fixedCustomerId is null;
         if (_vehicleChoice is not null) _vehicleChoice.IsEnabled = _editing;
         if (_typeChoice is not null) _typeChoice.IsEnabled = _editing;
@@ -312,7 +323,20 @@ public sealed partial class BusinessRecordCardWindow : Window
         if (_policyPartnerChoice is not null) _policyPartnerChoice.IsEnabled = _editing;
         if (_policyHolderChoice is not null) _policyHolderChoice.IsEnabled = _editing;
         if (_policyDurationChoice is not null) _policyDurationChoice.IsEnabled = _editing;
-        if (_payInInstallments is not null) _payInInstallments.IsEnabled = _editing;
+        if (_payInInstallments is not null)
+        {
+            _payInInstallments.IsEnabled = _editing;
+            _payInInstallments.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
+            if (_payInInstallmentsBadge is not null)
+            {
+                var checkedValue = _payInInstallments.IsChecked == true;
+                _payInInstallmentsBadge.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
+                _payInInstallmentsBadge.Background = new SolidColorBrush(checkedValue
+                    ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115));
+                if (_payInInstallmentsBadge.Child is TextBlock mark)
+                    mark.Text = checkedValue ? "✓" : "";
+            }
+        }
         if (_insurerSuggest is not null) _insurerSuggest.IsEnabled = _editing;
         if (_convertButton is not null) _convertButton.IsEnabled = _editing;
         foreach (var button in _editControls) button.IsEnabled = _editing;
@@ -360,7 +384,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             "Ιδιοκτήτης" or "Πρόσωπα" => "user-round",
             "Συμβόλαια" => "file-text",
             "Ζημιές" => "car-front",
-            "Πρόσθετα στοιχεία" => "settings-2",
+            "Πρόσθετα στοιχεία" or "Λοιπά" => "settings-2",
             "Οικονομικά" => "chart-no-axes-combined",
             "Ιστορικό" => "clock-3",
             _ => "file-text"
@@ -413,9 +437,9 @@ public sealed partial class BusinessRecordCardWindow : Window
         return field;
     }
 
-    private CalendarDatePicker Date(StackPanel panel, string key, string label, DateTime? value = null)
+    private EditableDateInput Date(StackPanel panel, string key, string label, DateTime? value = null)
     {
-        var field = new CalendarDatePicker {
+        var field = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
             MinHeight = 36, Height = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -555,6 +579,9 @@ public sealed partial class BusinessRecordCardWindow : Window
         var main = TwoColumns(out var left, out var right);
         left.Spacing = 5;
         right.Spacing = 5;
+        var extra = TwoColumns(out var extraLeft, out var extraRight);
+        extraLeft.Spacing = 5;
+        extraRight.Spacing = 5;
         CustomerChoice(left, customers);
         Text(left, "registration", "Αριθμός κυκλοφορίας *", data.Registration);
         Text(left, "make", "Μάρκα / εργοστάσιο", data.Make);
@@ -562,20 +589,20 @@ public sealed partial class BusinessRecordCardWindow : Window
         Text(left, "vin", "Αριθμός πλαισίου (VIN)", data.Vin);
         Text(left, "year", "Έτος κατασκευής", data.ManufactureYear?.ToString());
         Date(left, "first", "Πρώτη άδεια κυκλοφορίας", data.FirstRegistrationDate);
-        Date(left, "transfer", "Ημερομηνία μεταβίβασης", data.TransferDate);
-        Text(left, "taxclass", "Κατηγορία φορολόγησης", data.TaxClass);
-        Text(left, "seats", "Θέσεις", data.Seats?.ToString());
-        Text(left, "doors", "Πόρτες", data.Doors?.ToString());
-        Text(left, "fuelcolor", "Χρώμα καυσίμου", data.FuelColor);
-        Text(left, "permit", "Άδεια κυκλοφορίας", data.RegistrationPermit);
-        Text(left, "licence", "Ειδικό δίπλωμα", data.SpecialLicence);
-        Text(left, "discount", "Δικαιολογητικά έκπτωσης", data.DiscountDocuments);
-        Text(left, "roadtax", "Τέλη κυκλοφορίας (€)", data.RoadTax?.ToString("N2"));
-        Text(left, "reports", "Έντυπα αναγγελίας", data.ReportForms);
-        VehicleCheck(left, "convertible", "Κάμπριο", data.IsConvertible);
-        VehicleCheck(left, "sunroof", "Ηλιοροφή", data.HasSunroof);
-        VehicleCheck(left, "heavy", "Βάρος άνω των 3,5 τόνων", data.OverThreeAndHalfTons);
-        VehicleCheck(left, "dual", "Διπλοί πίσω τροχοί", data.HasRearDualWheels);
+        Date(extraLeft, "transfer", "Ημερομηνία μεταβίβασης", data.TransferDate);
+        Text(extraLeft, "taxclass", "Κατηγορία φορολόγησης", data.TaxClass);
+        Text(extraLeft, "seats", "Θέσεις", data.Seats?.ToString());
+        Text(extraLeft, "doors", "Πόρτες", data.Doors?.ToString());
+        Text(extraLeft, "fuelcolor", "Χρώμα καυσίμου", data.FuelColor);
+        Text(extraLeft, "permit", "Άδεια κυκλοφορίας", data.RegistrationPermit);
+        Text(extraLeft, "licence", "Ειδικό δίπλωμα", data.SpecialLicence);
+        Text(extraLeft, "discount", "Δικαιολογητικά έκπτωσης", data.DiscountDocuments);
+        Text(extraLeft, "roadtax", "Τέλη κυκλοφορίας (€)", data.RoadTax?.ToString("N2"));
+        Text(extraLeft, "reports", "Έντυπα αναγγελίας", data.ReportForms);
+        VehicleCheck(extraLeft, "convertible", "Κάμπριο", data.IsConvertible);
+        VehicleCheck(extraLeft, "sunroof", "Ηλιοροφή", data.HasSunroof);
+        VehicleCheck(extraLeft, "heavy", "Βάρος άνω των 3,5 τόνων", data.OverThreeAndHalfTons);
+        VehicleCheck(extraLeft, "dual", "Διπλοί πίσω τροχοί", data.HasRearDualWheels);
         Text(right, "use", "Χρήση", data.Use);
         Text(right, "fuel", "Καύσιμο", data.Fuel);
         Text(right, "hp", "Ισχύς (HP)", data.HorsePower?.ToString("N2"));
@@ -583,39 +610,40 @@ public sealed partial class BusinessRecordCardWindow : Window
         Text(right, "cc", "Κυβισμός (cc)", data.DisplacementCc?.ToString());
         Date(right, "acquired", "Ημερομηνία απόκτησης", data.AcquisitionDate);
         Text(right, "color", "Χρώμα", data.Color);
-        Text(right, "tonnage", "Τονάζ (τόνοι)", data.Tonnage?.ToString("N2"));
-        Text(right, "wheelbase", "Μεταξόνιο (cm)", data.WheelbaseCm?.ToString("N2"));
-        Text(right, "height", "Ύψος (cm)", data.HeightCm?.ToString("N2"));
-        Text(right, "track", "Μετατρόχιο (cm)", data.TrackWidthCm?.ToString("N2"));
-        Text(right, "market", "Εκτιμώμενη αξία (€)", data.EstimatedMarketValue?.ToString("N2"));
-        Text(right, "co2", "Εκπομπές CO₂ (g/km)", data.Co2GramsPerKm?.ToString("N2"));
-        Date(right, "nextkteo", "Επόμενο ΚΤΕΟ", data.NextKteoDate);
-        _kteoStatusChoice = Choices(right, "Κατάσταση ΚΤΕΟ",
+        Text(extraRight, "tonnage", "Τονάζ (τόνοι)", data.Tonnage?.ToString("N2"));
+        Text(extraRight, "wheelbase", "Μεταξόνιο (cm)", data.WheelbaseCm?.ToString("N2"));
+        Text(extraRight, "height", "Ύψος (cm)", data.HeightCm?.ToString("N2"));
+        Text(extraRight, "track", "Μετατρόχιο (cm)", data.TrackWidthCm?.ToString("N2"));
+        Text(extraRight, "market", "Εκτιμώμενη αξία (€)", data.EstimatedMarketValue?.ToString("N2"));
+        Text(extraRight, "co2", "Εκπομπές CO₂ (g/km)", data.Co2GramsPerKm?.ToString("N2"));
+        Date(extraRight, "nextkteo", "Επόμενο ΚΤΕΟ", data.NextKteoDate);
+        _kteoStatusChoice = Choices(extraRight, "Κατάσταση ΚΤΕΟ",
             ["Δεν απαιτείται", "Απαιτείται", "Σε ισχύ", "Ληγμένο"],
             data.KteoStatus ?? (data.NextKteoDate is null ? "Δεν απαιτείται" :
                 data.NextKteoDate >= DateTime.Today ? "Σε ισχύ" : "Ληγμένο"));
-        VehicleCheck(right, "alarm", "Συναγερμός", data.HasAlarm);
-        VehicleCheck(right, "immobilizer", "Immobilizer", data.HasImmobilizer);
-        VehicleCheck(right, "guarded", "Χώρος φύλαξης", data.IsGuarded);
-        VehicleCheck(right, "emissions", "Κάρτα καυσαερίων", data.HasEmissionsCard);
-        _statusChoice = Choices(right, "Κατάσταση", ["Ενεργό", "Ανενεργό"],
+        VehicleCheck(extraRight, "alarm", "Συναγερμός", data.HasAlarm);
+        VehicleCheck(extraRight, "immobilizer", "Immobilizer", data.HasImmobilizer);
+        VehicleCheck(extraRight, "guarded", "Χώρος φύλαξης", data.IsGuarded);
+        VehicleCheck(extraRight, "emissions", "Κάρτα καυσαερίων", data.HasEmissionsCard);
+        _statusChoice = Choices(extraRight, "Κατάσταση", ["Ενεργό", "Ανενεργό"],
             _record.Status ?? "Ενεργό");
-        right.Children.Add(CardFieldLayout.CreateRow("Καταχώριση",
+        extraRight.Children.Add(CardFieldLayout.CreateRow("Καταχώριση",
             new TextBox { IsReadOnly = true, Text = _record.Id == Guid.Empty ? "—" :
                 _record.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") }));
-        right.Children.Add(CardFieldLayout.CreateRow("Τελευταία ενημέρωση",
+        extraRight.Children.Add(CardFieldLayout.CreateRow("Τελευταία ενημέρωση",
             new TextBox { IsReadOnly = true, Text = _record.Id == Guid.Empty ? "—" :
                 _record.UpdatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") }));
-        AddKteoImageRow(right, data.KteoImagePath);
-        Text(right, "notes", "Πρόσθετα στοιχεία", data.Notes ?? _record.Notes, multiline: true);
+        AddKteoImageRow(extraRight, data.KteoImagePath);
+        Text(extraRight, "notes", "Πρόσθετα στοιχεία", data.Notes ?? _record.Notes, multiline: true);
         AddTab("Καρτέλα οχήματος", main);
+        AddTab("Λοιπά", extra);
         BuildPeopleTab();
         BuildVehiclePoliciesTab();
         BuildVehicleClaimsTab();
     }
 
     private string Value(string key) => _text[key].Text.Trim();
-    private DateTime? DateValue(string key) => _dates[key].Date?.Date;
+    private DateTime? DateValue(string key) => _dates[key].GetValidatedDate(key);
     private static decimal? DecimalValue(string text, string label)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;

@@ -176,19 +176,20 @@ public sealed partial class BusinessRecordCardWindow
         var type = new ComboBox { Header = "Είδος", ItemsSource = new[]
             { "Πρόσθετη πράξη", "Πρόσθετη πράξη ακύρωσης" },
             SelectedItem = existing?.Type ?? "Πρόσθετη πράξη" };
-        var date = new CalendarDatePicker { Header = "Ημερομηνία ισχύος",
+        var date = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = existing?.EffectiveDate is DateTime day ? new DateTimeOffset(day) : null };
         var difference = new TextBox { Header = "Διαφορά ασφαλίστρου (€)",
             Text = existing?.PremiumDifference?.ToString("N2") ?? "",
             PlaceholderText = "Αρνητικό ποσό για επιστροφή" };
         var notes = new TextBox { Header = "Σημειώσεις", Text = existing?.Notes ?? "" };
         if (!await ShowPolicyEditorAsync(existing is null ? "Νέα πρόσθετη πράξη" : "Επεξεργασία πράξης",
-            number, type, date, difference, notes)) return null;
+            number, type, LabeledDate("Ημερομηνία ισχύος", date), difference, notes)) return null;
         if (string.IsNullOrWhiteSpace(number.Text))
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Ο αριθμός πράξης είναι υποχρεωτικός."); return null; }
         try { return new PolicyEndorsement { Id = existing?.Id ?? Guid.NewGuid(),
             Number = number.Text.Trim(), Type = type.SelectedItem as string ?? "Πρόσθετη πράξη",
-            EffectiveDate = date.Date?.Date, PremiumDifference = SignedDecimal(difference.Text),
+            EffectiveDate = date.GetValidatedDate("Ημερομηνία ισχύος"),
+            PremiumDifference = SignedDecimal(difference.Text),
             Notes = notes.Text.Trim() }; }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); return null; }
     }
@@ -197,30 +198,36 @@ public sealed partial class BusinessRecordCardWindow
     {
         var number = new TextBox { Header = RequiredHeader.Create("Αριθμός πράσινης κάρτας"),
             Text = existing?.Number ?? "" };
-        var start = new CalendarDatePicker { Header = "Έναρξη",
+        var start = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = existing?.StartDate is DateTime a ? new DateTimeOffset(a) : null };
-        var end = new CalendarDatePicker { Header = "Λήξη",
+        var end = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = existing?.EndDate is DateTime b ? new DateTimeOffset(b) : null };
         var countries = new TextBox { Header = "Χώρες ισχύος", Text = existing?.Countries ?? "" };
         if (!await ShowPolicyEditorAsync(existing is null ? "Νέα πράσινη κάρτα" : "Επεξεργασία πράσινης κάρτας",
-            number, start, end, countries)) return null;
+            number, LabeledDate("Έναρξη", start), LabeledDate("Λήξη", end), countries)) return null;
         if (string.IsNullOrWhiteSpace(number.Text) || start.Date?.Date > end.Date?.Date)
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Ελέγξτε τον αριθμό και τις ημερομηνίες της πράσινης κάρτας."); return null; }
-        return new PolicyGreenCard { Id = existing?.Id ?? Guid.NewGuid(), Number = number.Text.Trim(),
-            StartDate = start.Date?.Date, EndDate = end.Date?.Date, Countries = countries.Text.Trim() };
+        try
+        {
+            return new PolicyGreenCard { Id = existing?.Id ?? Guid.NewGuid(), Number = number.Text.Trim(),
+                StartDate = start.GetValidatedDate("Έναρξη"),
+                EndDate = end.GetValidatedDate("Λήξη"), Countries = countries.Text.Trim() };
+        }
+        catch (Exception exception)
+        { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); return null; }
     }
 
     private async Task<PolicyInstallment?> EditInstallmentAsync(PolicyInstallment? existing)
     {
         var number = new TextBox { Header = RequiredHeader.Create("Αριθμός δόσης"),
             Text = existing?.Number.ToString() ?? (_policyData.Installments.Count + 1).ToString() };
-        var due = new CalendarDatePicker { Header = "Ημερομηνία πληρωμής",
+        var due = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = existing?.DueDate is DateTime day ? new DateTimeOffset(day) : null };
         var amount = new TextBox { Header = RequiredHeader.Create("Ποσό (€)"),
             Text = existing?.Amount.ToString("N2") ?? "" };
         var notes = new TextBox { Header = "Σημειώσεις", Text = existing?.Notes ?? "" };
         if (!await ShowPolicyEditorAsync(existing is null ? "Νέα δόση" : "Επεξεργασία δόσης",
-            number, due, amount, notes)) return null;
+            number, LabeledDate("Ημερομηνία πληρωμής", due), amount, notes)) return null;
         if (!int.TryParse(number.Text, out var index) || index < 1)
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Ο αριθμός δόσης πρέπει να είναι θετικός."); return null; }
         try
@@ -228,9 +235,18 @@ public sealed partial class BusinessRecordCardWindow
             var value = DecimalValue(amount.Text, "Ποσό δόσης");
             if (value is null or <= 0) throw new ArgumentException("Το ποσό δόσης πρέπει να είναι θετικό.");
             return new PolicyInstallment { Id = existing?.Id ?? Guid.NewGuid(), Number = index,
-                DueDate = due.Date?.Date, Amount = value.Value, Notes = notes.Text.Trim() };
+                DueDate = due.GetValidatedDate("Ημερομηνία πληρωμής"),
+                Amount = value.Value, Notes = notes.Text.Trim() };
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); return null; }
+    }
+
+    private static UIElement LabeledDate(string label, EditableDateInput input)
+    {
+        var host = new StackPanel { Spacing = 4 };
+        host.Children.Add(new TextBlock { Text = label });
+        host.Children.Add(input);
+        return host;
     }
 
     private async Task<bool> ShowPolicyEditorAsync(string title, params UIElement[] fields)

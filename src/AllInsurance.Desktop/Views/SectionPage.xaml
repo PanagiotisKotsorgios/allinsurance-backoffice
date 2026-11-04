@@ -42,9 +42,9 @@
                                         <TextBlock Text="Εύρος ημερομηνιών" FontWeight="SemiBold" />
                                         <ComboBox x:Name="DateBasisFilter" Height="38" HorizontalAlignment="Stretch"
                                                   SelectionChanged="DateBasis_Changed" />
-                                        <CalendarDatePicker x:Name="FromFilter" Height="42" HorizontalAlignment="Stretch"
+                                        <controls:EditableDateInput x:Name="FromFilter" Height="42" HorizontalAlignment="Stretch"
                                                             PlaceholderText="Από" DateChanged="DateFilter_Changed" />
-                                        <CalendarDatePicker x:Name="UntilFilter" Height="42" HorizontalAlignment="Stretch"
+                                        <controls:EditableDateInput x:Name="UntilFilter" Height="42" HorizontalAlignment="Stretch"
                                                             PlaceholderText="Έως" DateChanged="DateFilter_Changed" />
                                     </StackPanel>
                                 </Flyout>
@@ -85,15 +85,16 @@
                                     <controls:VisibleSelectionCheckBox x:Name="SelectAllRecords" VerticalAlignment="Center"
                                               HorizontalAlignment="Center" ToolTipService.ToolTip="Επιλογή όλων των αποτελεσμάτων"
                                               Checked="SelectAllRecords_Changed" Unchecked="SelectAllRecords_Changed" />
-                                <Grid x:Name="RecordsHeader" Grid.Column="1" ColumnDefinitions="240,140,190,130,130,240,100"
+                                <Grid x:Name="RecordsHeader" Grid.Column="1" ColumnDefinitions="240,140,190,130,130,240,100,0"
                                       ColumnSpacing="0">
                                     <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="TitleHeader" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock Text="Κωδικός" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="CodeHeader" Text="Κωδικός" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="PartyHeader" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="StatusHeader" Text="Κατάσταση" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="EventHeader" Text="Ημερομηνία" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,8"><TextBlock x:Name="CustomerHeader" Text="Πελάτης" FontWeight="SemiBold" /></Border>
                                     <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="10,8"><TextBlock x:Name="CreatedHeader" Text="Εγγραφή" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="10,8" Visibility="Collapsed"><TextBlock x:Name="ExtraHeader" FontWeight="SemiBold" /></Border>
                                 </Grid>
                                 </Grid>
                             </Border>
@@ -102,7 +103,7 @@
                                       SelectionMode="Single" SelectionChanged="Records_SelectionChanged">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid ColumnDefinitions="40,240,140,190,130,130,240,100" Loaded="RecordRow_Loaded" Unloaded="RecordRow_Unloaded"
+                                        <Grid ColumnDefinitions="40,240,140,190,130,130,240,100,0" Loaded="RecordRow_Loaded" Unloaded="RecordRow_Unloaded"
                                               ColumnSpacing="0" Width="1210" Height="39">
                                             <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1">
                                                 <controls:VisibleSelectionCheckBox Tag="{Binding Record.Id}" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -128,6 +129,9 @@
                                             </Border>
                                             <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
                                                 <TextBlock Text="{Binding CreatedDisplay}" />
+                                            </Border>
+                                            <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Visibility="Collapsed">
+                                                <TextBlock Text="{Binding ExtraDisplay}" />
                                             </Border>
                                         </Grid>
                                     </DataTemplate>

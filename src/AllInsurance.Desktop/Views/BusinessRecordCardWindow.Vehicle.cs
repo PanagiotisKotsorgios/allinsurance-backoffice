@@ -18,8 +18,18 @@ public sealed partial class BusinessRecordCardWindow
     private CheckBox VehicleCheck(StackPanel panel, string key, string label, bool value)
     {
         var field = new CheckBox { IsChecked = value, Height = 28, MinHeight = 28 };
-        panel.Children.Add(CardFieldLayout.CreateRow(label, field));
+        var badge = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = new TextBlock { Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center } };
+        var host = new Grid();
+        host.Children.Add(field);
+        host.Children.Add(badge);
+        panel.Children.Add(CardFieldLayout.CreateRow(label, host));
         _vehicleChecks[key] = field;
+        _vehicleCheckBadges[key] = badge;
         return field;
     }
 

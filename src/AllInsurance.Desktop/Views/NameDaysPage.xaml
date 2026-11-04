@@ -20,8 +20,8 @@
                     <ComboBox x:Name="ModeFilter" Header="Προβολή" Width="180" SelectionChanged="FilterChanged">
                         <ComboBoxItem Content="Προσεχείς" /><ComboBoxItem Content="Όλες οι εορτές" /><ComboBoxItem Content="Χωρίς εορτή" />
                     </ComboBox>
-                    <CalendarDatePicker x:Name="FromDate" Header="Από" Width="180" DateChanged="FilterChanged" />
-                    <CalendarDatePicker x:Name="UntilDate" Header="Έως" Width="180" DateChanged="FilterChanged" />
+                    <StackPanel><TextBlock Text="Από" /><controls:EditableDateInput x:Name="FromDate" Width="180" Height="42" DateChanged="FilterChanged" /></StackPanel>
+                    <StackPanel><TextBlock Text="Έως" /><controls:EditableDateInput x:Name="UntilDate" Width="180" Height="42" DateChanged="FilterChanged" /></StackPanel>
                 </VariableSizedWrapGrid>
             </StackPanel>
         </Border>

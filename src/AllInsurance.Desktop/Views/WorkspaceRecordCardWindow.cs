@@ -51,6 +51,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
     private readonly ContentControl _tabContent = new();
     private readonly List<(Button Button, TextBlock Label, UIElement Content)> _tabs = [];
     private readonly Dictionary<string, FrameworkElement> _inputs = [];
+    private readonly Dictionary<string, Border> _booleanBadges = [];
     private readonly Dictionary<string, FieldSpec> _specs = [];
     private readonly List<Grid> _forms = [];
     private readonly TextBlock _heading = new() { FontSize = 25,
