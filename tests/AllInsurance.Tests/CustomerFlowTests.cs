@@ -7,17 +7,55 @@ namespace AllInsurance.Tests;
 public sealed class CustomerFlowTests
 {
     [Fact]
-    public async Task CustomerRequiresTaxNumber()
+    public async Task CustomerAllowsMissingTaxNumberButValidatesProvidedNumber()
     {
         await using var environment = new TestEnvironment();
         await environment.CreateAdministratorAsync();
         await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
         var service = new CustomerService(environment.ContextFactory, environment.Session);
-        var error = await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync(new Customer
+        var id = await service.SaveAsync(new Customer
         {
             LastName = "Δοκιμή", FirstName = "ΑΦΜ"
-        }));
-        Assert.Contains("ΑΦΜ", error.Message);
+        });
+        Assert.NotEqual(Guid.Empty, id);
+        foreach (var invalid in new[] { "12345678", "1234567890", "12345678A" })
+        {
+            var error = await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync(new Customer
+            {
+                LastName = "Δοκιμή", FirstName = "Λάθος", TaxNumber = invalid
+            }));
+            Assert.Contains("ΑΦΜ", error.Message);
+        }
+    }
+
+    [Fact]
+    public async Task CreditTransferUpdatesBothCustomersAtomicallyAndRejectsOverspending()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var service = new CustomerService(environment.ContextFactory, environment.Session);
+        var sourceId = await service.SaveAsync(new Customer
+        {
+            LastName = "Πηγή", FirstName = "Πιστωτικού"
+        });
+        var targetId = await service.SaveAsync(new Customer
+        {
+            LastName = "Προορισμός", FirstName = "Πιστωτικού"
+        });
+        await service.AddTransactionAsync(sourceId, "receipt", 100m, "Πιστωτικό ακύρωσης");
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.TransferCreditAsync(sourceId, targetId, 120m));
+        Assert.Equal(-100m, CustomerService.Balance((await service.GetAsync(sourceId))!));
+        Assert.Equal(0m, CustomerService.Balance((await service.GetAsync(targetId))!));
+
+        await service.TransferCreditAsync(sourceId, targetId, 65m, reason: "Νέα ασφάλιση συγγενή");
+        var source = (await service.GetAsync(sourceId))!;
+        var target = (await service.GetAsync(targetId))!;
+        Assert.Equal(-35m, CustomerService.Balance(source));
+        Assert.Equal(-65m, CustomerService.Balance(target));
+        Assert.Equal(source.Transactions.Single(item => item.PaymentMethod == "Εσωτερική μεταφορά").Reference,
+            target.Transactions.Single().Reference);
     }
 
     [Fact]

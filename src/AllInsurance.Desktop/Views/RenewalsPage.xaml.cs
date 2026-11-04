@@ -128,5 +128,7 @@ public sealed partial class RenewalsPage : Page
         public string Partner { get; } = partner;
         public string Expiry => EndDate.ToString("dd/MM/yyyy");
         public string DaysLeft => (EndDate.Date - DateTime.Today).Days.ToString();
+        public Microsoft.UI.Xaml.Media.SolidColorBrush ExpiryBackground =>
+            PolicyStatusColors.Background(Record.DocumentType, Record.Status, EndDate);
     }
 }

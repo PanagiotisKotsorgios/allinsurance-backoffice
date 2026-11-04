@@ -98,6 +98,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             .Build();
         await _host.StartAsync();
 
+        UpdateEyeComfortPalette(Services.GetRequiredService<WorkspacePreferences>().EyeComfortEnabled);
         _mainWindow = new MainWindow();
         _mainWindow.ApplyTheme(Services.GetRequiredService<WorkspacePreferences>().Theme);
         _mainWindow.Closed += async (_, _) =>
@@ -151,6 +152,53 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     public static void ApplyTheme(Microsoft.UI.Xaml.ElementTheme theme) =>
         ((App)Current)._mainWindow?.ApplyTheme(theme);
+
+    private static readonly Dictionary<string, Windows.UI.Color> OriginalLightColors = [];
+
+    public static void UpdateEyeComfortPalette(bool enabled)
+    {
+        if (Current.Resources.ThemeDictionaries["Light"] is not Microsoft.UI.Xaml.ResourceDictionary light)
+            return;
+        var palette = new Dictionary<string, string>
+        {
+            ["PageBackgroundBrush"] = "#FFE4E1D8",
+            ["CardBackgroundBrush"] = "#FFF0EDE5",
+            ["ChromeBackgroundBrush"] = "#FFDEDCD3",
+            ["SidebarBackgroundBrush"] = "#FFD7D5CB",
+            ["TableHeaderBackgroundBrush"] = "#FFDAD8CE",
+            ["TableBorderBrush"] = "#FF938F84",
+            ["ControlFillColorDefaultBrush"] = "#FFE7E4DA",
+            ["ControlFillColorSecondaryBrush"] = "#FFE0DCD1",
+            ["ControlFillColorInputActiveBrush"] = "#FFF3EFE5",
+            ["TextControlBackground"] = "#FFE7E4DA",
+            ["TextControlBackgroundPointerOver"] = "#FFE0DCD1",
+            ["TextControlBackgroundFocused"] = "#FFF3EFE5",
+            ["ComboBoxBackground"] = "#FFE7E4DA",
+            ["ComboBoxBackgroundPointerOver"] = "#FFE0DCD1",
+            ["ComboBoxBackgroundUnfocused"] = "#FFE7E4DA",
+            ["CalendarDatePickerBackground"] = "#FFE7E4DA",
+            ["CalendarDatePickerBackgroundPointerOver"] = "#FFE0DCD1",
+            ["CalendarViewBackground"] = "#FFF0EDE5",
+            ["DatePickerButtonBackground"] = "#FFE7E4DA",
+            ["NavigationViewDefaultPaneBackground"] = "#FFD7D5CB",
+            ["NavigationViewExpandedPaneBackground"] = "#FFD7D5CB",
+            ["NavigationViewContentBackground"] = "#FFE4E1D8",
+            ["FlyoutPresenterBackground"] = "#FFF0EDE5",
+            ["MenuFlyoutPresenterBackground"] = "#FFF0EDE5",
+            ["ContentDialogBackground"] = "#FFF0EDE5",
+            ["ComboBoxPopupBackgroundThemeBrush"] = "#FFF0EDE5"
+        };
+        foreach (var (key, value) in palette)
+        {
+            if (light[key] is not Microsoft.UI.Xaml.Media.SolidColorBrush brush) continue;
+            if (!OriginalLightColors.ContainsKey(key)) OriginalLightColors[key] = brush.Color;
+            brush.Color = enabled ? ParsePaletteColor(value) : OriginalLightColors[key];
+        }
+    }
+
+    private static Windows.UI.Color ParsePaletteColor(string value) => Windows.UI.Color.FromArgb(
+        Convert.ToByte(value.Substring(1, 2), 16), Convert.ToByte(value.Substring(3, 2), 16),
+        Convert.ToByte(value.Substring(5, 2), 16), Convert.ToByte(value.Substring(7, 2), 16));
 
     public static void MaximizeWorkspace() =>
         ((App)Current)._mainWindow?.MaximizeWorkspace();

@@ -3,6 +3,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System.Runtime.CompilerServices;
 using Windows.UI;
+using AllInsurance.Desktop.Settings;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AllInsurance.Desktop.Controls;
 
@@ -12,6 +14,7 @@ internal static class TableRowStriping
     private static readonly ConditionalWeakTable<ListViewItem, RowState> States = new();
     private static readonly SolidColorBrush LightAlternate = new(Color.FromArgb(255, 222, 231, 239));
     private static readonly SolidColorBrush DarkAlternate = new(Color.FromArgb(255, 52, 59, 68));
+    private static readonly SolidColorBrush WarmAlternate = new(Color.FromArgb(255, 219, 216, 205));
 
     public static void Attach(ListView list)
     {
@@ -44,12 +47,14 @@ internal static class TableRowStriping
     {
         var alternate = index % 2 == 1;
         var dark = theme == ElementTheme.Dark;
+        var warm = !dark && App.Services.GetRequiredService<WorkspacePreferences>().EyeComfortEnabled;
         var state = States.GetValue(item, _ => new RowState());
-        if (state.Applied && state.Alternate == alternate && state.Dark == dark) return;
+        if (state.Applied && state.Alternate == alternate && state.Dark == dark && state.Warm == warm) return;
         state.Applied = true;
         state.Alternate = alternate;
         state.Dark = dark;
-        if (alternate) item.Background = dark ? DarkAlternate : LightAlternate;
+        state.Warm = warm;
+        if (alternate) item.Background = dark ? DarkAlternate : warm ? WarmAlternate : LightAlternate;
         else item.ClearValue(Control.BackgroundProperty);
     }
 
@@ -58,5 +63,6 @@ internal static class TableRowStriping
         public bool Applied { get; set; }
         public bool Alternate { get; set; }
         public bool Dark { get; set; }
+        public bool Warm { get; set; }
     }
 }

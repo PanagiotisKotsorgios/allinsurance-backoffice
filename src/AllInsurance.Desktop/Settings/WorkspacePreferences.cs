@@ -13,6 +13,7 @@ public sealed class WorkspacePreferences
         "ui-settings.json");
 
     public ElementTheme Theme { get; private set; } = ElementTheme.Default;
+    public bool EyeComfortEnabled { get; private set; }
     public bool ShortcutsEnabled { get; private set; } = true;
     private Dictionary<string, ShortcutBinding?> _shortcuts = [];
     public event EventHandler? ShortcutsChanged;
@@ -32,9 +33,11 @@ public sealed class WorkspacePreferences
                 return;
             }
 
+            EyeComfortEnabled = saved.Theme == "EyeComfort";
             Theme = saved.Theme switch
             {
                 "Light" => ElementTheme.Light,
+                "EyeComfort" => ElementTheme.Light,
                 "Dark" => ElementTheme.Dark,
                 _ => ElementTheme.Default
             };
@@ -51,6 +54,14 @@ public sealed class WorkspacePreferences
     public void SetTheme(ElementTheme theme)
     {
         Theme = theme;
+        EyeComfortEnabled = false;
+        Save();
+    }
+
+    public void SetEyeComfort()
+    {
+        Theme = ElementTheme.Light;
+        EyeComfortEnabled = true;
         Save();
     }
 
@@ -88,7 +99,8 @@ public sealed class WorkspacePreferences
     private void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(new SavedPreferences(Theme.ToString(), ShortcutsEnabled, _shortcuts)));
+        File.WriteAllText(_path, JsonSerializer.Serialize(new SavedPreferences(
+            EyeComfortEnabled ? "EyeComfort" : Theme.ToString(), ShortcutsEnabled, _shortcuts)));
     }
 
     private sealed record SavedPreferences(string Theme, bool ShortcutsEnabled,

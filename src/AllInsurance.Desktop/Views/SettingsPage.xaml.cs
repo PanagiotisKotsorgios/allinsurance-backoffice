@@ -42,7 +42,7 @@ public sealed partial class SettingsPage : Page
             }
             catch (Exception exception) { CurrencyStatusText.Text = exception.Message; }
         };
-        ThemeChoice.SelectedIndex = _preferences.Theme switch
+        ThemeChoice.SelectedIndex = _preferences.EyeComfortEnabled ? 3 : _preferences.Theme switch
         {
             ElementTheme.Light => 1,
             ElementTheme.Dark => 2,
@@ -69,10 +69,13 @@ public sealed partial class SettingsPage : Page
             var theme = ThemeChoice.SelectedIndex switch
             {
                 1 => ElementTheme.Light,
+                3 => ElementTheme.Light,
                 2 => ElementTheme.Dark,
                 _ => ElementTheme.Default
             };
-            _preferences.SetTheme(theme);
+            if (ThemeChoice.SelectedIndex == 3) _preferences.SetEyeComfort();
+            else _preferences.SetTheme(theme);
+            App.UpdateEyeComfortPalette(_preferences.EyeComfortEnabled);
             App.ApplyTheme(theme);
             StatusText.Text = "Το θέμα αποθηκεύτηκε.";
         }

@@ -111,7 +111,9 @@ public sealed partial class BusinessRecordCardWindow : Window
                     PreviousPolicyId = previousPolicyId }) : null };
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
         _root.Background = new SolidColorBrush(IsDarkTheme()
-            ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 221, 228, 235));
+            ? Color.FromArgb(255, 31, 35, 42)
+            : App.Services.GetRequiredService<WorkspacePreferences>().EyeComfortEnabled
+                ? Color.FromArgb(255, 228, 225, 216) : Color.FromArgb(255, 221, 228, 235));
         Content = _root;
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
@@ -121,7 +123,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         _contentWidth = Math.Min(1100, width - 70);
         _tabContent.SizeChanged += (_, args) =>
         {
-            var target = Math.Min(1100, Math.Max(600, args.NewSize.Width - 50));
+            var target = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
             foreach (var grid in _formGrids) grid.Width = target;
             LayoutTabs(args.NewSize.Width - 36);
         };
@@ -453,8 +455,9 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     private TextBox Text(StackPanel panel, string key, string label, string? value = null, bool multiline = false)
     {
-        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 72 : 34,
-            Height = multiline ? 150 : 34, AcceptsReturn = multiline,
+        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 80 : 40,
+            Height = multiline ? 150 : 40, AcceptsReturn = multiline,
+            VerticalContentAlignment = VerticalAlignment.Center,
             TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
             FontSize = 13, HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label,
@@ -467,7 +470,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     {
         var field = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 36, Height = 36,
+            MinHeight = 40, Height = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         _dates[key] = field;
@@ -477,7 +480,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     private ComboBox Choices(StackPanel panel, string label, IEnumerable<string> items, string? selected)
     {
         var field = new ComboBox { ItemsSource = items.ToArray(),
-            MinHeight = 34, Height = 34, HorizontalAlignment = HorizontalAlignment.Stretch };
+            MinHeight = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
         field.SelectedItem = selected;
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         return field;
@@ -488,7 +491,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         var items = customers.Select(item => new Choice(item.Id, item.FullName)).ToArray();
         _customerChoice = new ComboBox { ItemsSource = items, DisplayMemberPath = nameof(Choice.Name),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            IsEnabled = _fixedCustomerId is null, MinHeight = 34, Height = 34 };
+            IsEnabled = _fixedCustomerId is null, MinHeight = 40, Height = 40 };
         _customerChoice.SelectedItem = items.FirstOrDefault(item => item.Id == _record.CustomerId);
         panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *", _customerChoice));
         return _customerChoice;
@@ -525,7 +528,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         UpdateRequiredNumber();
         var insurerNames = companies.Select(item => item.Title).Distinct().ToArray();
         _insurerSuggest = new AutoSuggestBox { Text = data.Insurer ?? "",
-            PlaceholderText = "Αναζήτηση ασφαλιστικής εταιρείας", MinHeight = 34,
+            PlaceholderText = "Αναζήτηση ασφαλιστικής εταιρείας", MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         _insurerSuggest.TextChanged += (_, args) =>
         {
@@ -564,7 +567,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                  .Select(item => new Choice(item.Id, item.Title))];
         var vehicleItems = VehicleItems(_record.CustomerId);
         _vehicleChoice = new ComboBox { ItemsSource = vehicleItems,
-            DisplayMemberPath = nameof(Choice.Name), MinHeight = 28, Height = 28,
+            DisplayMemberPath = nameof(Choice.Name), MinHeight = 40, Height = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         _vehicleChoice.SelectedItem = vehicleItems.FirstOrDefault(item => item.Id == data.VehicleId) ?? vehicleItems[0];
         right.Children.Add(CardFieldLayout.CreateRow("Συνδεδεμένο όχημα", _vehicleChoice));
@@ -610,7 +613,21 @@ public sealed partial class BusinessRecordCardWindow : Window
         extraLeft.Spacing = 5;
         extraRight.Spacing = 5;
         CustomerChoice(left, customers);
-        Text(left, "registration", "Αριθμός κυκλοφορίας *", data.Registration);
+        var registration = Text(left, "registration", "Αριθμός κυκλοφορίας *", data.Registration);
+        var plateWarningOpen = false;
+        registration.BeforeTextChanging += (_, args) =>
+        {
+            if (args.NewText.Count(char.IsAsciiLetter) <= registration.Text.Count(char.IsAsciiLetter)) return;
+            args.Cancel = true;
+            if (plateWarningOpen) return;
+            plateWarningOpen = true;
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                try { await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+                    "Προσοχή, δεν επιτρέπονται αγγλικοί χαρακτήρες στην πινακίδα του οχήματος."); }
+                finally { plateWarningOpen = false; }
+            });
+        };
         Text(left, "make", "Μάρκα / εργοστάσιο", data.Make);
         Text(left, "model", "Μοντέλο", data.Model);
         Text(left, "vin", "Αριθμός πλαισίου (VIN)", data.Vin);
@@ -755,6 +772,8 @@ public sealed partial class BusinessRecordCardWindow : Window
             {
                 var plate = Value("registration");
                 if (plate.Length == 0) throw new ArgumentException("Συμπληρώστε αριθμό κυκλοφορίας.");
+                if (plate.Any(char.IsAsciiLetter))
+                    throw new ArgumentException("Προσοχή, δεν επιτρέπονται αγγλικοί χαρακτήρες στην πινακίδα του οχήματος.");
                 EnsurePrimaryOwner(customerId);
                 ValidateVehiclePeople();
                 var data = new VehicleCardData

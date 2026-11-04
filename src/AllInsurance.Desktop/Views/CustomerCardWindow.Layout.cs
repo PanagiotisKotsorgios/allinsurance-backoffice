@@ -24,7 +24,9 @@ public sealed partial class CustomerCardWindow
     private void BuildCompactMainTab()
     {
         var main = CompactColumns(out var left, out var right);
-        AddText(left, "ΑΦΜ *", () => _customer.TaxNumber, value => _customer.TaxNumber = value);
+        var taxNumber = AddText(left, "ΑΦΜ", () => _customer.TaxNumber,
+            value => _customer.TaxNumber = value);
+        taxNumber.MaxLength = 9;
         AddText(left, "Επώνυμο *", () => _customer.LastName, value => _customer.LastName = value ?? "");
         AddText(left, "Όνομα *", () => _customer.FirstName, value => _customer.FirstName = value ?? "");
         AddText(left, "Πατρώνυμο", () => _customer.FatherName, value => _customer.FatherName = value);
@@ -51,7 +53,7 @@ public sealed partial class CustomerCardWindow
         AddCitySuggest(left);
         if (_editing)
         {
-            _partnerChoice = new ComboBox { MinHeight = 28, Height = 28,
+            _partnerChoice = new ComboBox { MinHeight = 40, Height = 40,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 IsEnabled = !_customer.BelongsToOffice };
             left.Children.Add(CreateFieldRow("Συνεργάτης", _partnerChoice));
@@ -66,6 +68,7 @@ public sealed partial class CustomerCardWindow
             CornerRadius = new CornerRadius(5), HorizontalAlignment = HorizontalAlignment.Left };
         left.Children.Add(CreateFieldRow("Υπόλοιπο πελάτη", _mainBalanceBadge));
         UpdateMainBalance();
+        AddCommunicationSection(main);
 
         var identityType = AddCatalogChoice(right, "Τύπος ταυτότητας", "Τύποι ταυτότητας",
             () => _customer.IdentityType, value => _customer.IdentityType = value);
@@ -158,7 +161,8 @@ public sealed partial class CustomerCardWindow
 
     private static TextBox AddReadOnly(StackPanel panel, string label, string value)
     {
-        var field = new TextBox { Text = value, IsReadOnly = true, MinHeight = 28, Height = 28, FontSize = 13 };
+        var field = new TextBox { Text = value, IsReadOnly = true, MinHeight = 38, Height = 38,
+            FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
         panel.Children.Add(CreateFieldRow(label, field));
         return field;
     }
@@ -170,7 +174,7 @@ public sealed partial class CustomerCardWindow
             AddText(panel, "Πόλη", () => _customer.City, value => _customer.City = value);
             return;
         }
-        var input = new AutoSuggestBox { Text = _customer.City ?? "", MinHeight = 28, Height = 28,
+        var input = new AutoSuggestBox { Text = _customer.City ?? "", MinHeight = 38, Height = 38,
             PlaceholderText = "Αναζήτηση πόλης από τον κατάλογο" };
         panel.Children.Add(CreateFieldRow("Πόλη", input));
         _readFields.Add(() =>
@@ -236,13 +240,6 @@ public sealed partial class CustomerCardWindow
         AddText(family, "Σύζυγος / σύντροφος", () => _customer.SpouseName, value => _customer.SpouseName = value);
         AddDate(family, "Ονομαστική εορτή", () => _customer.NameDay, value => _customer.NameDay = value);
         AddText(family, "Περιοχή", () => _customer.Region, value => _customer.Region = value);
-        AddText(family, "Σταθερό τηλέφωνο", () => _customer.HomePhone, value => _customer.HomePhone = value);
-        AddText(family, "2ο σταθερό τηλέφωνο", () => _customer.SecondPhone, value => _customer.SecondPhone = value);
-        AddText(family, "3ο σταθερό τηλέφωνο", () => _customer.ThirdPhone, value => _customer.ThirdPhone = value);
-        AddText(family, "2ο κινητό τηλέφωνο", () => _customer.SecondMobile, value => _customer.SecondMobile = value);
-        AddText(family, "3ο κινητό τηλέφωνο", () => _customer.ThirdMobile, value => _customer.ThirdMobile = value);
-        AddText(family, "2ο email", () => _customer.SecondEmail, value => _customer.SecondEmail = value);
-        AddText(family, "3ο email", () => _customer.ThirdEmail, value => _customer.ThirdEmail = value);
         columns.Children.Add(family);
 
         var business = new StackPanel { Spacing = 5, Width = 330 };
@@ -264,12 +261,12 @@ public sealed partial class CustomerCardWindow
             () => _customer.Source, value => _customer.Source = value);
         _referralChoice = new ComboBox { PlaceholderText = "Επιλέξτε πελάτη",
             DisplayMemberPath = "FullName", SelectedValuePath = "Id", IsEnabled = _editing,
-            MinHeight = 32, Height = 32, HorizontalAlignment = HorizontalAlignment.Stretch };
+            MinHeight = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
         var customerReferralRow = CreateFieldRow("Σύσταση από πελάτη", _referralChoice);
         business.Children.Add(customerReferralRow);
         _ = LoadReferrersAsync();
         _referralPartnerChoice = new ComboBox { PlaceholderText = "Επιλέξτε συνεργάτη",
-            MinHeight = 32, Height = 32, IsEnabled = _editing,
+            MinHeight = 40, Height = 40, IsEnabled = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var partnerReferralRow = CreateFieldRow("Σύσταση από συνεργάτη", _referralPartnerChoice);
         business.Children.Add(partnerReferralRow);
@@ -322,8 +319,10 @@ public sealed partial class CustomerCardWindow
         root.Children.Add(BalanceVisual.Create(balance, $"{balanceTitle}: {Math.Abs(balance):N2} {CurrencySymbol}", 20));
         var receipts = _customer.Transactions.Where(item => item.Type == "receipt").Sum(item => item.Amount);
         var payments = _customer.Transactions.Where(item => item.Type == "payment").Sum(item => item.Amount);
+        var transfersIn = _customer.Transactions.Where(item => item.Type == "credit_transfer_in").Sum(item => item.Amount);
+        var transfersOut = _customer.Transactions.Where(item => item.Type == "credit_transfer_out").Sum(item => item.Amount);
         root.Children.Add(new TextBlock { Text =
-            $"Παλαιό υπόλοιπο πριν την εφαρμογή: {_customer.OpeningBalance:N2} {CurrencySymbol}  ·  Εισπράξεις: {receipts:N2} {CurrencySymbol}  ·  Πληρωμές: {payments:N2} {CurrencySymbol}",
+            $"Παλαιό υπόλοιπο: {_customer.OpeningBalance:N2} {CurrencySymbol}  ·  Εισπράξεις: {receipts:N2} {CurrencySymbol}  ·  Πληρωμές: {payments:N2} {CurrencySymbol}  ·  Πιστωτικά από άλλους: {transfersIn:N2} {CurrencySymbol}  ·  Πιστωτικά προς άλλους: {transfersOut:N2} {CurrencySymbol}",
             TextWrapping = TextWrapping.Wrap });
         root.Children.Add(new TextBlock { Text =
             "Το υπόλοιπο έναρξης χρησιμοποιείται μόνο για μεταφορά παλαιού υπολοίπου. Οι νέες κινήσεις καταχωρίζονται από τα κουμπιά είσπραξης και πληρωμής.",
@@ -348,7 +347,7 @@ public sealed partial class CustomerCardWindow
             PlaceholderText = "Αναζήτηση κίνησης..." };
         root.Children.Add(SearchFieldVisual.Wrap(search));
         var kind = new ComboBox { Width = 170, Height = 38,
-            ItemsSource = new[] { "Όλες οι κινήσεις", "Εισπράξεις", "Πληρωμές" }, SelectedIndex = 0 };
+            ItemsSource = new[] { "Όλες οι κινήσεις", "Εισπράξεις", "Πληρωμές", "Μεταφορές πιστωτικού" }, SelectedIndex = 0 };
         var from = new EditableDateInput { Width = 170, Height = 38,
             PlaceholderText = "Από ημερομηνία" };
         var until = new EditableDateInput { Width = 170, Height = 38,
@@ -408,7 +407,9 @@ public sealed partial class CustomerCardWindow
             var end = until.Date?.Date;
             foreach (var item in _customer.Transactions.OrderByDescending(item => item.OccurredAtUtc)
                 .Where(item => kind.SelectedIndex == 0 ||
-                    (kind.SelectedIndex == 1 ? item.Type == "receipt" : item.Type == "payment"))
+                    (kind.SelectedIndex == 1 ? item.Type == "receipt" :
+                     kind.SelectedIndex == 2 ? item.Type == "payment" :
+                     item.Type is "credit_transfer_in" or "credit_transfer_out"))
                 .Where(item => !start.HasValue || item.OccurredAtUtc.ToLocalTime().Date >= start)
                 .Where(item => !end.HasValue || item.OccurredAtUtc.ToLocalTime().Date <= end)
                 .Where(item => term.Length == 0 || item.Description?.Contains(term,
@@ -420,7 +421,13 @@ public sealed partial class CustomerCardWindow
                 foreach (var width in new[] { 180, 150, 130, 480 })
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 var values = new[] { item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
-                    item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή",
+                    item.Type switch
+                    {
+                        "receipt" => "Είσπραξη", "payment" => "Πληρωμή",
+                        "credit_transfer_in" => "Πιστωτικό από άλλον",
+                        "credit_transfer_out" => "Πιστωτικό προς άλλον",
+                        _ => "Κίνηση"
+                    },
                     $"{item.Amount:N2} {TransactionSettingsService.Symbol(item.Currency)}",
                     (item.BusinessRecordId is Guid policyId
                         ? _customer.BusinessRecords.FirstOrDefault(record => record.Id == policyId)?.Title + " · " : "") +
@@ -435,8 +442,12 @@ public sealed partial class CustomerCardWindow
                         Padding = new Thickness(10, 5, 10, 5) };
                     if (index == 1)
                     {
-                        cell.Background = new SolidColorBrush(item.Type == "receipt"
-                            ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 194, 89, 44));
+                        cell.Background = new SolidColorBrush(item.Type switch
+                        {
+                            "receipt" => Color.FromArgb(255, 25, 135, 75),
+                            "payment" => Color.FromArgb(255, 194, 89, 44),
+                            _ => Color.FromArgb(255, 83, 115, 149)
+                        });
                         text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
                     }
                     Grid.SetColumn(cell, index);
@@ -465,7 +476,13 @@ public sealed partial class CustomerCardWindow
             ? _customer.BusinessRecords.FirstOrDefault(record => record.Id == policyId)?.Title
             : null;
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
-            Title = transaction.Type == "receipt" ? "Γενική είσπραξη" : "Γενική πληρωμή",
+            Title = transaction.Type switch
+            {
+                "receipt" => "Γενική είσπραξη", "payment" => "Γενική πληρωμή",
+                "credit_transfer_in" => "Πιστωτικό από άλλον πελάτη",
+                "credit_transfer_out" => "Πιστωτικό προς άλλον πελάτη",
+                _ => "Οικονομική κίνηση"
+            },
             Content = $"Ημερομηνία: {transaction.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
                 $"Ποσό: {transaction.Amount:N2} {TransactionSettingsService.Symbol(transaction.Currency)}\n" +
                 $"Τρόπος πληρωμής: {transaction.PaymentMethod}\n" +

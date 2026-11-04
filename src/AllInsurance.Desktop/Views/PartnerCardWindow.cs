@@ -87,7 +87,9 @@ public sealed partial class PartnerCardWindow : Window
         _editing = id is null || beginEditing;
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
         _root.Background = new SolidColorBrush(IsDarkTheme()
-            ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 221, 228, 235));
+            ? Color.FromArgb(255, 31, 35, 42)
+            : App.Services.GetRequiredService<WorkspacePreferences>().EyeComfortEnabled
+                ? Color.FromArgb(255, 228, 225, 216) : Color.FromArgb(255, 221, 228, 235));
         Content = _root;
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
@@ -97,7 +99,7 @@ public sealed partial class PartnerCardWindow : Window
         _contentWidth = Math.Min(1100, width - 70);
         _tabContent.SizeChanged += (_, args) =>
         {
-            var target = Math.Min(1100, Math.Max(600, args.NewSize.Width - 50));
+            var target = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
             foreach (var grid in _formGrids) grid.Width = target;
         };
         appWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2,
@@ -277,8 +279,9 @@ public sealed partial class PartnerCardWindow : Window
 
     private TextBox Text(StackPanel panel, string key, string label, string? value, bool multiline = false)
     {
-        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 72 : 34,
-            Height = multiline ? 96 : 34, FontSize = 13, IsReadOnly = !_editing,
+        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 80 : 40,
+            Height = multiline ? 96 : 40, FontSize = 13, IsReadOnly = !_editing,
+            VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         if (multiline) { field.AcceptsReturn = true; field.TextWrapping = TextWrapping.Wrap; field.Height = 96; }
         panel.Children.Add(CardFieldLayout.CreateRow(label,
@@ -292,7 +295,7 @@ public sealed partial class PartnerCardWindow : Window
         var choices = options.Prepend("").Concat(value is null ? [] : [value])
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var field = new ComboBox { ItemsSource = choices,
-            SelectedItem = value ?? "", MinHeight = 34, Height = 34, IsEnabled = _editing,
+            SelectedItem = value ?? "", MinHeight = 40, Height = 40, IsEnabled = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _choice[key] = field;
         return field;
@@ -302,7 +305,7 @@ public sealed partial class PartnerCardWindow : Window
     {
         var field = new EditableDateInput {
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 36, Height = 36, IsEnabled = _editing,
+            MinHeight = 40, Height = 40, IsEnabled = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _date[key] = field;
         return field;
@@ -310,7 +313,7 @@ public sealed partial class PartnerCardWindow : Window
 
     private CheckBox Check(StackPanel panel, string key, string label, bool value)
     {
-        var field = new CheckBox { IsChecked = value, MinHeight = 34, Height = 34, IsEnabled = _editing };
+        var field = new CheckBox { IsChecked = value, MinHeight = 40, Height = 40, IsEnabled = _editing };
         if (_editing) panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         else
         {
@@ -334,7 +337,7 @@ public sealed partial class PartnerCardWindow : Window
     private AutoSuggestBox Suggest(StackPanel panel, string key, string label,
         string? value, string[] options)
     {
-        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 34, Height = 34, IsEnabled = _editing,
+        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 40, Height = 40, IsEnabled = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Πληκτρολογήστε για αναζήτηση" };
         field.TextChanged += (_, args) =>

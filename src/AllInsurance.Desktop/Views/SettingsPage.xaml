@@ -37,6 +37,7 @@
                         <ComboBoxItem Content="Σύμφωνα με τα Windows" />
                         <ComboBoxItem Content="Φωτεινό" />
                         <ComboBoxItem Content="Σκούρο" />
+                        <ComboBoxItem Content="Βοήθεια ματιών — απαλό ζεστό γκρι" />
                     </ComboBox>
                     <controls:ActionButton Kind="Save" Label="Αποθήκευση θέματος" Click="SaveTheme_Click" HorizontalAlignment="Left" />
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />

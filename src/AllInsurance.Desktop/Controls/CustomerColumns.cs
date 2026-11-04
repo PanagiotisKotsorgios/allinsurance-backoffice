@@ -36,6 +36,18 @@ public static class CustomerColumns
         File.WriteAllText(path, JsonSerializer.Serialize(_order));
     }
 
+    public static void MoveTo(string key, string targetKey)
+    {
+        if (key == targetKey || !_order.Contains(key) || !_order.Contains(targetKey)) return;
+        var order = _order.ToList();
+        order.Remove(key);
+        order.Insert(order.IndexOf(targetKey), key);
+        _order = [.. order];
+        var path = Path.Combine(Path.GetDirectoryName(PathOnDisk)!, "customer-column-order.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(_order));
+    }
+
     private static string[] LoadOrder()
     {
         var path = Path.Combine(Path.GetDirectoryName(PathOnDisk)!, "customer-column-order.json");

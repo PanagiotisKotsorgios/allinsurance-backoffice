@@ -7,6 +7,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System.Globalization;
+using System.Runtime.InteropServices;
+using Windows.System;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -14,7 +16,7 @@ public sealed partial class CustomersPage : Page
 {
     private readonly ICustomerService _customers;
     private readonly IFilterOptionService _filters;
-    private CustomerCardWindow? _card;
+    private readonly Dictionary<Guid, CustomerCardWindow> _openCards = [];
     private int _requestVersion;
     private CustomerListItem[] _filtered = [];
     private CustomerListItem[] _allItems = [];
@@ -22,6 +24,10 @@ public sealed partial class CustomersPage : Page
     private bool _updatingSelectAll;
     private bool _filtersInPopup;
     private readonly HashSet<Guid> _checkedCustomerIds = [];
+    private Guid? _selectionAnchor;
+    [DllImport("user32.dll")]
+    private static extern short GetKeyState(int virtualKey);
+    private static bool KeyHeld(int key) => (GetKeyState(key) & 0x8000) != 0;
     private string _sortKey = "LastName";
     private bool _sortDescending;
     private int _page = 1;
@@ -34,6 +40,54 @@ public sealed partial class CustomersPage : Page
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         InitializeComponent();
         TableRowStriping.Attach(CustomersList);
+        CustomersList.AddHandler(UIElement.PointerPressedEvent,
+            new PointerEventHandler((_, args) =>
+            {
+                if (IsInsideCheckBox(args.OriginalSource) ||
+                    !args.GetCurrentPoint(CustomersList).Properties.IsLeftButtonPressed ||
+                    FindCustomerAt(args.OriginalSource) is not CustomerListItem item) return;
+                if (KeyHeld(0x10) && _selectionAnchor is Guid anchor)
+                {
+                    var start = Array.FindIndex(_filtered, customer => customer.Id == anchor);
+                    var end = Array.FindIndex(_filtered, customer => customer.Id == item.Id);
+                    if (start >= 0 && end >= 0)
+                        for (var index = Math.Min(start, end); index <= Math.Max(start, end); index++)
+                            _checkedCustomerIds.Add(_filtered[index].Id);
+                    args.Handled = true;
+                    ApplyPage();
+                }
+                else if (KeyHeld(0x11))
+                {
+                    if (!_checkedCustomerIds.Add(item.Id)) _checkedCustomerIds.Remove(item.Id);
+                    _selectionAnchor = item.Id;
+                    args.Handled = true;
+                    ApplyPage();
+                }
+                else _selectionAnchor = item.Id;
+            }), true);
+        CustomersList.KeyDown += (_, args) =>
+        {
+            if (CustomersList.SelectedItem is not ListViewItem { Tag: CustomerListItem current }) return;
+            if (args.Key == VirtualKey.Space && KeyHeld(0x11))
+            {
+                if (!_checkedCustomerIds.Add(current.Id)) _checkedCustomerIds.Remove(current.Id);
+                _selectionAnchor = current.Id;
+                args.Handled = true;
+                ApplyPage();
+            }
+            else if (KeyHeld(0x10) && args.Key is VirtualKey.Up or VirtualKey.Down)
+            {
+                var currentIndex = Array.FindIndex(_filtered, item => item.Id == current.Id);
+                var nextIndex = currentIndex + (args.Key == VirtualKey.Up ? -1 : 1);
+                if (nextIndex < 0 || nextIndex >= _filtered.Length) return;
+                _selectionAnchor ??= current.Id;
+                var anchorIndex = Array.FindIndex(_filtered, item => item.Id == _selectionAnchor);
+                for (var index = Math.Min(anchorIndex, nextIndex); index <= Math.Max(anchorIndex, nextIndex); index++)
+                    _checkedCustomerIds.Add(_filtered[index].Id);
+                args.Handled = true;
+                ApplyPage();
+            }
+        };
         CustomersList.AddHandler(UIElement.DoubleTappedEvent,
             new DoubleTappedEventHandler(async (_, args) =>
             {
@@ -402,6 +456,21 @@ public sealed partial class CustomersPage : Page
         {
             var key = CustomerColumns.All[index].Key;
             var header = (FrameworkElement)TableHeader.Children[index];
+            header.CanDrag = true;
+            header.AllowDrop = true;
+            header.DragStarting += (_, args) => args.Data.SetText("customer-column:" + key);
+            header.DragOver += (_, args) =>
+            {
+                if (args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+                    args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            };
+            header.Drop += async (_, args) =>
+            {
+                var dragged = await args.DataView.GetTextAsync();
+                if (!dragged.StartsWith("customer-column:", StringComparison.Ordinal)) return;
+                try { CustomerColumns.MoveTo(dragged["customer-column:".Length..], key); ApplyColumnLayout(); }
+                catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+            };
             header.Tapped += (_, _) => SortBy(key, _sortKey == key && !_sortDescending);
             var menu = new MenuFlyout();
             var ascending = new MenuFlyoutItem { Text = "Ταξινόμηση αύξουσα" };
@@ -469,25 +538,30 @@ public sealed partial class CustomersPage : Page
     {
         try
         {
-            if (_card is not null)
+            if (id is Guid customerId && _openCards.TryGetValue(customerId, out var openCard))
             {
-                _card.BringToFront();
-                DispatcherQueue.TryEnqueue(() => _card?.BringToFront());
+                openCard.BringToFront();
                 return;
             }
-            _card = new CustomerCardWindow(id, edit);
-            _card.CustomerChanged += async (_, _) => await RefreshAsync();
-            _card.Closed += async (_, _) =>
+            var card = new CustomerCardWindow(id, edit);
+            if (id is Guid key) _openCards[key] = card;
+            card.CustomerChanged += async (_, _) => await RefreshAsync();
+            card.RelatedCustomerChanged += async (_, targetId) =>
             {
-                _card = null;
+                if (_openCards.TryGetValue(targetId, out var targetCard))
+                    await targetCard.RefreshFromDatabaseAsync();
                 await RefreshAsync();
             };
-            _card.BringToFront();
-            DispatcherQueue.TryEnqueue(() => _card?.BringToFront());
+            card.Closed += async (_, _) =>
+            {
+                if (id is Guid closedKey) _openCards.Remove(closedKey);
+                await RefreshAsync();
+            };
+            card.BringToFront();
+            DispatcherQueue.TryEnqueue(card.BringToFront);
         }
         catch (Exception exception)
         {
-            _card = null;
             await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
         }
     }

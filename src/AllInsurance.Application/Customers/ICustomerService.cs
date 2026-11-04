@@ -46,6 +46,8 @@ public interface ICustomerService
     Task<CustomerTransaction> AddTransactionAsync(Guid customerId, string type, decimal amount, string? description,
         string? paymentMethod = null, string? reference = null, Guid? businessRecordId = null,
         CancellationToken cancellationToken = default);
+    Task TransferCreditAsync(Guid fromCustomerId, Guid toCustomerId, decimal amount,
+        Guid? targetPolicyId = null, string? reason = null, CancellationToken cancellationToken = default);
     Task<CustomerStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CustomerRelatedRecord>> GetRelatedRecordsAsync(string category,
         string? query = null, CancellationToken cancellationToken = default);

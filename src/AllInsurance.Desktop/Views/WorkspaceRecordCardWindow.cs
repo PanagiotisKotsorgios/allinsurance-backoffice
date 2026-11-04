@@ -90,7 +90,9 @@ public sealed partial class WorkspaceRecordCardWindow : Window
             CustomerId = customerId, Status = sectionKey == "claims" ? "Δηλωμένη" : "Ενεργό" };
         _root.RequestedTheme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
         _root.Background = new SolidColorBrush(IsDarkTheme()
-            ? Color.FromArgb(255, 31, 35, 42) : Color.FromArgb(255, 221, 228, 235));
+            ? Color.FromArgb(255, 31, 35, 42)
+            : App.Services.GetRequiredService<WorkspacePreferences>().EyeComfortEnabled
+                ? Color.FromArgb(255, 228, 225, 216) : Color.FromArgb(255, 221, 228, 235));
         Content = _root;
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
@@ -104,7 +106,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
         appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "allinsurance.ico"));
         _tabContent.SizeChanged += (_, args) =>
         {
-            var target = Math.Min(1100, Math.Max(600, args.NewSize.Width - 50));
+            var target = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
             foreach (var form in _forms) form.Width = target;
         };
         _root.Children.Add(new TextBlock { Text = "Φόρτωση καρτέλας...", Margin = new Thickness(24) });

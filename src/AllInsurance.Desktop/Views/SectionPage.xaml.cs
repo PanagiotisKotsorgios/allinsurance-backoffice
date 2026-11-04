@@ -10,6 +10,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
+using System.Runtime.InteropServices;
+using Windows.System;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -41,6 +43,10 @@ public sealed partial class SectionPage : Page
     private bool _syncingChecks;
     private bool _filtersInPopup;
     private readonly HashSet<Guid> _checkedRecordIds = [];
+    private Guid? _selectionAnchor;
+    [DllImport("user32.dll")]
+    private static extern short GetKeyState(int virtualKey);
+    private static bool KeyHeld(int key) => (GetKeyState(key) & 0x8000) != 0;
     private int _page = 1;
     private double _lastTableViewportWidth;
     private const int PageSize = 25;
@@ -65,6 +71,55 @@ public sealed partial class SectionPage : Page
         _partners = App.Services.GetRequiredService<IPartnerService>();
         InitializeComponent();
         TableRowStriping.Attach(RecordsList);
+        RecordsList.AddHandler(UIElement.PointerPressedEvent,
+            new PointerEventHandler((_, args) =>
+            {
+                if (IsInsideCheckBox(args.OriginalSource) ||
+                    !args.GetCurrentPoint(RecordsList).Properties.IsLeftButtonPressed ||
+                    FindRecordContainer(args.OriginalSource) is not ListViewItem
+                        { Content: BusinessRecordRow row }) return;
+                if (KeyHeld(0x10) && _selectionAnchor is Guid anchor)
+                {
+                    var start = Array.FindIndex(_filtered, item => item.Record.Id == anchor);
+                    var end = Array.FindIndex(_filtered, item => item.Record.Id == row.Record.Id);
+                    if (start >= 0 && end >= 0)
+                        for (var index = Math.Min(start, end); index <= Math.Max(start, end); index++)
+                            _checkedRecordIds.Add(_filtered[index].Record.Id);
+                    args.Handled = true;
+                    ApplyPage();
+                }
+                else if (KeyHeld(0x11))
+                {
+                    if (!_checkedRecordIds.Add(row.Record.Id)) _checkedRecordIds.Remove(row.Record.Id);
+                    _selectionAnchor = row.Record.Id;
+                    args.Handled = true;
+                    ApplyPage();
+                }
+                else _selectionAnchor = row.Record.Id;
+            }), true);
+        RecordsList.KeyDown += (_, args) =>
+        {
+            if (RecordsList.SelectedItem is not BusinessRecordRow current) return;
+            if (args.Key == VirtualKey.Space && KeyHeld(0x11))
+            {
+                if (!_checkedRecordIds.Add(current.Record.Id)) _checkedRecordIds.Remove(current.Record.Id);
+                _selectionAnchor = current.Record.Id;
+                args.Handled = true;
+                ApplyPage();
+            }
+            else if (KeyHeld(0x10) && args.Key is VirtualKey.Up or VirtualKey.Down)
+            {
+                var index = Array.FindIndex(_filtered, item => item.Record.Id == current.Record.Id);
+                var next = index + (args.Key == VirtualKey.Up ? -1 : 1);
+                if (next < 0 || next >= _filtered.Length) return;
+                _selectionAnchor ??= current.Record.Id;
+                var anchor = Array.FindIndex(_filtered, item => item.Record.Id == _selectionAnchor);
+                for (var selected = Math.Min(anchor, next); selected <= Math.Max(anchor, next); selected++)
+                    _checkedRecordIds.Add(_filtered[selected].Record.Id);
+                args.Handled = true;
+                ApplyPage();
+            }
+        };
         TableRowStriping.Attach(RelatedRecordsList);
         InitializeTableActions();
         TableColumnResizer.Attach(RecordsHeader, ResizeColumn,
@@ -431,6 +486,22 @@ public sealed partial class SectionPage : Page
         {
             var column = index;
             var header = (FrameworkElement)RecordsHeader.Children[index];
+            header.CanDrag = true;
+            header.AllowDrop = true;
+            header.DragStarting += (_, args) => args.Data.SetText($"section-column:{_section.Key}:{column}");
+            header.DragOver += (_, args) =>
+            {
+                if (args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+                    args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            };
+            header.Drop += async (_, args) =>
+            {
+                var dragged = await args.DataView.GetTextAsync();
+                var prefix = $"section-column:{_section.Key}:";
+                if (dragged.StartsWith(prefix, StringComparison.Ordinal) &&
+                    int.TryParse(dragged[prefix.Length..], out var source))
+                    MoveColumnTo(source, column);
+            };
             header.Tapped += (_, _) => SortBy(column, _sortColumn == column && !_sortDescending);
             var menu = new MenuFlyout();
             var ascending = new MenuFlyoutItem { Text = "Ταξινόμηση αύξουσα" };
@@ -636,6 +707,21 @@ public sealed partial class SectionPage : Page
         ApplyPage();
     }
 
+    private void MoveColumnTo(int column, int targetColumn)
+    {
+        if (column == targetColumn || !_columnOrder.Contains(column) ||
+            !_columnOrder.Contains(targetColumn)) return;
+        var order = _columnOrder.ToList();
+        order.Remove(column);
+        order.Insert(order.IndexOf(targetColumn), column);
+        order.CopyTo(_columnOrder);
+        try { SectionColumnOrder.Save(_section.Key, _columnOrder); }
+        catch (Exception exception) { ShowStatus(exception.Message); }
+        ApplyColumnOrder(RecordsHeader);
+        RecordsList.ItemsSource = null;
+        ApplyPage();
+    }
+
     private void RecordRow_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Grid grid) return;
@@ -643,6 +729,14 @@ public sealed partial class SectionPage : Page
         ApplyColumnOrder(grid);
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
+        if (_section.Key == "policies" &&
+            grid.Children[2] is Border { Child: TextBlock policyText } policyCell)
+        {
+            var policy = BusinessRecordDetails.Read<PolicyCardData>(row.Record.DetailsJson);
+            policyCell.Background = PolicyStatusColors.Background(row.Record.DocumentType,
+                row.Record.Status, policy.EndDate);
+            policyText.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+        }
         var statusIndex = _section.Key switch
         {
             "partners" => 7,

@@ -215,7 +215,7 @@ public sealed partial class WorkspaceRecordCardWindow
         FrameworkElement display;
         if (spec.Kind == "link")
         {
-            var combo = new ComboBox { MinHeight = 34, Height = 34,
+            var combo = new ComboBox { MinHeight = 40, Height = 40,
                 DisplayMemberPath = nameof(RecordOption.Name),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 ItemsSource = OptionsFor(spec.Key) };
@@ -243,7 +243,7 @@ public sealed partial class WorkspaceRecordCardWindow
                 DateTime.TryParse(GetText(spec.Key), out var parsed) ? parsed : null;
             var picker = new EditableDateInput { Date = value is DateTime date ?
                     new DateTimeOffset(date) : null,
-                MinHeight = 36, Height = 36, PlaceholderText = "Επιλέξτε ημερομηνία",
+                MinHeight = 40, Height = 40, PlaceholderText = "Επιλέξτε ημερομηνία",
                 HorizontalAlignment = HorizontalAlignment.Stretch };
             control = picker; display = picker;
         }
@@ -254,13 +254,13 @@ public sealed partial class WorkspaceRecordCardWindow
             var values = options.Concat(string.IsNullOrWhiteSpace(selected) ? [] : [selected])
                 .Distinct().ToArray();
             var combo = new ComboBox { ItemsSource = values, SelectedItem = selected,
-                MinHeight = 34, Height = 34, HorizontalAlignment = HorizontalAlignment.Stretch };
+                MinHeight = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
             control = combo; display = combo;
         }
         else if (spec.Kind == "bool")
         {
             var box = new CheckBox { IsChecked = GetText(spec.Key) == "true",
-                MinHeight = 34, Height = 34 };
+                MinHeight = 40, Height = 40 };
             var badge = new Border { Width = 22, Height = 22,
                 CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left,
                 Child = new TextBlock { FontSize = 16,
@@ -277,8 +277,9 @@ public sealed partial class WorkspaceRecordCardWindow
         else
         {
             var memo = spec.Kind == "memo";
-            var input = new TextBox { Text = GetText(spec.Key) ?? "", MinHeight = memo ? 72 : 34,
-                Height = memo ? 110 : 34, FontSize = 13,
+            var input = new TextBox { Text = GetText(spec.Key) ?? "", MinHeight = memo ? 80 : 40,
+                Height = memo ? 110 : 40, FontSize = 13,
+                VerticalContentAlignment = VerticalAlignment.Center,
                 AcceptsReturn = memo, TextWrapping = memo ? TextWrapping.Wrap : TextWrapping.NoWrap,
                 HorizontalAlignment = HorizontalAlignment.Stretch };
             control = input; display = memo ? ResizableNoteField.Wrap(input) : input;

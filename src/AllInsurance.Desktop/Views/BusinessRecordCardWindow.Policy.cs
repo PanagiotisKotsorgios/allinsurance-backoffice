@@ -55,7 +55,7 @@ public sealed partial class BusinessRecordCardWindow
         var values = new[] { new Choice(null, "Χωρίς συνεργάτη") }
             .Concat(_partnerRecords.Select(item => new Choice(item.Id, item.Title))).ToArray();
         _policyPartnerChoice = new ComboBox { ItemsSource = values,
-            DisplayMemberPath = nameof(Choice.Name), Height = 34, MinHeight = 34,
+            DisplayMemberPath = nameof(Choice.Name), Height = 40, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _policyPartnerChoice.SelectedItem = values.FirstOrDefault(item => item.Id == data.PartnerId) ?? values[0];
         panel.Children.Add(_policyPartnerChoice);
@@ -66,7 +66,7 @@ public sealed partial class BusinessRecordCardWindow
     private AutoSuggestBox SearchChoice(Choice[] choices, ComboBox selected, string hint)
     {
         var search = new AutoSuggestBox { Text = (selected.SelectedItem as Choice)?.Name ?? "",
-            PlaceholderText = hint, MinHeight = 34,
+            PlaceholderText = hint, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         search.TextChanged += (_, args) =>
         {
@@ -95,7 +95,7 @@ public sealed partial class BusinessRecordCardWindow
         var options = choices.Where(value => !string.IsNullOrWhiteSpace(value))
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var search = new AutoSuggestBox { Text = initial ?? "", PlaceholderText = "Αναζήτηση " + label,
-            MinHeight = 34, HorizontalAlignment = HorizontalAlignment.Stretch };
+            MinHeight = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
         search.TextChanged += (_, args) =>
         {
             backing.Text = search.Text;
@@ -114,7 +114,7 @@ public sealed partial class BusinessRecordCardWindow
         var values = new[] { new Choice(null, "Ίδιος με ασφαλισμένο") }
             .Concat(customers.Select(item => new Choice(item.Id, item.FullName))).ToArray();
         _policyHolderChoice = new ComboBox { ItemsSource = values,
-            DisplayMemberPath = nameof(Choice.Name), Height = 34, MinHeight = 34,
+            DisplayMemberPath = nameof(Choice.Name), Height = 40, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _policyHolderChoice.SelectedItem = values.FirstOrDefault(item => item.Id == data.HolderCustomerId) ?? values[0];
         panel.Children.Add(_policyHolderChoice);
@@ -141,7 +141,7 @@ public sealed partial class BusinessRecordCardWindow
             new DurationChoice(6, "6 μήνες"), new DurationChoice(12, "12 μήνες"),
             new DurationChoice(24, "24 μήνες") };
         _policyDurationChoice = new ComboBox { ItemsSource = values,
-            DisplayMemberPath = nameof(DurationChoice.Label), Height = 34, MinHeight = 34,
+            DisplayMemberPath = nameof(DurationChoice.Label), Height = 40, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         _policyDurationChoice.SelectedItem = values.FirstOrDefault(item => item.Months == data.CoverageDurationMonths)
             ?? values[0];

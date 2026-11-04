@@ -68,6 +68,15 @@ public sealed partial class BusinessRecordCardWindow
                         BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
                         BorderThickness = new Thickness(0, 0, index == headers.Length - 1 ? 0 : 1, 1),
                         Padding = new Thickness(9, 4, 9, 4) };
+                    if (index == 0 && title is "Πράσινες κάρτες" or "Πρόσθετες πράξεις")
+                    {
+                        cell.Background = title == "Πράσινες κάρτες"
+                            ? PolicyStatusColors.Background("Πράσινη κάρτα", null, null)
+                            : PolicyStatusColors.Background("Πρόσθετη πράξη",
+                                values.Length > 1 ? values[1] : null, null);
+                        if (cell.Child is TextBlock label)
+                            label.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+                    }
                     Grid.SetColumn(cell, index); row.Children.Add(cell);
                 }
                 list.Items.Add(new ListViewItem { Content = row, Tag = item,

@@ -44,7 +44,7 @@ public sealed class EditableDateInput : UserControl
 
     public EditableDateInput()
     {
-        MinHeight = 32;
+        MinHeight = 40;
         _layout.ColumnDefinitions.Add(new ColumnDefinition());
         _layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(38) });
         _layout.Children.Add(_text);
@@ -52,7 +52,7 @@ public sealed class EditableDateInput : UserControl
         var open = new Button
         {
             Content = new SymbolIcon(Symbol.Calendar), Flyout = _flyout,
-            Width = 38, Height = 32, Padding = new Thickness(4),
+            Width = 38, Height = 38, Padding = new Thickness(4),
             VerticalAlignment = VerticalAlignment.Center
         };
         ToolTipService.SetToolTip(open, "Επιλογή ημερομηνίας από ημερολόγιο");

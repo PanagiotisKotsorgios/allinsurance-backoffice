@@ -138,6 +138,7 @@ public sealed partial class CustomerCardWindow : Window
         var leftActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         AddButton(leftActions, "Γενική είσπραξη", async () => await AddTransactionAsync("receipt"));
         AddButton(leftActions, "Γενική πληρωμή", async () => await AddTransactionAsync("payment"));
+        AddButton(leftActions, "Μεταφορά πιστωτικού", TransferCreditAsync);
         actions.Children.Add(leftActions);
         var rightActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         Grid.SetColumn(rightActions, 1);
@@ -166,7 +167,9 @@ public sealed partial class CustomerCardWindow : Window
             (_root.RequestedTheme == ElementTheme.Default &&
              Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
         _root.Background = new SolidColorBrush(dark
-            ? Color.FromArgb(255, 31, 31, 31) : Color.FromArgb(255, 221, 228, 235));
+            ? Color.FromArgb(255, 31, 31, 31)
+            : App.Services.GetRequiredService<WorkspacePreferences>().EyeComfortEnabled
+                ? Color.FromArgb(255, 228, 225, 216) : Color.FromArgb(255, 221, 228, 235));
         Content = _root;
 
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
@@ -178,7 +181,7 @@ public sealed partial class CustomerCardWindow : Window
         _tabs.SizeChanged += (_, args) =>
         {
             if (_compactMain is not null)
-                _compactMain.Width = Math.Min(1100, Math.Max(600, args.NewSize.Width - 50));
+                _compactMain.Width = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
         };
         appWindow.MoveAndResize(new RectInt32(working.X + (working.Width - width) / 2,
             working.Y + (working.Height - height) / 2, width, height));
@@ -210,6 +213,15 @@ public sealed partial class CustomerCardWindow : Window
     }
 
     public event EventHandler? CustomerChanged;
+    public event EventHandler<Guid>? RelatedCustomerChanged;
+
+    public async Task RefreshFromDatabaseAsync()
+    {
+        if (_editing || _customer.Id == Guid.Empty) return;
+        _customer = await _service.GetAsync(_customer.Id) ?? _customer;
+        BuildTabs(preserveSelectedTab: true);
+        UpdateHeader();
+    }
 
     private void BuildTabs(bool preserveSelectedTab = false)
     {
@@ -477,6 +489,13 @@ public sealed partial class CustomerCardWindow : Window
                 BorderThickness = index == cells.Length - 1 ? new Thickness(0, 0, 0, 1) :
                     new Thickness(0, 0, 1, 1),
                 Padding = new Thickness(10, 5, 10, 5) };
+            if (category == "policies" && source is BusinessRecord policyRecord && index == 0)
+            {
+                var policy = BusinessRecordDetails.Read<PolicyCardData>(policyRecord.DetailsJson);
+                cell.Background = PolicyStatusColors.Background(policyRecord.DocumentType,
+                    policyRecord.Status, policy.EndDate);
+                text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+            }
             if (index == cells.Length - 1 && cells[index] is "Ενεργό" or "Σε εξέλιξη")
             {
                 cell.Background = new SolidColorBrush(cells[index] == "Ενεργό"
@@ -832,13 +851,33 @@ public sealed partial class CustomerCardWindow : Window
     private TextBox AddText(StackPanel form, string label, Func<string?> getter,
         Action<string?> setter, bool multiline = false)
     {
-        var input = new TextBox { Text = getter() ?? "", MinHeight = multiline ? 72 : 28,
-            Height = multiline ? 72 : 28, FontSize = 13,
+        var input = new TextBox { Text = getter() ?? "", MinHeight = multiline ? 80 : 38,
+            Height = multiline ? 80 : 38, FontSize = 13,
+            VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             AcceptsReturn = multiline,
             TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
             IsReadOnly = !_editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
+        if (!multiline)
+        {
+            input.CanDrag = !_editing;
+            input.DragStarting += (_, args) =>
+            {
+                if (!string.IsNullOrWhiteSpace(input.Text)) args.Data.SetText(input.Text);
+            };
+            input.AllowDrop = _editing;
+            input.DragOver += (_, args) =>
+            {
+                if (_editing && args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+                    args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            };
+            input.Drop += async (_, args) =>
+            {
+                if (_editing && args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+                    input.Text = await args.DataView.GetTextAsync();
+            };
+        }
         form.Children.Add(CreateFieldRow(label, multiline ? ResizableNoteField.Wrap(input) : input));
         _readFields.Add(() => setter(input.Text.Trim()));
         return input;
@@ -848,7 +887,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         var checkedValue = getter();
         var input = new CheckBox { IsChecked = checkedValue, IsEnabled = _editing,
-            MinHeight = 28, Height = 28 };
+            MinHeight = 38, Height = 38 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         if (_editing) form.Children.Add(CreateFieldRow(label, input));
         else
@@ -874,7 +913,7 @@ public sealed partial class CustomerCardWindow : Window
         Action<string> setter, string[] options)
     {
         var input = new ComboBox { ItemsSource = options, IsEnabled = _editing,
-            MinHeight = 28, Height = 28,
+            MinHeight = 38, Height = 38,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             SelectedItem = options.Contains(getter()) ? getter() : options[0] };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
@@ -886,7 +925,7 @@ public sealed partial class CustomerCardWindow : Window
         Func<string?> getter, Action<string?> setter)
     {
         var selected = getter();
-        var input = new ComboBox { IsEnabled = _editing, MinHeight = 28, Height = 28,
+        var input = new ComboBox { IsEnabled = _editing, MinHeight = 38, Height = 38,
             PlaceholderText = "Επιλέξτε", HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         form.Children.Add(CreateFieldRow(label, input));
@@ -913,11 +952,38 @@ public sealed partial class CustomerCardWindow : Window
     private EditableDateInput AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)
     {
         var input = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
-            MinHeight = 32, Height = 32,
+            MinHeight = 38, Height = 38,
             Date = getter() is DateTime value ? new DateTimeOffset(value) : null,
             IsEnabled = _editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
-        form.Children.Add(CreateFieldRow(label, input));
+        var row = CreateFieldRow(label, input);
+        form.Children.Add(row);
+        if (!_editing)
+        {
+            row.CanDrag = true;
+            row.DragStarting += (_, args) =>
+            {
+                if (input.Date is DateTimeOffset current)
+                    args.Data.SetText(current.ToString("dd/MM/yyyy"));
+            };
+        }
+        else
+        {
+            input.AllowDrop = true;
+            input.DragOver += (_, args) =>
+            {
+                if (args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+                    args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+            };
+            input.Drop += async (_, args) =>
+            {
+                var value = await args.DataView.GetTextAsync();
+                if (DateTime.TryParseExact(value, ["dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd"],
+                        CultureInfo.GetCultureInfo("el-GR"), DateTimeStyles.None, out var date))
+                    input.Date = new DateTimeOffset(date);
+                else await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Μη έγκυρη ημερομηνία μεταφοράς.");
+            };
+        }
         _readFields.Add(() => setter(input.GetValidatedDate(label)));
         return input;
     }

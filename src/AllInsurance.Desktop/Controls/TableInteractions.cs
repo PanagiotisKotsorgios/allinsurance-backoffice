@@ -73,10 +73,35 @@ internal static class TableInteractions
             ApplyAll();
         }
 
+        void MoveTo(int original, int target)
+        {
+            if (original == target || !order.Contains(original) || !order.Contains(target)) return;
+            var columns = order.ToList();
+            columns.Remove(original);
+            columns.Insert(columns.IndexOf(target), original);
+            order = [.. columns];
+            ApplyAll();
+        }
+
         for (var index = 0; index < count; index++)
         {
             var original = index;
             var cell = (FrameworkElement)header.Children[index];
+            cell.CanDrag = true;
+            cell.AllowDrop = true;
+            cell.DragStarting += (_, args) => args.Data.SetText($"card-column:{original}");
+            cell.DragOver += (_, args) =>
+            {
+                if (args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
+                    args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            };
+            cell.Drop += async (_, args) =>
+            {
+                var dragged = await args.DataView.GetTextAsync();
+                if (dragged.StartsWith("card-column:", StringComparison.Ordinal) &&
+                    int.TryParse(dragged["card-column:".Length..], out var source))
+                    MoveTo(source, original);
+            };
             cell.Tapped += (_, _) => Sort(original, sortedColumn == original && !descending);
             var menu = new MenuFlyout();
             var ascending = new MenuFlyoutItem { Text = "Ταξινόμηση αύξουσα" };

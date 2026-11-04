@@ -17,7 +17,7 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
     private static readonly HashSet<string> Categories =
     [
         "policies", "vehicles", "boats", "claims", "phones", "addresses",
-        "emails", "persons", "other", "files"
+        "emails", "persons", "other", "files", "contacts"
     ];
 
     public async Task<IReadOnlyList<CustomerListItem>> SearchAsync(string? query = null, bool includeInactive = true,
@@ -374,6 +374,59 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         return transaction;
     }
 
+    public async Task TransferCreditAsync(Guid fromCustomerId, Guid toCustomerId, decimal amount,
+        Guid? targetPolicyId = null, string? reason = null, CancellationToken cancellationToken = default)
+    {
+        RequireSession();
+        if (fromCustomerId == toCustomerId || amount <= 0 || amount > 999999999999m)
+            throw new ArgumentException("Επιλέξτε διαφορετικό πελάτη και έγκυρο θετικό ποσό.");
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var customers = await db.Customers.Include(item => item.Transactions)
+            .Where(item => item.Id == fromCustomerId || item.Id == toCustomerId)
+            .ToArrayAsync(cancellationToken);
+        var source = customers.SingleOrDefault(item => item.Id == fromCustomerId)
+            ?? throw new ArgumentException("Ο πελάτης προέλευσης δεν υπάρχει.");
+        var target = customers.SingleOrDefault(item => item.Id == toCustomerId)
+            ?? throw new ArgumentException("Ο πελάτης προορισμού δεν υπάρχει.");
+        if (Balance(source) >= 0 || amount > -Balance(source))
+            throw new ArgumentException("Το ποσό υπερβαίνει το διαθέσιμο πιστωτικό υπόλοιπο του πελάτη.");
+        if (targetPolicyId is Guid policyId && !await db.BusinessRecords.AnyAsync(item =>
+                item.Id == policyId && item.CustomerId == toCustomerId && item.SectionKey == "policies",
+                cancellationToken))
+            throw new ArgumentException("Το ασφαλιστήριο δεν ανήκει στον πελάτη προορισμού.");
+        var currency = await db.AppMetadata.AsNoTracking()
+            .Where(item => item.Key == TransactionSettingsService.CurrencyKey)
+            .Select(item => item.Value).SingleOrDefaultAsync(cancellationToken) ?? "EUR";
+        var reference = "TR-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
+        var now = DateTime.UtcNow;
+        var description = Normalize(reason, 350);
+        db.CustomerTransactions.AddRange(
+            new CustomerTransaction { Id = Guid.NewGuid(), CustomerId = source.Id,
+                Type = "credit_transfer_out", Amount = amount, PaymentMethod = "Εσωτερική μεταφορά",
+                Currency = currency, Reference = reference, Description =
+                    $"Μεταφορά πιστωτικού προς {target.LastName} {target.FirstName}. {description}",
+                OccurredAtUtc = now, CreatedByUserId = session.Current!.UserId },
+            new CustomerTransaction { Id = Guid.NewGuid(), CustomerId = target.Id,
+                Type = "credit_transfer_in", Amount = amount, PaymentMethod = "Εσωτερική μεταφορά",
+                Currency = currency, Reference = reference, BusinessRecordId = targetPolicyId,
+                Description = $"Πιστωτικό από {source.LastName} {source.FirstName}. {description}",
+                OccurredAtUtc = now, CreatedByUserId = session.Current!.UserId });
+        CustomerActivityLog.Add(db, source.Id, "Μεταφορά πιστωτικού",
+            $"{amount:N2} {currency} προς {target.LastName} {target.FirstName} · {reference}.",
+            session.Current!.DisplayName);
+        CustomerActivityLog.Add(db, target.Id, "Λήψη πιστωτικού",
+            $"{amount:N2} {currency} από {source.LastName} {source.FirstName} · {reference}.",
+            session.Current!.DisplayName);
+        if (targetPolicyId is Guid linkedPolicyId)
+            db.BusinessRecordActivities.Add(new BusinessRecordActivity { Id = Guid.NewGuid(),
+                RecordId = linkedPolicyId, Action = "Εσωτερική μεταφορά πιστωτικού",
+                Description = $"{amount:N2} {currency} από {source.LastName} {source.FirstName} · {reference}.",
+                ActorName = session.Current!.DisplayName, OccurredAtUtc = now });
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task<CustomerStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         RequireSession();
@@ -417,7 +470,7 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
 
     public static decimal Balance(Customer customer) => customer.OpeningBalance +
         customer.Transactions.Sum(transaction =>
-            transaction.Type == "payment" ? transaction.Amount : -transaction.Amount);
+            transaction.Type is "payment" or "credit_transfer_out" ? transaction.Amount : -transaction.Amount);
 
     private void RequireSession()
     {
@@ -433,11 +486,11 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             throw new ArgumentException("Το επώνυμο είναι υποχρεωτικό.");
         customer.FirstName = Normalize(customer.FirstName, 150) ??
             throw new ArgumentException("Το όνομα είναι υποχρεωτικό.");
-        customer.TaxNumber = Normalize(customer.TaxNumber, 9);
-        if (customer.TaxNumber is null)
-            throw new ArgumentException("Το ΑΦΜ είναι υποχρεωτικό.");
+        customer.TaxNumber = string.IsNullOrWhiteSpace(customer.TaxNumber)
+            ? null : customer.TaxNumber.Trim();
         customer.CustomerKind = Normalize(customer.CustomerKind, 40) ?? "Φυσικό πρόσωπο";
-        if (customer.TaxNumber.Length != 9 || !customer.TaxNumber.All(char.IsAsciiDigit))
+        if (customer.TaxNumber is not null &&
+            (customer.TaxNumber.Length != 9 || !customer.TaxNumber.All(char.IsAsciiDigit)))
         {
             throw new ArgumentException("Το ΑΦΜ πρέπει να έχει 9 ψηφία.");
         }
