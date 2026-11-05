@@ -54,7 +54,7 @@ public class ActionButton : Button
         {
             "Add" => ("#579473", "plus"),
             "Save" => ("#438665", "save"),
-            "Receipt" => ("#40816D", "receipt"),
+            "Receipt" => ("#4F806F", "receipt"),
             "Edit" => ("#517FA4", "pencil"),
             "Columns" => ("#517FA4", "columns-3"),
             "Renewals" => ("#517FA4", "refresh-cw"),
@@ -70,7 +70,8 @@ public class ActionButton : Button
             "Next" => ("#647486", "chevron-right"),
             "Upload" => ("#517FA4", "upload"),
             "Open" => ("#517FA4", "external-link"),
-            "Payment" => ("#996C4C", "wallet"),
+            "Payment" => ("#4F806F", "wallet"),
+            "CreditTransfer" => ("#4F806F", "refresh-cw"),
             "Users" => ("#517FA4", "users-round"),
             "Security" => ("#7D689B", "shield-check"),
             "Reset" => ("#996C4C", "key-round"),

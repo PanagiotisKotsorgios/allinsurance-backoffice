@@ -464,7 +464,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     private void LayoutTabs(double availableWidth)
     {
         if (_tabItems.Count == 0 || availableWidth <= 0) return;
-        var columns = Math.Min(_tabItems.Count, Math.Max(2, (int)(availableWidth / 155)));
+        var columns = Math.Min(_tabItems.Count, Math.Max(2, (int)(availableWidth / 128)));
         _tabs.ColumnDefinitions.Clear();
         _tabs.RowDefinitions.Clear();
         for (var index = 0; index < columns; index++)

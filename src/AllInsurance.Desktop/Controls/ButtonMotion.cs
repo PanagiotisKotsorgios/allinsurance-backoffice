@@ -18,12 +18,12 @@ public static class ButtonMotion
         button.RenderTransform = scale;
         var state = new MotionState(button, scale);
         States.Add(button, state);
-        button.PointerEntered += (_, _) => state.Animate(1.025, 1);
-        button.PointerExited += (_, _) => state.Animate(1, 1);
+        button.PointerEntered += (_, _) => { state.SetHover(true); state.Animate(1.025, 1); };
+        button.PointerExited += (_, _) => { state.SetHover(false); state.Animate(1, 1); };
         button.PointerPressed += (_, _) => state.Animate(0.96, 0.84);
         button.PointerReleased += (_, _) => state.Animate(1.025, 1);
-        button.PointerCanceled += (_, _) => state.Animate(1, 1);
-        button.LostFocus += (_, _) => state.Animate(1, 1);
+        button.PointerCanceled += (_, _) => { state.SetHover(false); state.Animate(1, 1); };
+        button.LostFocus += (_, _) => { state.SetHover(false); state.Animate(1, 1); };
     }
 
     public static void AttachTree(DependencyObject root)
@@ -36,6 +36,29 @@ public static class ButtonMotion
     private sealed class MotionState(ButtonBase button, ScaleTransform scale)
     {
         private Storyboard? _current;
+        private SolidColorBrush? _originalBrush;
+        private SolidColorBrush? _hoverBrush;
+
+        public void SetHover(bool hovering)
+        {
+            if (!hovering)
+            {
+                if (_hoverBrush is not null && ReferenceEquals(button.Background, _hoverBrush))
+                    button.Background = _originalBrush;
+                _originalBrush = null;
+                _hoverBrush = null;
+                return;
+            }
+            if (button.Background is not SolidColorBrush original || original.Color.A < 160) return;
+            _originalBrush = original;
+            var color = original.Color;
+            var dark = button.ActualTheme == ElementTheme.Dark;
+            byte Adjust(byte component) => (byte)Math.Clamp(Math.Round(dark
+                ? component + (255 - component) * 0.12 : component * 0.89), 0, 255);
+            _hoverBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(color.A,
+                Adjust(color.R), Adjust(color.G), Adjust(color.B)));
+            button.Background = _hoverBrush;
+        }
 
         public void Animate(double target, double opacity)
         {

@@ -34,7 +34,6 @@ public sealed partial class CustomerCardWindow
         AddText(left, "Επώνυμο *", () => _customer.LastName, value => _customer.LastName = value ?? "");
         AddText(left, "Όνομα *", () => _customer.FirstName, value => _customer.FirstName = value ?? "");
         AddText(left, "Πατρώνυμο", () => _customer.FatherName, value => _customer.FatherName = value);
-        AddText(left, "Μητρώνυμο", () => _customer.MotherName, value => _customer.MotherName = value);
         AddCatalogChoice(left, "Φύλο", "Φύλα", () => _customer.Gender,
             value => _customer.Gender = value);
         AddText(left, "Τόπος γέννησης", () => _customer.BirthPlace, value => _customer.BirthPlace = value);
@@ -244,6 +243,7 @@ public sealed partial class CustomerCardWindow
         var columns = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 350, ItemHeight = 450 };
         var family = new StackPanel { Spacing = 5, Width = 330 };
+        AddText(family, "Μητρώνυμο", () => _customer.MotherName, value => _customer.MotherName = value);
         AddText(family, "Διαβατήριο", () => _customer.PassportNumber,
             value => _customer.PassportNumber = value);
         AddCatalogChoice(family, "Οικ. κατάσταση", "Οικογενειακές καταστάσεις",

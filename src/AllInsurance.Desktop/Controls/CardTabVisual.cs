@@ -11,20 +11,21 @@ internal static class CardTabVisual
 {
     public static (Button Button, TextBlock Label) Create(string title, string icon, bool dark)
     {
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 9,
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center };
         content.Children.Add(new Image { Source = new SvgImageSource(new Uri(
-            $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 25, Height = 25 });
-        var label = new TextBlock { Text = title, FontSize = 15,
+            $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 19, Height = 19 });
+        var label = new TextBlock { Text = title, FontSize = 13,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center };
         content.Children.Add(label);
-        var button = new Button { Content = content, MinHeight = 54, MinWidth = 155,
-            Padding = new Thickness(12, 7, 12, 7), Margin = new Thickness(0),
+        var button = new Button { Content = content, MinHeight = 42, MinWidth = 124,
+            Padding = new Thickness(9, 5, 9, 5), Margin = new Thickness(0),
             CornerRadius = new CornerRadius(0),
             BorderThickness = new Thickness(0, 0, 1, 0),
             BorderBrush = new SolidColorBrush(dark
                 ? Color.FromArgb(255, 82, 89, 98) : Color.FromArgb(255, 198, 205, 213)) };
+        ButtonMotion.Attach(button);
         return (button, label);
     }
 

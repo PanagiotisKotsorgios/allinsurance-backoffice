@@ -19,6 +19,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Windows.Storage.Pickers;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -82,10 +83,13 @@ public sealed partial class CustomerCardWindow : Window
     private Grid? _compactMain;
     private double _contentWidth = 1100;
     private bool _editing;
-    private readonly TextBlock _headerTitle = new() { FontSize = 26,
-        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) };
+    private readonly TextBlock _headerTitle = new() { FontSize = 22,
+        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White),
+        TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White) };
-    private readonly TextBlock _headerAfm = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private readonly Button _copyCodeButton = new() { Background = new SolidColorBrush(Colors.Transparent),
+        BorderThickness = new Thickness(0), Padding = new Thickness(6, 4, 6, 4),
+        VerticalAlignment = VerticalAlignment.Center };
     private TextBlock? _mainBalanceText;
     private Border? _mainBalanceBadge;
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
@@ -100,25 +104,35 @@ public sealed partial class CustomerCardWindow : Window
         var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 22, 119, 170), Offset = 1 });
-        var identity = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+        var identity = new Grid { ColumnSpacing = 10, ColumnDefinitions =
+        {
+            new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition(),
+            new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition { Width = GridLength.Auto }
+        } };
         identity.Children.Add(new Image
         {
             Source = new BitmapImage(new Uri("ms-appx:///Assets/Sections/customers.png")),
-            Width = 54, Height = 54
+            Width = 42, Height = 42
         });
-        var identityText = new StackPanel { Spacing = 3 };
-        identityText.Children.Add(_headerTitle);
-        identityText.Children.Add(_headerState);
-        identity.Children.Add(identityText);
-        var metadata = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 40,
-            Margin = new Thickness(68, 2, 0, 0) };
-        metadata.Children.Add(_headerCode);
-        metadata.Children.Add(_headerAfm);
-        var bannerContent = new StackPanel { Spacing = 8 };
-        bannerContent.Children.Add(identity);
-        bannerContent.Children.Add(metadata);
+        Grid.SetColumn(_headerTitle, 1);
+        identity.Children.Add(_headerTitle);
+        _headerState.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_headerState, 2);
+        identity.Children.Add(_headerState);
+        _copyCodeButton.Content = _headerCode;
+        _copyCodeButton.Click += (_, _) =>
+        {
+            if (_customer.Id == Guid.Empty) return;
+            var data = new DataPackage();
+            data.SetText("C-" + _customer.Id.ToString("N")[..8].ToUpperInvariant());
+            Clipboard.SetContent(data);
+            _status.Text = "Ο κωδικός πελάτη αντιγράφηκε.";
+        };
+        ToolTipService.SetToolTip(_copyCodeButton, "Αντιγραφή κωδικού πελάτη");
+        Grid.SetColumn(_copyCodeButton, 3);
+        identity.Children.Add(_copyCodeButton);
         header.Children.Add(new Border { Background = gradient, CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(24, 12, 24, 12), Child = bannerContent });
+            Padding = new Thickness(18, 9, 18, 9), Child = identity });
         header.Children.Add(_status);
         _root.Children.Add(header);
         var tabScroller = new ScrollViewer { Content = _tabStrip,
@@ -250,8 +264,8 @@ public sealed partial class CustomerCardWindow : Window
             $"{_customer.LastName} {_customer.FirstName}".ToUpperInvariant();
         _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_customer.Id == Guid.Empty ? "Νέος" :
             "C-" + _customer.Id.ToString("N")[..8].ToUpperInvariant());
-        _headerAfm.Text = "ΑΦΜ  " + (_customer.TaxNumber ?? "—");
         _headerState.Text = _customer.IsActive ? "● Ενεργός πελάτης" : "● Ανενεργός πελάτης";
+        _copyCodeButton.IsEnabled = _customer.Id != Guid.Empty;
     }
 
     private void UpdateMainBalance()
@@ -879,21 +893,21 @@ public sealed partial class CustomerCardWindow : Window
                     if (row.Children[1] is Control control)
                         control.FontSize = narrow ? 12 : 13;
                 }
-        var tabWidth = narrow ? Math.Max(104, availableWidth / 6 - 2) : compact ? 135 : 155;
+        var tabWidth = narrow ? Math.Max(94, availableWidth / 6 - 2) : compact ? 116 : 124;
         foreach (var button in _tabButtons)
         {
             button.MinWidth = 0;
             button.Width = tabWidth;
-            button.MinHeight = narrow ? 48 : 54;
-            button.Padding = narrow ? new Thickness(4, 5, 4, 5) :
-                new Thickness(12, 7, 12, 7);
+            button.MinHeight = narrow ? 38 : 42;
+            button.Padding = narrow ? new Thickness(4, 4, 4, 4) :
+                new Thickness(9, 5, 9, 5);
             if (button.Content is not StackPanel content) continue;
-            content.Spacing = narrow ? 4 : 9;
+            content.Spacing = narrow ? 3 : 6;
             foreach (var icon in content.Children.OfType<Image>())
-                icon.Width = icon.Height = narrow ? 18 : 25;
+                icon.Width = icon.Height = narrow ? 16 : 19;
             foreach (var label in content.Children.OfType<TextBlock>())
             {
-                label.FontSize = narrow ? 11.5 : 15;
+                label.FontSize = narrow ? 11 : 13;
                 label.TextWrapping = narrow ? TextWrapping.Wrap : TextWrapping.NoWrap;
                 label.MaxWidth = narrow ? tabWidth - 34 : double.PositiveInfinity;
             }
@@ -1115,6 +1129,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         "Γενική είσπραξη" => "Receipt",
         "Γενική πληρωμή" => "Payment",
+        "Μεταφορά πιστωτικού" => "CreditTransfer",
         "Επισύναψη αρχείου" => "Upload",
         "Άνοιγμα" => "Open",
         "Προσθήκη" => "Add",
