@@ -181,7 +181,8 @@ public sealed partial class CustomerCardWindow : Window
         _tabs.SizeChanged += (_, args) =>
         {
             if (_compactMain is not null)
-                _compactMain.Width = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
+                _compactMain.Width = Math.Min(1100, Math.Max(580, args.NewSize.Width - 50));
+            ApplyResponsiveLayout(args.NewSize.Width);
         };
         appWindow.MoveAndResize(new RectInt32(working.X + (working.Width - width) / 2,
             working.Y + (working.Height - height) / 2, width, height));
@@ -240,6 +241,7 @@ public sealed partial class CustomerCardWindow : Window
         BuildFinanceTab();
         BuildActivityHistoryTab();
         SelectTab(Math.Clamp(selectedTab, 0, _tabContents.Count - 1));
+        ApplyResponsiveLayout(_tabs.ActualWidth);
     }
 
     private void UpdateHeader()
@@ -257,7 +259,7 @@ public sealed partial class CustomerCardWindow : Window
         if (_mainBalanceText is null || _mainBalanceBadge is null) return;
         var balance = CustomerService.Balance(_customer);
         _mainBalanceText.Text = balance > 0 ? $"Οφειλή προς το γραφείο: {balance:N2} {CurrencySymbol}" :
-            balance < 0 ? $"Πιστωτικό υπόλοιπο: {Math.Abs(balance):N2} {CurrencySymbol}" :
+            balance < 0 ? $"Υπόλοιπο πελάτη: {balance:N2} {CurrencySymbol}" :
             $"Υπόλοιπο: 0,00 {CurrencySymbol}";
         var dark = IsDarkTheme();
         _mainBalanceBadge.Background = balance == 0
@@ -360,7 +362,7 @@ public sealed partial class CustomerCardWindow : Window
         Grid.SetRow(commands, 0);
         root.Children.Add(commands);
         var headers = new Grid { ColumnSpacing = 0, Width = 980,
-            Background = new SolidColorBrush(Color.FromArgb(36, 77, 129, 174)) };
+            Background = TableHeaderBrush() };
         foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
             headers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
         var names = new[] { category == "vehicles" ? "Πινακίδα / όχημα" :
@@ -850,6 +852,54 @@ public sealed partial class CustomerCardWindow : Window
         (_root.RequestedTheme == ElementTheme.Default &&
          Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark);
 
+    private SolidColorBrush TableHeaderBrush()
+    {
+        var color = IsDarkTheme() ? Color.FromArgb(255, 48, 68, 90)
+            : App.Services.GetRequiredService<WorkspacePreferences>().EyeComfortEnabled
+                ? Color.FromArgb(255, 218, 216, 206)
+                : Color.FromArgb(255, 208, 222, 235);
+        return new SolidColorBrush(color);
+    }
+
+    private void ApplyResponsiveLayout(double availableWidth)
+    {
+        if (availableWidth <= 0) return;
+        var compact = availableWidth < 980;
+        var narrow = availableWidth < 760;
+        var captionWidth = narrow ? 105 : compact ? 125 : 145;
+        if (_compactMain is not null)
+            foreach (var column in _compactMain.Children.OfType<StackPanel>())
+                foreach (var row in column.Children.OfType<Grid>().Where(row =>
+                    row.ColumnDefinitions.Count >= 2 && row.Children.Count >= 2))
+                {
+                    row.ColumnDefinitions[0].Width = new GridLength(captionWidth);
+                    if (row.Children[0] is StackPanel caption)
+                        foreach (var text in caption.Children.OfType<TextBlock>())
+                            text.FontSize = narrow ? 11 : 12;
+                    if (row.Children[1] is Control control)
+                        control.FontSize = narrow ? 12 : 13;
+                }
+        var tabWidth = narrow ? Math.Max(104, availableWidth / 6 - 2) : compact ? 135 : 155;
+        foreach (var button in _tabButtons)
+        {
+            button.MinWidth = 0;
+            button.Width = tabWidth;
+            button.MinHeight = narrow ? 48 : 54;
+            button.Padding = narrow ? new Thickness(4, 5, 4, 5) :
+                new Thickness(12, 7, 12, 7);
+            if (button.Content is not StackPanel content) continue;
+            content.Spacing = narrow ? 4 : 9;
+            foreach (var icon in content.Children.OfType<Image>())
+                icon.Width = icon.Height = narrow ? 18 : 25;
+            foreach (var label in content.Children.OfType<TextBlock>())
+            {
+                label.FontSize = narrow ? 11.5 : 15;
+                label.TextWrapping = narrow ? TextWrapping.Wrap : TextWrapping.NoWrap;
+                label.MaxWidth = narrow ? tabWidth - 34 : double.PositiveInfinity;
+            }
+        }
+    }
+
     private void SelectTab(int index)
     {
         if (index < 0 || index >= _tabContents.Count) return;
@@ -908,7 +958,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         var checkedValue = getter();
         var input = new CheckBox { IsChecked = checkedValue, IsEnabled = _editing,
-            MinHeight = 38, Height = 38 };
+            MinHeight = 30, Height = 30 };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         if (_editing) form.Children.Add(CreateFieldRow(label, input));
         else

@@ -25,6 +25,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
     public DbSet<PartnerPayout> PartnerPayouts => Set<PartnerPayout>();
     public DbSet<PartnerActivity> PartnerActivities => Set<PartnerActivity>();
     public DbSet<CommissionRule> CommissionRules => Set<CommissionRule>();
+    public DbSet<OfficeOperation> OfficeOperations => Set<OfficeOperation>();
     public DbSet<FilterOption> FilterOptions => Set<FilterOption>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -330,6 +331,28 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(item => item.OfficePercent).HasPrecision(5, 2);
             entity.Property(item => item.PartnerPercent).HasPrecision(5, 2);
             entity.HasIndex(item => new { item.Insurer, item.IsActive });
+        });
+
+        modelBuilder.Entity<OfficeOperation>(entity =>
+        {
+            entity.ToTable("OfficeOperations");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Kind).IsRequired().HasMaxLength(24);
+            entity.Property(item => item.Description).IsRequired().HasMaxLength(300);
+            entity.Property(item => item.Category).HasMaxLength(100);
+            entity.Property(item => item.Amount).HasPrecision(18, 2);
+            entity.Property(item => item.PaymentMethod).HasMaxLength(80);
+            entity.Property(item => item.Reference).HasMaxLength(100);
+            entity.Property(item => item.Notes).HasMaxLength(2000);
+            entity.Property(item => item.GrossPremium).HasPrecision(18, 2);
+            entity.Property(item => item.NetPremium).HasPrecision(18, 2);
+            entity.Property(item => item.OfficeCommission).HasPrecision(18, 2);
+            entity.Property(item => item.OverCommission).HasPrecision(18, 2);
+            entity.HasIndex(item => new { item.Kind, item.OccurredOn });
+            entity.HasOne<BusinessRecord>().WithMany().HasForeignKey(item => item.PartnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<BusinessRecord>().WithMany().HasForeignKey(item => item.CompanyId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<FilterOption>(entity =>

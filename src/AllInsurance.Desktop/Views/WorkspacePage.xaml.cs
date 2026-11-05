@@ -298,6 +298,19 @@ public sealed partial class WorkspacePage : Page
     }
 
     private void ShowSettings() { MainNavigation.SelectedItem = null; SectionHost.Content = new SettingsPage(); }
+    private void OfficeFinances_Click(object sender, RoutedEventArgs e)
+    {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "office-finances");
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new OfficeOperationsPage(false);
+    }
+
+    private void OverCommissions_Click(object sender, RoutedEventArgs e)
+    {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "overcommissions");
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new OfficeOperationsPage(true);
+    }
     private void ShowAgencyProfile() { MainNavigation.SelectedItem = null; SectionHost.Content = new AgencyProfilePage(); }
     private void ShowFilterOptions() { MainNavigation.SelectedItem = null; SectionHost.Content = new FilterOptionsPage(); }
     private void ShowCommissions()

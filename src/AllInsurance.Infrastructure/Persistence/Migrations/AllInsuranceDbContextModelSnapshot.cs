@@ -630,6 +630,87 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.ToTable("FilterOptions", (string)null);
                 });
 
+            modelBuilder.Entity("AllInsurance.Domain.Entities.OfficeOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("GrossPremium")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("NetPremium")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("OfficeCommission")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("OverCommission")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("PartnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("PartnerId");
+
+                    b.HasIndex("Kind", "OccurredOn");
+
+                    b.ToTable("OfficeOperations", (string)null);
+                });
+
             modelBuilder.Entity("AllInsurance.Domain.Entities.PartnerActivity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -989,6 +1070,19 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Navigation("BusinessRecord");
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("AllInsurance.Domain.Entities.OfficeOperation", b =>
+                {
+                    b.HasOne("AllInsurance.Domain.Entities.BusinessRecord", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("AllInsurance.Domain.Entities.BusinessRecord", null)
+                        .WithMany()
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("AllInsurance.Domain.Entities.PartnerActivity", b =>

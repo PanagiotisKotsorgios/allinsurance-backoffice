@@ -14,9 +14,13 @@ public sealed partial class CustomerCardWindow
 {
     private Grid CompactColumns(out StackPanel left, out StackPanel right)
     {
-        var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
+        var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth,
+            preserveColumns: true);
         left.Spacing = 5;
-        right.Spacing = 5;
+        right.Spacing = 3;
+        grid.MinWidth = 580;
+        if (_tabs.ActualWidth > 0)
+            grid.Width = Math.Min(1100, Math.Max(580, _tabs.ActualWidth - 50));
         _compactMain = grid;
         return grid;
     }
@@ -365,7 +369,7 @@ public sealed partial class CustomerCardWindow
         foreach (var field in new UIElement[] { kind, from, until }) filters.Children.Add(field);
         root.Children.Add(filters);
         var header = new Grid { ColumnSpacing = 0, Width = 940,
-            Background = new SolidColorBrush(Color.FromArgb(36, 77, 129, 174)) };
+            Background = TableHeaderBrush() };
         foreach (var width in new[] { 180, 150, 130, 480 })
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
         var captions = new[] { "Ημερομηνία", "Κίνηση", "Ποσό", "Αιτιολογία" };

@@ -17,6 +17,12 @@
                     <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                         <MenuBar VerticalAlignment="Center">
                         <MenuBarItem x:Name="NavigationMenu" Title="Πλοήγηση" />
+                        <MenuBarItem Title="Λειτουργίες">
+                            <MenuFlyoutSubItem Text="Επιπλέον λειτουργίες">
+                                <MenuFlyoutItem Text="Έσοδα – έξοδα γραφείου" Click="OfficeFinances_Click" />
+                                <MenuFlyoutItem Text="Υπερπρομήθειες" Click="OverCommissions_Click" />
+                            </MenuFlyoutSubItem>
+                        </MenuBarItem>
                         <MenuBarItem Title="Εργαλεία">
                             <MenuFlyoutItem x:Name="UsersMenuItem" Text="Διαχείριση χρηστών" Click="Users_Click" />
                             <MenuFlyoutItem x:Name="AuditMenuItem" Text="Αρχείο ελέγχου" Click="Audit_Click" />

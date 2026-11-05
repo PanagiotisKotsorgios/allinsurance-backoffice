@@ -50,7 +50,7 @@ internal static class TableRowStriping
     {
         var alternate = index % 2 == 1;
         var preferences = App.Services.GetRequiredService<WorkspacePreferences>();
-        var theme = list.ActualTheme == ElementTheme.Default ? preferences.Theme : list.ActualTheme;
+        var theme = preferences.Theme == ElementTheme.Default ? list.ActualTheme : preferences.Theme;
         var dark = theme == ElementTheme.Dark;
         var warm = !dark && preferences.EyeComfortEnabled;
         var state = States.GetValue(item, _ => new RowState());

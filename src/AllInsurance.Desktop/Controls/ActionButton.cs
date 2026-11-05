@@ -52,19 +52,19 @@ public class ActionButton : Button
     {
         var (color, icon) = _kind switch
         {
-            "Add" => ("#438665", "plus"),
+            "Add" => ("#579473", "plus"),
             "Save" => ("#438665", "save"),
             "Receipt" => ("#40816D", "receipt"),
             "Edit" => ("#517FA4", "pencil"),
             "Columns" => ("#517FA4", "columns-3"),
             "Renewals" => ("#517FA4", "refresh-cw"),
-            "Delete" => ("#AE5555", "trash"),
+            "Delete" => ("#B56868", "trash"),
             "Deactivate" => ("#AE5555", "x"),
             "Close" => ("#AE5555", "x"),
             "SignOut" => ("#AE5555", "log-out"),
             "Statistics" => ("#7D689B", "chart-no-axes-combined"),
             "Filter" => ("#647486", "funnel-x"),
-            "Clear" => ("#AE5555", "funnel-x"),
+            "Clear" => ("#B56868", "funnel-x"),
             "Choice" => ("#5F7184", "list-filter"),
             "Previous" => ("#647486", "chevron-left"),
             "Next" => ("#647486", "chevron-right"),
