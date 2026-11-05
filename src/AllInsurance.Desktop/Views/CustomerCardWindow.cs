@@ -87,6 +87,9 @@ public sealed partial class CustomerCardWindow : Window
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White),
         TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private readonly TextBox _codeInput = new() { Width = 170, Height = 34, MinHeight = 34,
+        MaxLength = 30, PlaceholderText = "Κωδικός πελάτη",
+        VerticalContentAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     private readonly Button _copyCodeButton = new() { Background = new SolidColorBrush(Colors.Transparent),
         BorderThickness = new Thickness(0), Padding = new Thickness(6, 4, 6, 4),
         VerticalAlignment = VerticalAlignment.Center };
@@ -119,18 +122,36 @@ public sealed partial class CustomerCardWindow : Window
         _headerState.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(_headerState, 2);
         identity.Children.Add(_headerState);
-        _copyCodeButton.Content = _headerCode;
+        var codeDisplay = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
+        codeDisplay.Children.Add(_headerCode);
+        codeDisplay.Children.Add(new FontIcon { Glyph = "\uE8C8", FontSize = 14,
+            Foreground = new SolidColorBrush(Colors.White) });
+        _copyCodeButton.Content = codeDisplay;
         _copyCodeButton.Click += (_, _) =>
         {
             if (_customer.Id == Guid.Empty) return;
             var data = new DataPackage();
-            data.SetText("C-" + _customer.Id.ToString("N")[..8].ToUpperInvariant());
+            data.SetText(_customer.Code);
             Clipboard.SetContent(data);
-            _status.Text = "Ο κωδικός πελάτη αντιγράφηκε.";
+            var popup = new Flyout { Content = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(255, 66, 130, 91)),
+                CornerRadius = new CornerRadius(7), Padding = new Thickness(10, 6, 10, 6),
+                Child = new TextBlock { Text = "Ο κωδικός αντιγράφηκε",
+                    Foreground = new SolidColorBrush(Colors.White) }
+            } };
+            popup.ShowAt(_copyCodeButton);
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
+            timer.Tick += (_, _) => { timer.Stop(); popup.Hide(); };
+            timer.Start();
         };
         ToolTipService.SetToolTip(_copyCodeButton, "Αντιγραφή κωδικού πελάτη");
-        Grid.SetColumn(_copyCodeButton, 3);
-        identity.Children.Add(_copyCodeButton);
+        var codeArea = new StackPanel { Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center };
+        codeArea.Children.Add(_copyCodeButton);
+        codeArea.Children.Add(_codeInput);
+        Grid.SetColumn(codeArea, 3);
+        identity.Children.Add(codeArea);
         header.Children.Add(new Border { Background = gradient, CornerRadius = new CornerRadius(16),
             Padding = new Thickness(18, 9, 18, 9), Child = identity });
         header.Children.Add(_status);
@@ -160,8 +181,10 @@ public sealed partial class CustomerCardWindow : Window
         _saveButton.Click += async (_, _) => await SaveAsync();
         _editButton.Click += (_, _) =>
         {
+            _codeInput.Text = _customer.Code;
             _editing = true;
             BuildTabs();
+            UpdateHeader();
             UpdateActionState();
         };
         rightActions.Children.Add(_editButton);
@@ -217,6 +240,7 @@ public sealed partial class CustomerCardWindow : Window
                 _customer = await _service.GetAsync(id) ??
                     throw new InvalidOperationException("Ο πελάτης δεν υπάρχει.");
             }
+            _codeInput.Text = _customer.Id == Guid.Empty ? "" : _customer.Code;
             BuildTabs();
             UpdateHeader();
             UpdateActionState();
@@ -262,10 +286,11 @@ public sealed partial class CustomerCardWindow : Window
     {
         _headerTitle.Text = _customer.Id == Guid.Empty ? "Νέος πελάτης" :
             $"{_customer.LastName} {_customer.FirstName}".ToUpperInvariant();
-        _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_customer.Id == Guid.Empty ? "Νέος" :
-            "C-" + _customer.Id.ToString("N")[..8].ToUpperInvariant());
+        _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_customer.Id == Guid.Empty ? "Νέος" : _customer.Code);
         _headerState.Text = _customer.IsActive ? "● Ενεργός πελάτης" : "● Ανενεργός πελάτης";
         _copyCodeButton.IsEnabled = _customer.Id != Guid.Empty;
+        _copyCodeButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
+        _codeInput.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void UpdateMainBalance()
@@ -807,6 +832,8 @@ public sealed partial class CustomerCardWindow : Window
         try
         {
             foreach (var read in _readFields) read();
+            _customer.CustomCode = string.IsNullOrWhiteSpace(_codeInput.Text)
+                ? null : _codeInput.Text.Trim();
             _customer.ReferredByCustomerId = _referralChoice?.SelectedValue as Guid?;
             _customer.ReferredByPartnerName = _referralPartnerChoice?.SelectedItem as string;
             if (_customer.Source is not ("Σύσταση" or "Σύσταση από πελάτη"))
@@ -893,23 +920,27 @@ public sealed partial class CustomerCardWindow : Window
                     if (row.Children[1] is Control control)
                         control.FontSize = narrow ? 12 : 13;
                 }
-        var tabWidth = narrow ? Math.Max(94, availableWidth / 6 - 2) : compact ? 116 : 124;
         foreach (var button in _tabButtons)
         {
-            button.MinWidth = 0;
-            button.Width = tabWidth;
-            button.MinHeight = narrow ? 38 : 42;
-            button.Padding = narrow ? new Thickness(4, 4, 4, 4) :
-                new Thickness(9, 5, 9, 5);
-            if (button.Content is not StackPanel content) continue;
-            content.Spacing = narrow ? 3 : 6;
+            button.Width = double.NaN;
+            button.MinHeight = narrow ? 36 : 40;
+            if (button.Content is not Grid surface) continue;
+            var content = surface.Children.OfType<StackPanel>().FirstOrDefault();
+            if (content is null) continue;
+            content.Margin = narrow ? new Thickness(12, 0, 12, 0) : new Thickness(16, 0, 16, 0);
+            content.Spacing = narrow ? 4 : 6;
+            var iconSize = narrow ? 15 : 19;
             foreach (var icon in content.Children.OfType<Image>())
-                icon.Width = icon.Height = narrow ? 16 : 19;
+                icon.Width = icon.Height = iconSize;
             foreach (var label in content.Children.OfType<TextBlock>())
             {
                 label.FontSize = narrow ? 11 : 13;
-                label.TextWrapping = narrow ? TextWrapping.Wrap : TextWrapping.NoWrap;
-                label.MaxWidth = narrow ? tabWidth - 34 : double.PositiveInfinity;
+                label.TextWrapping = TextWrapping.NoWrap;
+                label.MaxWidth = double.PositiveInfinity;
+                label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                button.MinWidth = Math.Max(narrow ? 102 : 124,
+                    Math.Ceiling(label.DesiredSize.Width + iconSize + content.Spacing +
+                        (narrow ? 24 : 32)));
             }
         }
     }

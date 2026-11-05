@@ -10,7 +10,8 @@ public sealed record CustomerListItem(
     string LastName, string FirstName, string? CompanyName, string CustomerKind,
     string? City)
 {
-    public string Code => "C-" + Id.ToString("N")[..8].ToUpperInvariant();
+    public string Code => CustomCode ?? ("C-" + Id.ToString("N")[..8].ToUpperInvariant());
+    public string? CustomCode { get; init; }
     public string StatusLabel => IsActive ? "Ενεργός" : "Ανενεργός";
     public string Currency { get; init; } = "EUR";
     public string BalanceDisplay => $"{Balance:N2} {TransactionSettingsService.Symbol(Currency)}";

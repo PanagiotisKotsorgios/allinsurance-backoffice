@@ -3,6 +3,8 @@ namespace AllInsurance.Domain.Entities;
 public sealed class Customer
 {
     public Guid Id { get; set; }
+    public string? CustomCode { get; set; }
+    public string Code => CustomCode ?? ("C-" + Id.ToString("N")[..8].ToUpperInvariant());
     public required string LastName { get; set; }
     public required string FirstName { get; set; }
     public string? CompanyName { get; set; }

@@ -2,6 +2,7 @@ using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Windows.Foundation;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -80,12 +81,22 @@ public sealed partial class CustomerCardWindow
         content.Visibility = Visibility.Collapsed;
         var toggle = new Button { Content = "▸  Επικοινωνία", HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 38 };
+        var section = new StackPanel { Spacing = 3, Margin = new Thickness(0, 8, 0, 0) };
         toggle.Click += (_, _) =>
         {
             content.Visibility = content.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
             toggle.Content = content.Visibility == Visibility.Visible ? "▾  Επικοινωνία" : "▸  Επικοινωνία";
+            if (content.Visibility == Visibility.Visible)
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (_selectedTabIndex != 0 || _tabContents.FirstOrDefault() is not ScrollViewer scroller)
+                        return;
+                    scroller.UpdateLayout();
+                    var top = section.TransformToVisual(main).TransformPoint(new Point(0, 0)).Y;
+                    scroller.ChangeView(null, Math.Min(scroller.ScrollableHeight, Math.Max(0, top - 12)),
+                        null, disableAnimation: false);
+                });
         };
-        var section = new StackPanel { Spacing = 3, Margin = new Thickness(0, 8, 0, 0) };
         section.Children.Add(toggle);
         section.Children.Add(content);
         Grid.SetRow(section, 1);

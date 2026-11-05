@@ -41,7 +41,8 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
                 (customer.PrimaryMobile != null && customer.PrimaryMobile.Contains(term)) ||
                 (customer.PrimaryEmail != null && customer.PrimaryEmail.Contains(term)) ||
                 (customer.PrimaryAddress != null && customer.PrimaryAddress.Contains(term)) ||
-                (customer.City != null && customer.City.Contains(term)));
+                (customer.City != null && customer.City.Contains(term)) ||
+                (customer.CustomCode != null && customer.CustomCode.Contains(term)));
         }
         var records = await customers.OrderBy(customer => customer.LastName)
             .ThenBy(customer => customer.FirstName).ToListAsync(cancellationToken);
@@ -57,6 +58,7 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             customer.CustomerKind, customer.City)
         {
             Currency = currency,
+            CustomCode = customer.CustomCode,
             SearchText = string.Join(' ', new[] { customer.LastName, customer.FirstName,
                 customer.CompanyName, customer.TaxNumber, customer.PrimaryMobile,
                 customer.HomePhone, customer.SecondMobile, customer.ThirdMobile, customer.SecondPhone,
@@ -65,7 +67,7 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
                 customer.PrimaryAddress, customer.City, customer.Region,
                 customer.PostalCode, customer.Occupation, customer.PartnerName,
                 customer.GroupName, customer.IdentityNumber, customer.LicenseNumber,
-                customer.Tags, customer.PassportNumber, customer.Zone }
+                customer.Tags, customer.PassportNumber, customer.Zone, customer.CustomCode }
                 .Where(value => !string.IsNullOrWhiteSpace(value))!)
         }).ToArray();
         return codeSearch ? results.Where(item => item.Code.StartsWith(term!,
@@ -105,6 +107,16 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
                 existing.TaxNumber == customer.TaxNumber, cancellationToken))
         {
             throw new InvalidOperationException("Υπάρχει ήδη πελάτης με αυτό το ΑΦΜ.");
+        }
+        if (customer.CustomCode is not null)
+        {
+            var existingCodes = await db.Customers.AsNoTracking()
+                .Where(item => item.Id != customer.Id)
+                .Select(item => new { item.Id, item.CustomCode }).ToListAsync(cancellationToken);
+            if (existingCodes.Any(item => string.Equals(item.CustomCode ??
+                    "C-" + item.Id.ToString("N")[..8].ToUpperInvariant(),
+                    customer.CustomCode, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Ο κωδικός πελάτη χρησιμοποιείται ήδη.");
         }
         if (customer.ReferredByCustomerId is Guid referrerId)
         {
@@ -490,6 +502,10 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
             throw new ArgumentException("Το επώνυμο είναι υποχρεωτικό.");
         customer.FirstName = Normalize(customer.FirstName, 150) ??
             throw new ArgumentException("Το όνομα είναι υποχρεωτικό.");
+        customer.CustomCode = Normalize(customer.CustomCode, 30);
+        if (customer.CustomCode is not null &&
+            customer.CustomCode.Any(char.IsControl))
+            throw new ArgumentException("Ο κωδικός πελάτη δεν μπορεί να περιέχει αλλαγές γραμμής.");
         customer.TaxNumber = string.IsNullOrWhiteSpace(customer.TaxNumber)
             ? null : customer.TaxNumber.Trim();
         customer.CustomerKind = Normalize(customer.CustomerKind, 40) ?? "Φυσικό πρόσωπο";

@@ -367,7 +367,7 @@ public sealed partial class CustomersPage : Page
             if (column.Key == "Balance" && item.Balance != 0)
             {
                 cell.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 198, 40, 40));
+                    Windows.UI.Color.FromArgb(255, 173, 78, 78));
                 text.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
             }
             Grid.SetColumn(cell, index + 1);

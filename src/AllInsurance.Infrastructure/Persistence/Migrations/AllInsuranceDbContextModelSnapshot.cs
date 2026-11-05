@@ -255,6 +255,10 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedByUserId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CustomCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CustomerKind")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -453,6 +457,10 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CustomCode")
+                        .IsUnique()
+                        .HasFilter("\"CustomCode\" IS NOT NULL");
 
                     b.HasIndex("ReferredByCustomerId");
 

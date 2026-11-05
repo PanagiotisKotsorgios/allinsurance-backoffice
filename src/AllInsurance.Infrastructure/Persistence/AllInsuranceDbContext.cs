@@ -170,6 +170,9 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
         {
             entity.ToTable("Customers");
             entity.HasKey(customer => customer.Id);
+            entity.Property(customer => customer.CustomCode).HasMaxLength(30);
+            entity.HasIndex(customer => customer.CustomCode).IsUnique()
+                .HasFilter("\"CustomCode\" IS NOT NULL");
             entity.Property(customer => customer.LastName).IsRequired().HasMaxLength(150);
             entity.Property(customer => customer.FirstName).IsRequired().HasMaxLength(150);
             entity.Property(customer => customer.CompanyName).HasMaxLength(200);

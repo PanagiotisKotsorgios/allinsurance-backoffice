@@ -28,6 +28,7 @@ internal static class CustomerActivityLog
         nameof(Customer.PartnerName) => "συνεργάτης",
         nameof(Customer.IsReferral) => "σύσταση",
         nameof(Customer.ReferredByCustomerId) => "πελάτης σύστασης",
+        nameof(Customer.CustomCode) => "κωδικός πελάτη",
         nameof(Customer.ReferredByPartnerName) => "συνεργάτης σύστασης",
         nameof(Customer.LicenseNumber) => "αριθμός διπλώματος",
         nameof(Customer.LicenseCategory) => "κατηγορία διπλώματος",
