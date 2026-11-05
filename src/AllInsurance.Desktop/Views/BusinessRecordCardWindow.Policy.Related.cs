@@ -34,6 +34,7 @@ public sealed partial class BusinessRecordCardWindow
             "Πληρωμή με δόσεις");
         _payInInstallmentsBadge = new Border { Width = 22, Height = 22,
             CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock { Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
                 FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,

@@ -48,9 +48,12 @@ internal static class CardFieldLayout
             Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 38, 38)) });
         row.Children.Add(caption);
         Grid.SetColumn(input, 1);
-        input.MinHeight = Math.Max(38, input.MinHeight);
         if (input is Control control)
+        {
+            control.MinHeight = Math.Max(38, control.MinHeight);
             control.VerticalAlignment = VerticalAlignment.Center;
+        }
+        else input.VerticalAlignment = VerticalAlignment.Center;
         row.Children.Add(input);
         SetRequired(row, label.TrimEnd(' ', '*'), label.EndsWith('*'));
         return row;

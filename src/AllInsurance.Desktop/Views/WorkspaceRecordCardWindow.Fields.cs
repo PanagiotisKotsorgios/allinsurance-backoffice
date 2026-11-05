@@ -263,6 +263,7 @@ public sealed partial class WorkspaceRecordCardWindow
                 MinHeight = 40, Height = 40 };
             var badge = new Border { Width = 22, Height = 22,
                 CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
                 Child = new TextBlock { FontSize = 16,
                     FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                     Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),

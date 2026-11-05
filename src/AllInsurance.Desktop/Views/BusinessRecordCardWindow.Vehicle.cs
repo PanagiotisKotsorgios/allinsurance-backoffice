@@ -20,6 +20,7 @@ public sealed partial class BusinessRecordCardWindow
         var field = new CheckBox { IsChecked = value, Height = 40, MinHeight = 40 };
         var badge = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4),
             HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock { Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
                 FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
