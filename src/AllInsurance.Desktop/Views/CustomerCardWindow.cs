@@ -66,7 +66,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         new RowDefinition { Height = GridLength.Auto }, new RowDefinition()
     } };
-    private readonly StackPanel _tabStrip = new() { Orientation = Orientation.Horizontal, Spacing = 0 };
+    private readonly Grid _tabStrip = new() { RowSpacing = 2, ColumnSpacing = 2 };
     private readonly ContentControl _tabContent = new();
     private readonly List<Button> _tabButtons = [];
     private readonly List<TextBlock> _tabLabels = [];
@@ -157,9 +157,9 @@ public sealed partial class CustomerCardWindow : Window
         header.Children.Add(_status);
         _root.Children.Add(header);
         var tabScroller = new ScrollViewer { Content = _tabStrip,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            HorizontalScrollMode = ScrollMode.Enabled };
+            HorizontalScrollMode = ScrollMode.Disabled };
         _tabs.Children.Add(tabScroller);
         Grid.SetRow(_tabContent, 1);
         _tabs.Children.Add(_tabContent);
@@ -402,11 +402,14 @@ public sealed partial class CustomerCardWindow : Window
         root.Children.Add(commands);
         var headers = new Grid { ColumnSpacing = 0, Width = 980,
             Background = TableHeaderBrush() };
-        foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
+        var widths = category == "policies"
+            ? new[] { 140, 230, 145, 130, 145, 190 }
+            : new[] { 150, 140, 220, 150, 150, 170 };
+        foreach (var width in widths)
             headers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
-        var names = new[] { category == "vehicles" ? "Πινακίδα / όχημα" :
-            category == "policies" ? "Αίτηση / ασφαλιστήριο" : "Τίτλος", "Τύπος / στοιχεία",
-            "Περιγραφή", "Από", "Έως", "Κατάσταση" };
+        var names = category == "policies"
+            ? new[] { "Τύπος", "Εταιρεία", "Έναρξη", "Διάρκεια", "Λήξη", "Όχημα / πινακίδα" }
+            : new[] { "Πινακίδα", "Χρήση", "Περιγραφή", "Μάρκα", "Μοντέλο", "Κατάσταση" };
         for (var index = 0; index < names.Length; index++)
         {
             var caption = new TextBlock { Text = names[index], FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
@@ -481,9 +484,15 @@ public sealed partial class CustomerCardWindow : Window
             .Where(item => !until.HasValue || DetailDate(item) <= until.Value)
             .OrderByDescending(item => item.CreatedAtUtc);
         foreach (var item in details)
-            list.Items.Add(DetailListItem(category, item, item.Title, item.Value, item.Notes,
-                item.EffectiveFrom?.ToString("dd/MM/yyyy"), item.EffectiveUntil?.ToString("dd/MM/yyyy"),
-                item.IsHistorical ? "Ιστορικό" : "Ενεργό"));
+        {
+            var values = category == "policies"
+                ? new[] { item.Value ?? "Παλαιά καταχώριση", item.Title,
+                    item.EffectiveFrom?.ToString("dd/MM/yyyy"), "—",
+                    item.EffectiveUntil?.ToString("dd/MM/yyyy"), "—" }
+                : new[] { item.Title, item.Value, item.Notes, "—", "—",
+                    item.IsHistorical ? "Ανενεργό" : "Ενεργό" };
+            list.Items.Add(DetailListItem(category, item, values));
+        }
         var linked = _customer.BusinessRecords.Where(item => item.SectionKey == category)
             .Where(item => term.Length == 0 || new[] { item.Title, item.Reference,
                 item.RelatedParty, item.Status, item.Notes, item.DocumentType,
@@ -502,15 +511,37 @@ public sealed partial class CustomerCardWindow : Window
                 8 => item.DocumentType == "Πρόσθετη πράξη",
                 9 => item.DocumentType == "Πράσινη κάρτα",
                 _ => true
-            } : state == 1 ? item.Status == "Ενεργό" : item.Status == "Ανενεργό"))
+            } : state == 1 ? item.Status != "Ανενεργό" : item.Status == "Ανενεργό"))
             .Where(item => !from.HasValue || FilterDate(item, category, dateBasis) >= from)
             .Where(item => !until.HasValue || FilterDate(item, category, dateBasis) <= until)
             .OrderByDescending(item => item.CreatedAtUtc);
         foreach (var item in linked)
-            list.Items.Add(DetailListItem(category, item, item.Title,
-                category == "policies" ? item.DocumentType ?? "Ασφαλιστήριο" : item.Reference,
-                item.RelatedParty ?? item.Notes, item.EventDate?.ToString("dd/MM/yyyy"),
-                null, item.Status));
+        {
+            if (category == "policies")
+            {
+                var policy = BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson);
+                var vehicle = policy.VehicleId is Guid vehicleId
+                    ? _customer.BusinessRecords.FirstOrDefault(record => record.Id == vehicleId)
+                    : null;
+                var plate = vehicle is null ? null :
+                    BusinessRecordDetails.Read<VehicleCardData>(vehicle.DetailsJson).Registration ?? vehicle.Reference;
+                var duration = policy.CoverageDurationValue is int value
+                    ? $"{value} {policy.CoverageDurationUnit ?? "μήνες"}"
+                    : policy.CoverageDurationMonths is int months ? $"{months} μήνες" : "—";
+                list.Items.Add(DetailListItem(category, item,
+                    item.DocumentType ?? "Ασφαλιστήριο", policy.Insurer ?? item.RelatedParty,
+                    policy.StartDate?.ToString("dd/MM/yyyy") ?? item.EventDate?.ToString("dd/MM/yyyy"),
+                    duration, policy.EndDate?.ToString("dd/MM/yyyy"), plate));
+            }
+            else
+            {
+                var vehicle = BusinessRecordDetails.Read<VehicleCardData>(item.DetailsJson);
+                list.Items.Add(DetailListItem(category, item,
+                    vehicle.Registration ?? item.Reference ?? item.Title, vehicle.Use,
+                    item.Notes ?? item.Title, vehicle.Make, vehicle.Model,
+                    item.Status == "Ανενεργό" ? "Ανενεργό" : "Ενεργό"));
+            }
+        }
     }
 
     private static DateTime FilterDate(BusinessRecord record, string category, int dateBasis)
@@ -524,7 +555,10 @@ public sealed partial class CustomerCardWindow : Window
     private ListViewItem DetailListItem(string category, object source, params string?[] cells)
     {
         var row = new Grid { ColumnSpacing = 0, Width = 980, Height = 39 };
-        foreach (var width in new[] { 200, 180, 260, 110, 110, 120 })
+        var widths = category == "policies"
+            ? new[] { 140, 230, 145, 130, 145, 190 }
+            : new[] { 150, 140, 220, 150, 150, 170 };
+        foreach (var width in widths)
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
         for (var index = 0; index < cells.Length; index++)
         {
@@ -537,15 +571,24 @@ public sealed partial class CustomerCardWindow : Window
             if (category == "policies" && source is BusinessRecord policyRecord && index == 0)
             {
                 var policy = BusinessRecordDetails.Read<PolicyCardData>(policyRecord.DetailsJson);
-                cell.Background = PolicyStatusColors.Background(policyRecord.DocumentType,
-                    policyRecord.Status, policy.EndDate);
+                var cancellation = policyRecord.DocumentType?.Contains("ακύρ",
+                    StringComparison.CurrentCultureIgnoreCase) == true;
+                cell.Background = cancellation ? PolicyStatusColors.Background(policyRecord.DocumentType,
+                    policyRecord.Status, policy.EndDate) : policyRecord.Status switch
+                {
+                    "Ενεργό" => new SolidColorBrush(Color.FromArgb(255, 69, 119, 88)),
+                    "Σε εξέλιξη" => new SolidColorBrush(Color.FromArgb(255, 150, 113, 52)),
+                    _ => PolicyStatusColors.Background(policyRecord.DocumentType,
+                        policyRecord.Status, policy.EndDate)
+                };
                 text.Text = "✓ " + text.Text;
                 text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+                ToolTipService.SetToolTip(cell, policyRecord.Status ?? policyRecord.DocumentType);
             }
-            if (index == cells.Length - 1 && cells[index] is "Ενεργό" or "Σε εξέλιξη")
+            if (category == "vehicles" && index == cells.Length - 1)
             {
                 cell.Background = new SolidColorBrush(cells[index] == "Ενεργό"
-                    ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 204, 111, 25));
+                    ? Color.FromArgb(255, 69, 119, 88) : Color.FromArgb(255, 104, 112, 121));
                 text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
             }
             Grid.SetColumn(cell, index);
@@ -904,7 +947,7 @@ public sealed partial class CustomerCardWindow : Window
 
     private void ApplyResponsiveLayout(double availableWidth)
     {
-        if (availableWidth <= 0) return;
+        if (availableWidth <= 0 || _tabButtons.Count == 0) return;
         var compact = availableWidth < 980;
         var narrow = availableWidth < 760;
         var captionWidth = narrow ? 105 : compact ? 125 : 145;
@@ -942,6 +985,22 @@ public sealed partial class CustomerCardWindow : Window
                     Math.Ceiling(label.DesiredSize.Width + iconSize + content.Spacing +
                         (narrow ? 24 : 32)));
             }
+        }
+        var tabWidth = Math.Max(102, _tabButtons.Max(button => button.MinWidth));
+        var columns = Math.Min(_tabButtons.Count, Math.Max(1, (int)(availableWidth / (tabWidth + 2))));
+        _tabStrip.Width = availableWidth;
+        _tabStrip.ColumnDefinitions.Clear();
+        _tabStrip.RowDefinitions.Clear();
+        for (var index = 0; index < columns; index++)
+            _tabStrip.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        for (var index = 0; index < (_tabButtons.Count + columns - 1) / columns; index++)
+            _tabStrip.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        for (var index = 0; index < _tabButtons.Count; index++)
+        {
+            var button = _tabButtons[index];
+            button.HorizontalAlignment = HorizontalAlignment.Stretch;
+            Grid.SetRow(button, index / columns);
+            Grid.SetColumn(button, index % columns);
         }
     }
 

@@ -341,14 +341,16 @@ public sealed partial class CustomerCardWindow
             FontSize = 12, TextWrapping = TextWrapping.Wrap });
         var openingBalance = AddText(root, $"Παλαιό υπόλοιπο ({CurrencySymbol})", () => _customer.OpeningBalance.ToString("N2"),
             value => _customer.OpeningBalance = ParseAmount(value, allowNegative: true));
-        var normalBackground = openingBalance.Background;
-        var normalForeground = openingBalance.Foreground;
         void UpdateOpeningStyle()
         {
             var nonzero = decimal.TryParse(openingBalance.Text, System.Globalization.NumberStyles.Number,
                 System.Globalization.CultureInfo.GetCultureInfo("el-GR"), out var amount) && amount != 0;
-            openingBalance.Background = nonzero ? new SolidColorBrush(Color.FromArgb(255, 198, 40, 40)) : normalBackground;
-            openingBalance.Foreground = nonzero ? new SolidColorBrush(Microsoft.UI.Colors.White) : normalForeground;
+            openingBalance.Background = new SolidColorBrush(nonzero
+                ? Color.FromArgb(255, 173, 78, 78)
+                : IsDarkTheme() ? Color.FromArgb(255, 57, 64, 72) : Color.FromArgb(255, 235, 240, 245));
+            openingBalance.Foreground = new SolidColorBrush(nonzero || IsDarkTheme()
+                ? Microsoft.UI.Colors.White : Color.FromArgb(255, 37, 47, 59));
+            openingBalance.Opacity = 1;
         }
         openingBalance.TextChanged += (_, _) => UpdateOpeningStyle();
         UpdateOpeningStyle();
@@ -395,8 +397,12 @@ public sealed partial class CustomerCardWindow
         root.Children.Add(pager.Bar);
         list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
         {
-            if (FindCardRow(args.OriginalSource)?.Tag is CustomerTransaction transaction)
+            var row = FindCardRow(args.OriginalSource) ?? list.SelectedItem as ListViewItem;
+            if (row?.Tag is CustomerTransaction transaction)
+            {
                 await ShowTransactionAsync(transaction);
+                args.Handled = true;
+            }
         }), true);
         list.AddHandler(UIElement.RightTappedEvent, new RightTappedEventHandler((_, args) =>
         {
@@ -456,8 +462,8 @@ public sealed partial class CustomerCardWindow
                     {
                         cell.Background = new SolidColorBrush(item.Type switch
                         {
-                            "receipt" => Color.FromArgb(255, 25, 135, 75),
-                            "payment" => Color.FromArgb(255, 194, 89, 44),
+                            "receipt" => Color.FromArgb(255, 69, 119, 88),
+                            "payment" => Color.FromArgb(255, 173, 78, 78),
                             _ => Color.FromArgb(255, 83, 115, 149)
                         });
                         text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);

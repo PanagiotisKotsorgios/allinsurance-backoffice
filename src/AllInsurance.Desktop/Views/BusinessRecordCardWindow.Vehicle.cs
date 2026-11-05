@@ -427,6 +427,14 @@ public sealed partial class BusinessRecordCardWindow
                     BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
                     BorderThickness = column == rows[rowIndex].Length - 1 ? new Thickness(0, 0, 0, 1) :
                         new Thickness(0, 0, 1, 1), Padding = new Thickness(9, 3, 9, 3) };
+                if (ReferenceEquals(list, _policiesList) && column == 2 &&
+                    rows[rowIndex][column] is "Ενεργό" or "Σε εξέλιξη")
+                {
+                    border.Background = new SolidColorBrush(rows[rowIndex][column] == "Ενεργό"
+                        ? Color.FromArgb(255, 69, 119, 88) : Color.FromArgb(255, 150, 113, 52));
+                    if (content is TextBlock statusText)
+                        statusText.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
+                }
                 Grid.SetColumn(border, column); grid.Children.Add(border);
             }
             list.Items.Add(new ListViewItem { Content = grid, Tag = id,

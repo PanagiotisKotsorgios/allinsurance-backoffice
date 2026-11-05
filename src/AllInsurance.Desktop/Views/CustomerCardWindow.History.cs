@@ -2,6 +2,7 @@ using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 
@@ -55,6 +56,15 @@ public sealed partial class CustomerCardWindow
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0) };
         root.Children.Add(list);
+        list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
+        {
+            var row = FindCardRow(args.OriginalSource) ?? list.SelectedItem as ListViewItem;
+            if (row?.Tag is CustomerActivity activity)
+            {
+                await ShowActivityAsync(activity);
+                args.Handled = true;
+            }
+        }), true);
         var pager = new TablePagination(list);
         root.Children.Add(pager.Bar);
         var applyColumns = TableInteractions.Attach(header, list, _tabContent);
@@ -90,7 +100,7 @@ public sealed partial class CustomerCardWindow
                     Grid.SetColumn(cell, index);
                     row.Children.Add(cell);
                 }
-                var container = new ListViewItem { Content = row, Height = 39, Width = 1120,
+                var container = new ListViewItem { Content = row, Tag = item, Height = 39, Width = 1120,
                     Padding = new Thickness(0), Margin = new Thickness(0),
                     HorizontalContentAlignment = HorizontalAlignment.Stretch };
                 TableRowResizer.Attach(row, container, "customer-activity", item.Id);
@@ -121,5 +131,23 @@ public sealed partial class CustomerCardWindow
             catch (Exception exception) { count.Text = exception.Message; }
         }
         AddTab("Ιστορικό ενεργειών", root);
+    }
+
+    private async Task ShowActivityAsync(CustomerActivity activity)
+    {
+        var details = new StackPanel { Width = 440, Spacing = 10 };
+        void Add(string label, string value)
+        {
+            details.Children.Add(new TextBlock { Text = label, FontSize = 12,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            details.Children.Add(new TextBlock { Text = value, TextWrapping = TextWrapping.Wrap });
+        }
+        Add("Ημερομηνία και ώρα", activity.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"));
+        Add("Ενέργεια", activity.Action);
+        Add("Περιγραφή", activity.Description);
+        Add("Χρήστης", activity.ActorName);
+        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot, Title = "Καρτέλα ενέργειας",
+            Content = details, CloseButtonText = "Κλείσιμο" };
+        await DialogButtonStyles.ShowAsync(dialog);
     }
 }
