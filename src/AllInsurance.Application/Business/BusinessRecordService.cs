@@ -405,9 +405,21 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             if (existing.Reference != record.Reference) changes.Add("Άλλαξε ο κωδικός / αριθμός.");
             if (existing.RelatedParty != record.RelatedParty) changes.Add("Άλλαξε το σχετικό πρόσωπο / εταιρεία.");
             if (existing.EventDate != record.EventDate) changes.Add("Άλλαξε η ημερομηνία.");
+            var cancellation = record.SectionKey == "policies" &&
+                existing.Status != "Ακυρωμένο" && record.Status == "Ακυρωμένο";
+            var cancellationData = cancellation
+                ? BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson) : null;
+            if (cancellation && (cancellationData?.CancellationDate is null ||
+                string.IsNullOrWhiteSpace(cancellationData.CancellationReason)))
+                throw new ArgumentException("Η ακύρωση χρειάζεται ημερομηνία και αιτιολογία.");
+            var cancellationDescription = cancellationData is null ? null :
+                $"Ακυρώθηκε το ασφαλιστήριο {record.Title} στις " +
+                $"{cancellationData.CancellationDate:dd/MM/yyyy}. " +
+                $"Αιτιολογία: {cancellationData.CancellationReason}";
             if (changes.Count > 0)
-                AddActivity(db, record.Id, "Επεξεργασία εγγραφής",
-                    string.Join(" ", changes), session.Current!.DisplayName, now);
+                AddActivity(db, record.Id, cancellation ? "Ακύρωση ασφαλιστηρίου" :
+                    "Επεξεργασία εγγραφής", cancellationDescription ?? string.Join(" ", changes),
+                    session.Current!.DisplayName, now);
             if (record.SectionKey == "policies")
             {
                 var before = BusinessRecordDetails.Read<PolicyCardData>(existing.DetailsJson);
@@ -435,14 +447,15 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                 CustomerActivityLog.Add(db, previousOwnerId, "Αλλαγή σύνδεσης εγγραφής",
                     $"Η εγγραφή {record.Title} αποσυνδέθηκε από τον πελάτη.", session.Current!.DisplayName);
             if (record.CustomerId is Guid activityCustomerId)
-                CustomerActivityLog.Add(db, activityCustomerId, "Επεξεργασία εγγραφής",
-                    (previousType is "Προσφορά" or "Αίτηση" or "Ειδοποιητήριο") &&
+                CustomerActivityLog.Add(db, activityCustomerId,
+                    cancellation ? "Ακύρωση ασφαλιστηρίου" : "Επεξεργασία εγγραφής",
+                    cancellationDescription ?? ((previousType is "Προσφορά" or "Αίτηση" or "Ειδοποιητήριο") &&
                     record.DocumentType == "Ασφαλιστήριο"
                         ? $"Εκδόθηκε το ασφαλιστήριο {record.Title}." +
                             (BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson).CustomerReceivedAt is not null
                                 ? " Καταχωρίστηκε η παραλαβή του πελάτη." : "")
                         : $"Ενημερώθηκε η εγγραφή {record.Title}. " +
-                            string.Join(" ", changes),
+                            string.Join(" ", changes)),
                     session.Current!.DisplayName);
             existing.CreatedAtUtc = created;
             existing.CreatedByUserId = creator;

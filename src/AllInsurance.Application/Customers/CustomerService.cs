@@ -333,13 +333,17 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         string? policyTitle = null;
         if (businessRecordId is Guid policyId)
         {
-            policyTitle = await db.BusinessRecords.AsNoTracking()
+            var policy = await db.BusinessRecords.AsNoTracking()
                 .Where(record => record.Id == policyId && record.CustomerId == customerId &&
                     record.SectionKey == "policies" &&
                     (record.DocumentType == null || record.DocumentType == "Ασφαλιστήριο"))
-                .Select(record => record.Title).SingleOrDefaultAsync(cancellationToken);
-            if (policyTitle is null)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (policy is null)
                 throw new ArgumentException("Επιλέξτε ασφαλιστήριο του συγκεκριμένου πελάτη.");
+            if (type == "receipt" && BusinessRecordDetails.Read<PolicyCardData>(policy.DetailsJson)
+                .PaymentRecipient is ("Στην ασφαλιστική" or "Στο πρακτορείο"))
+                throw new InvalidOperationException("Η πληρωμή γίνεται απευθείας στον φορέα. Αλλάξτε πρώτα τη ροή πληρωμής του ασφαλιστηρίου.");
+            policyTitle = policy.Title;
         }
         var method = Normalize(paymentMethod, 80) ?? "Μετρητά";
         var currency = await db.AppMetadata.AsNoTracking()

@@ -51,6 +51,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
+    private Border? _headerStateBadge;
     private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White),
         Margin = new Thickness(68, 2, 0, 0) };
     private readonly Dictionary<string, TextBox> _text = [];
@@ -166,7 +167,13 @@ public sealed partial class BusinessRecordCardWindow : Window
                     throw new InvalidOperationException("Η ανανέωση πρέπει να αφορά τον ίδιο πελάτη.");
                 var old = BusinessRecordDetails.Read<PolicyCardData>(previous.DetailsJson);
                 var start = old.EndDate ?? DateTime.Today;
-                var duration = old.CoverageDurationMonths ?? 12;
+                var duration = old.CoverageDurationValue ?? old.CoverageDurationMonths ?? 12;
+                var unit = old.CoverageDurationUnit ?? "Μήνες";
+                var end = unit switch
+                {
+                    "Ημέρες" => start.AddDays(duration), "Έτη" => start.AddYears(duration),
+                    _ => start.AddMonths(duration)
+                };
                 _record.DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
                 {
                     PreviousPolicyId = previousId, Insurer = old.Insurer, Agency = old.Agency,
@@ -174,8 +181,11 @@ public sealed partial class BusinessRecordCardWindow : Window
                     CompanyId = old.CompanyId, AgencyId = old.AgencyId,
                     Branch = old.Branch, Product = old.Product, VehicleId = old.VehicleId,
                     HolderCustomerId = old.HolderCustomerId, PartnerId = old.PartnerId,
-                    PreviousInsurer = old.Insurer, CoverageDurationMonths = duration,
-                    StartDate = start, EndDate = start.AddMonths(duration),
+                    PreviousInsurer = old.Insurer, CoverageDurationMonths = unit == "Μήνες" ? duration : null,
+                    CoverageDurationValue = duration, CoverageDurationUnit = unit,
+                    PreferredPaymentMethod = old.PreferredPaymentMethod,
+                    PaymentRecipient = old.PaymentRecipient,
+                    StartDate = start, EndDate = end,
                     RenewalDate = DateTime.Today, InsuredValue = old.InsuredValue,
                     CoverageNotes = old.CoverageNotes,
                     Coverages = (old.Coverages ?? []).Select(item => new PolicyCoverage
@@ -263,7 +273,15 @@ public sealed partial class BusinessRecordCardWindow : Window
             Width = 54, Height = 54 });
         var identityText = new StackPanel { Spacing = 3 };
         identityText.Children.Add(_heading);
-        identityText.Children.Add(_headerState);
+        if (_section == "policies")
+        {
+            _headerStateBadge = new Border { Child = _headerState,
+                CornerRadius = new CornerRadius(5), Padding = new Thickness(7, 3, 7, 3),
+                HorizontalAlignment = HorizontalAlignment.Left };
+            identityText.Children.Add(_headerStateBadge);
+            UpdatePolicyHeaderBadge();
+        }
+        else identityText.Children.Add(_headerState);
         identity.Children.Add(identityText);
         bannerText.Children.Add(identity);
         bannerText.Children.Add(_headerCode);
@@ -278,9 +296,26 @@ public sealed partial class BusinessRecordCardWindow : Window
             new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto }
         }, Margin = new Thickness(18, 10, 18, 14) };
         footer.Children.Add(_status);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var actionRows = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Right };
         if (_section == "policies")
         {
+            var quick = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
+                HorizontalAlignment = HorizontalAlignment.Right };
+            _footerReceiptButton = new ActionButton { Kind = "Receipt", Label = "Είσπραξη" };
+            _footerPaymentButton = new ActionButton { Kind = "Payment", Label = "Πληρωμή" };
+            _footerRenewButton = new ActionButton { Kind = "Renewals", Label = "Ανανέωση ασφαλιστηρίου" };
+            _footerCancelButton = new ActionButton { Kind = "Deactivate", Label = "Ακύρωση" };
+            _footerReceiptButton.Click += async (_, _) => await AddPolicyTransactionAsync("receipt");
+            _footerPaymentButton.Click += async (_, _) => await AddPolicyTransactionAsync("payment");
+            _footerRenewButton.Click += async (_, _) => await OpenNewRenewalAsync();
+            _footerCancelButton.Click += async (_, _) => await CancelPolicyAsync();
+            quick.Children.Add(_footerReceiptButton);
+            quick.Children.Add(_footerPaymentButton);
+            quick.Children.Add(_footerRenewButton);
+            quick.Children.Add(_footerCancelButton);
+            actionRows.Children.Add(quick);
             _convertButton = new ActionButton { Kind = "Edit", Label = "Έκδοση και παραλαβή συμβολαίου" };
             _convertButton.Click += async (_, _) => await ConvertAsync();
             actions.Children.Add(_convertButton);
@@ -294,8 +329,9 @@ public sealed partial class BusinessRecordCardWindow : Window
         var close = new ActionButton { Kind = "Close", Label = "Κλείσιμο" };
         close.Click += (_, _) => Close();
         actions.Children.Add(close);
-        Grid.SetColumn(actions, 1);
-        footer.Children.Add(actions);
+        actionRows.Children.Add(actions);
+        Grid.SetColumn(actionRows, 1);
+        footer.Children.Add(actionRows);
         Grid.SetRow(footer, 3);
         _root.Children.Add(footer);
         if (_section == "policies") BuildPolicyTabs(customers, vehicles, transactions, companies);
@@ -338,6 +374,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         LockChoice(_policyDurationChoice, _editing);
         LockChoice(_durationUnit, _editing);
         LockChoice(_preferredPaymentMethod, _editing);
+        LockChoice(_paymentRecipient, _editing);
         if (_durationValue is not null) _durationValue.IsReadOnly = !_editing;
         if (_payInInstallments is not null)
         {
@@ -574,7 +611,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         left.Children.Add(CardFieldLayout.CreateRow("Πρακτορείο", agencyHost));
         AddPolicyPartnerChoice(left, data);
         AddPartnerLink(left);
-        left.Children.Add(CardFieldLayout.CreateRow("Κλάδος",
+        left.Children.Add(CardFieldLayout.CreateRow("Αντικείμενο ασφάλισης / κλάδος",
             SearchValue(left, "branch", "κλάδου", data.Branch, _policyBranchOptions)));
         left.Children.Add(CardFieldLayout.CreateRow("Προϊόν / πακέτο",
             SearchValue(left, "product", "πακέτου", data.Product, _policyPackageOptions)));
@@ -590,7 +627,20 @@ public sealed partial class BusinessRecordCardWindow : Window
             DisplayMemberPath = nameof(Choice.Name), MinHeight = 40, Height = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         _vehicleChoice.SelectedItem = vehicleItems.FirstOrDefault(item => item.Id == data.VehicleId) ?? vehicleItems[0];
-        right.Children.Add(CardFieldLayout.CreateRow("Συνδεδεμένο όχημα", _vehicleChoice));
+        var vehicleHost = new Grid { ColumnSpacing = 4 };
+        vehicleHost.ColumnDefinitions.Add(new ColumnDefinition());
+        vehicleHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        vehicleHost.Children.Add(_vehicleChoice);
+        var openVehicle = new ActionButton { Kind = "Open", Label = "Άνοιγμα οχήματος",
+            IconOnly = true, Width = 38, Height = 38 };
+        openVehicle.Click += async (_, _) =>
+        {
+            if ((_vehicleChoice.SelectedItem as Choice)?.Id is Guid selectedVehicleId)
+                await OpenRelatedVehicleAsync(selectedVehicleId);
+        };
+        Grid.SetColumn(openVehicle, 1);
+        vehicleHost.Children.Add(openVehicle);
+        right.Children.Add(CardFieldLayout.CreateRow("Συνδεδεμένο όχημα", vehicleHost));
         _customerChoice!.SelectionChanged += (_, _) =>
         {
             var selectedVehicle = (_vehicleChoice.SelectedItem as Choice)?.Id;
@@ -666,8 +716,12 @@ public sealed partial class BusinessRecordCardWindow : Window
         UpdateDueCountdown();
         right.Children.Add(CardFieldLayout.CreateRow("Προθεσμία απόδοσης", dueBadge));
         _preferredPaymentMethod = Choices(right, "Συνήθης τρόπος πληρωμής",
-            ["", "Μετρητά", "Κάρτα", "Τραπεζική μεταφορά", "POS", "Πάγια εντολή"],
+            ["", "Μετρητά", "Κάρτα", "Τραπεζική μεταφορά", "POS", "Πάγια εντολή", "Ταχυπληρωμή"],
             data.PreferredPaymentMethod);
+        _paymentRecipient = Choices(right, "Πού πληρώνει ο πελάτης",
+            ["Στο γραφείο", "Στην ασφαλιστική", "Στο πρακτορείο"],
+            data.PaymentRecipient ?? "Στο γραφείο");
+        Text(right, "paymentcode", "Κωδικός ταχυπληρωμής / πληρωμής", data.PaymentCode);
         Text(right, "net", "Καθαρά ασφάλιστρα", data.NetPremium?.ToString("N2"));
         Text(right, "gross", "Μικτά ασφάλιστρα", data.GrossPremium?.ToString("N2"));
         AddPolicyBalanceBadge(right, data);
@@ -823,8 +877,12 @@ public sealed partial class BusinessRecordCardWindow : Window
                         ? durationValue : null,
                     CoverageDurationUnit = _durationUnit?.SelectedItem as string,
                     PreferredPaymentMethod = _preferredPaymentMethod?.SelectedItem as string,
+                    PaymentRecipient = _paymentRecipient?.SelectedItem as string,
+                    PaymentCode = Value("paymentcode"),
                     CompanyPaymentDueDate = DateValue("companydue"),
                     CustomerReceivedAt = _policyData.CustomerReceivedAt,
+                    CancellationDate = DateValue("canceldate"),
+                    CancellationReason = Value("cancelreason"),
                     GrossPremium = DecimalValue(Value("gross"), "Μικτά ασφάλιστρα"),
                     NetPremium = DecimalValue(Value("net"), "Καθαρά ασφάλιστρα"),
                     InsuredValue = DecimalValue(Value("insuredvalue"), "Ασφαλιστική αξία"),
@@ -949,6 +1007,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             _heading.Text = _section == "policies"
                 ? $"✓ {_record.DocumentType} · {_record.Title}" : _record.Title;
             _headerState.Text = $"● {_record.Status ?? "—"}";
+            UpdatePolicyHeaderBadge();
             _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "—");
             var wasConversion = _conversionRequested;
             _conversionRequested = false;
@@ -971,10 +1030,26 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     private void UpdateConvertButton()
     {
+        if (_footerRenewButton is not null)
+            _footerRenewButton.IsEnabled = _record.Id != Guid.Empty &&
+                (_record.DocumentType is null or "Ασφαλιστήριο") &&
+                _record.Status != "Ακυρωμένο";
+        if (_footerCancelButton is not null)
+            _footerCancelButton.IsEnabled = _record.Id != Guid.Empty &&
+                (_record.DocumentType is null or "Ασφαλιστήριο") &&
+                _record.Status != "Ακυρωμένο";
         if (_convertButton is null) return;
         _convertButton.Visibility = _record.Id != Guid.Empty &&
             _record.DocumentType is "Προσφορά" or "Αίτηση" or "Ειδοποιητήριο"
             ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void UpdatePolicyHeaderBadge()
+    {
+        if (_section != "policies" || _headerStateBadge is null) return;
+        var data = BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson);
+        _headerStateBadge.Background = PolicyStatusColors.Background(_record.DocumentType,
+            _record.Status, data.EndDate);
     }
 
     private void UpdatePolicyFinanceSummary(PolicyCardData data)

@@ -27,6 +27,7 @@ public sealed partial class BusinessRecordCardWindow
     private TextBox? _durationValue;
     private ComboBox? _durationUnit;
     private ComboBox? _preferredPaymentMethod;
+    private ComboBox? _paymentRecipient;
     private CheckBox? _payInInstallments;
     private Border? _payInInstallmentsBadge;
     private TextBlock? _policyBalanceText;
@@ -35,6 +36,10 @@ public sealed partial class BusinessRecordCardWindow
     private TablePagination? _policyMovementsPager;
     private ActionButton? _policyReceiptButton;
     private ActionButton? _policyPaymentButton;
+    private ActionButton? _footerReceiptButton;
+    private ActionButton? _footerPaymentButton;
+    private ActionButton? _footerRenewButton;
+    private ActionButton? _footerCancelButton;
     private ListView? _policyClaimsList;
     private BusinessRecordCardWindow? _relatedPolicyCard;
     private WorkspaceRecordCardWindow? _policyClaimCard;
@@ -224,12 +229,16 @@ public sealed partial class BusinessRecordCardWindow
         var refunds = _policyTransactions.Where(item => item.Type == "payment").Sum(item => item.Amount);
         var balance = gross - receipts + refunds;
         var symbol = TransactionSettingsService.Symbol(_policyCurrency);
+        var negativeCredit = App.Services.GetRequiredService<AllInsurance.Desktop.Settings.WorkspacePreferences>()
+            .CreditAsNegative;
         _policyBalanceText.Text = data.GrossPremium is null ? "Δεν έχουν οριστεί μικτά ασφάλιστρα" :
             balance > 0 ? $"Προς είσπραξη: {balance:N2} {symbol}" :
-            balance < 0 ? $"Πιστωτικό: {-balance:N2} {symbol}" : $"0,00 {symbol}";
+            balance < 0 ? negativeCredit ? $"Υπόλοιπο: {balance:N2} {symbol}" :
+                $"Πιστωτικό: {-balance:N2} {symbol}" : $"0,00 {symbol}";
         if ((badge ?? _policyBalanceBadge) is Border target)
             target.Background = new SolidColorBrush(balance > 0 ? Color.FromArgb(255, 198, 40, 40) :
-                balance < 0 ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 101, 111, 123));
+                balance < 0 ? negativeCredit ? Color.FromArgb(255, 101, 111, 123) :
+                    Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 101, 111, 123));
     }
 
     private void BuildPolicyExtendedTabs(IReadOnlyList<CustomerListItem> customers,
@@ -241,25 +250,13 @@ public sealed partial class BusinessRecordCardWindow
         Text(extraLeft, "discountamount", "Έκπτωση (€)", data.DiscountAmount?.ToString("N2"));
         Text(extraLeft, "discountreason", "Αιτιολογία έκπτωσης", data.DiscountReason);
         Text(extraLeft, "previousinsurer", "Προηγούμενη ασφαλιστική", data.PreviousInsurer);
+        Date(extraLeft, "canceldate", "Ημερομηνία ακύρωσης", data.CancellationDate);
+        Text(extraLeft, "cancelreason", "Αιτιολογία ακύρωσης", data.CancellationReason);
         Date(extraRight, "renewal", "Ημερομηνία ανανέωσης *", data.RenewalDate);
         Date(extraRight, "companyrenewal", "Ανανέωση από εταιρεία", data.CompanyRenewalDate);
         Text(extraRight, "renewalnotes", "Σημειώσεις ανανέωσης", data.RenewalNotes, multiline: true);
         Text(extraRight, "notes", "Σημειώσεις", _record.Notes, multiline: true);
         AddTab("Πρόσθετα στοιχεία", extra);
-
-        var objects = PolicyPanel();
-        var linkedVehicle = vehicles.FirstOrDefault(item => item.Id == data.VehicleId);
-        objects.Children.Add(new TextBlock { Text = linkedVehicle is null ?
-            "Δεν έχει συνδεθεί όχημα." : $"Συνδεδεμένο όχημα: {linkedVehicle.Title}", FontSize = 16 });
-        if (linkedVehicle is not null)
-        {
-            var open = new ActionButton { Kind = "Open", Label = "Άνοιγμα οχήματος",
-                HorizontalAlignment = HorizontalAlignment.Left };
-            open.Click += async (_, _) => await OpenRelatedVehicleAsync(linkedVehicle.Id);
-            objects.Children.Add(open);
-        }
-        objects.Children.Add(BuildPolicyObjectsEditor());
-        AddTab("Αντικείμενα", objects);
 
         var coverage = PolicyPanel();
         coverage.Children.Add(BuildPolicyCoveragesEditor());

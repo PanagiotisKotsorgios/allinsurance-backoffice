@@ -49,6 +49,13 @@ public sealed class BusinessRecordFlowTests
         Assert.Single(saved.Installments);
         await customers.AddTransactionAsync(customerId, "receipt", 40m, "Policy payment",
             "Μετρητά", "PAY-1", policyId);
+        var directPolicy = (await records.GetAsync(policyId))!;
+        var directData = BusinessRecordDetails.Read<PolicyCardData>(directPolicy.DetailsJson);
+        directData.PaymentRecipient = "Στην ασφαλιστική";
+        directPolicy.DetailsJson = BusinessRecordDetails.Write(directData);
+        await records.SaveAsync(directPolicy);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => customers.AddTransactionAsync(
+            customerId, "receipt", 10m, "Wrong office receipt", "Μετρητά", null, policyId));
         Assert.Contains(await records.GetActivitiesAsync(policyId), activity =>
             activity.Description.Contains("PAY-1"));
         var source = Path.Combine(Path.GetTempPath(), $"policy-test-{Guid.NewGuid():N}.pdf");
@@ -73,6 +80,17 @@ public sealed class BusinessRecordFlowTests
         { SectionKey = "policies", Title = "RENEW-2", CustomerId = customerId,
             DocumentType = "Αίτηση", DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
             { ApplicationNumber = "RENEW-2", PreviousPolicyId = policyId }) }));
+        var toCancel = (await records.GetAsync(policyId))!;
+        toCancel.Status = "Ακυρωμένο";
+        await Assert.ThrowsAsync<ArgumentException>(() => records.SaveAsync(toCancel));
+        var cancellation = BusinessRecordDetails.Read<PolicyCardData>(toCancel.DetailsJson);
+        cancellation.CancellationDate = new DateTime(2026, 11, 5);
+        cancellation.CancellationReason = "Αίτημα πελάτη";
+        toCancel.DetailsJson = BusinessRecordDetails.Write(cancellation);
+        await records.SaveAsync(toCancel);
+        Assert.Contains(await records.GetActivitiesAsync(policyId), activity =>
+            activity.Action == "Ακύρωση ασφαλιστηρίου" &&
+            activity.Description.Contains("Αίτημα πελάτη"));
         await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(policyId));
     }
 

@@ -483,6 +483,23 @@ public sealed partial class CustomerCardWindow
         var policy = transaction.BusinessRecordId is Guid policyId
             ? _customer.BusinessRecords.FirstOrDefault(record => record.Id == policyId)?.Title
             : null;
+        var details = new StackPanel { Spacing = 9, Width = 460 };
+        void Add(string label, string? value)
+        {
+            details.Children.Add(new TextBlock { Text = label, FontSize = 12,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            details.Children.Add(new TextBlock { Text = string.IsNullOrWhiteSpace(value) ? "—" : value,
+                TextWrapping = TextWrapping.Wrap, FontSize = 15 });
+        }
+        Add("Αριθμός κίνησης", transaction.Id.ToString("N").ToUpperInvariant());
+        Add("Ημερομηνία και ώρα", transaction.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"));
+        Add("Πελάτης", $"{_customer.LastName} {_customer.FirstName}".Trim());
+        Add("Ποσό", $"{transaction.Amount:N2} {TransactionSettingsService.Symbol(transaction.Currency)}");
+        Add("Τρόπος πληρωμής", transaction.PaymentMethod);
+        Add("Αριθμός αναφοράς", transaction.Reference);
+        Add("Συνδεδεμένο ασφαλιστήριο", policy);
+        Add("Αιτιολογία", transaction.Description);
+        Add("Καταχώριση", "Η οικονομική κίνηση αποθηκεύτηκε στο ιστορικό του πελάτη.");
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
             Title = transaction.Type switch
             {
@@ -491,14 +508,21 @@ public sealed partial class CustomerCardWindow
                 "credit_transfer_out" => "Πιστωτικό προς άλλον πελάτη",
                 _ => "Οικονομική κίνηση"
             },
-            Content = $"Ημερομηνία: {transaction.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
-                $"Ποσό: {transaction.Amount:N2} {TransactionSettingsService.Symbol(transaction.Currency)}\n" +
-                $"Τρόπος πληρωμής: {transaction.PaymentMethod}\n" +
-                $"Αριθμός αναφοράς: {transaction.Reference ?? "—"}\n" +
-                $"Ασφαλιστήριο: {policy ?? "Χωρίς σύνδεση"}\n" +
-                $"Αιτιολογία: {transaction.Description ?? "—"}",
+            Content = new ScrollViewer { Content = details, MaxHeight = 540 },
+            PrimaryButtonText = transaction.Type == "receipt" ? "Εξαγωγή PDF" : null,
+            SecondaryButtonText = transaction.BusinessRecordId is not null ? "Άνοιγμα ασφαλιστηρίου" : null,
             CloseButtonText = "Κλείσιμο" };
-        await DialogButtonStyles.ShowAsync(dialog);
+        var result = await DialogButtonStyles.ShowAsync(dialog);
+        if (result == ContentDialogResult.Secondary && transaction.BusinessRecordId is Guid linkedId)
+            await OpenBusinessCardAsync("policies", linkedId);
+        if (result != ContentDialogResult.Primary) return;
+        try
+        {
+            if (await ReceiptPdfExporter.ExportAsync(this, transaction,
+                $"{_customer.LastName} {_customer.FirstName}".Trim(), policy))
+                await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η απόδειξη PDF εξήχθη επιτυχώς.");
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
 }

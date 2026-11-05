@@ -14,6 +14,7 @@ public sealed class WorkspacePreferences
 
     public ElementTheme Theme { get; private set; } = ElementTheme.Default;
     public bool EyeComfortEnabled { get; private set; }
+    public bool CreditAsNegative { get; private set; } = true;
     public bool ShortcutsEnabled { get; private set; } = true;
     private Dictionary<string, ShortcutBinding?> _shortcuts = [];
     public event EventHandler? ShortcutsChanged;
@@ -42,6 +43,7 @@ public sealed class WorkspacePreferences
                 _ => ElementTheme.Default
             };
             ShortcutsEnabled = saved.ShortcutsEnabled;
+            CreditAsNegative = saved.CreditAsNegative;
             _shortcuts = saved.Shortcuts ?? [];
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
@@ -72,6 +74,12 @@ public sealed class WorkspacePreferences
         ShortcutsChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public void SetCreditAsNegative(bool enabled)
+    {
+        CreditAsNegative = enabled;
+        Save();
+    }
+
     public ShortcutBinding? GetShortcut(string actionId)
     {
         if (_shortcuts.TryGetValue(actionId, out var binding)) return binding;
@@ -100,9 +108,10 @@ public sealed class WorkspacePreferences
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         File.WriteAllText(_path, JsonSerializer.Serialize(new SavedPreferences(
-            EyeComfortEnabled ? "EyeComfort" : Theme.ToString(), ShortcutsEnabled, _shortcuts)));
+            EyeComfortEnabled ? "EyeComfort" : Theme.ToString(), ShortcutsEnabled, _shortcuts,
+            CreditAsNegative)));
     }
 
     private sealed record SavedPreferences(string Theme, bool ShortcutsEnabled,
-        Dictionary<string, ShortcutBinding?>? Shortcuts = null);
+        Dictionary<string, ShortcutBinding?>? Shortcuts = null, bool CreditAsNegative = true);
 }

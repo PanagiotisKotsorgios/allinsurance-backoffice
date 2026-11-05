@@ -28,8 +28,12 @@ public sealed class PolicyCardData
     public int? CoverageDurationValue { get; set; }
     public string? CoverageDurationUnit { get; set; }
     public string? PreferredPaymentMethod { get; set; }
+    public string? PaymentRecipient { get; set; }
+    public string? PaymentCode { get; set; }
     public DateTime? CompanyPaymentDueDate { get; set; }
     public DateTime? CustomerReceivedAt { get; set; }
+    public DateTime? CancellationDate { get; set; }
+    public string? CancellationReason { get; set; }
     public decimal? InsuredValue { get; set; }
     public decimal? GrossPremium { get; set; }
     public decimal? NetPremium { get; set; }

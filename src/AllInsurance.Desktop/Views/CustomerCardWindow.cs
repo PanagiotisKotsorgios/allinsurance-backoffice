@@ -708,6 +708,7 @@ public sealed partial class CustomerCardWindow : Window
         {
             _currency = await _transactionSettings.GetCurrencyAsync();
             methods = (await _filterService.ChoicesAsync("Τρόποι πληρωμής"))
+                .Concat(["Ταχυπληρωμή"])
                 .Concat(_customer.BusinessRecords.Where(item => item.SectionKey == "policies")
                     .Select(item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson)
                         .PreferredPaymentMethod)

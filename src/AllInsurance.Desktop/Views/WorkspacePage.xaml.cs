@@ -298,6 +298,7 @@ public sealed partial class WorkspacePage : Page
     }
 
     private void ShowSettings() { MainNavigation.SelectedItem = null; SectionHost.Content = new SettingsPage(); }
+    private void ShowAgencyProfile() { MainNavigation.SelectedItem = null; SectionHost.Content = new AgencyProfilePage(); }
     private void ShowFilterOptions() { MainNavigation.SelectedItem = null; SectionHost.Content = new FilterOptionsPage(); }
     private void ShowCommissions()
     {
@@ -396,6 +397,7 @@ public sealed partial class WorkspacePage : Page
         }
     }
     private void Settings_Click(object sender, RoutedEventArgs e) => ShowSettings();
+    private void AgencyProfile_Click(object sender, RoutedEventArgs e) => ShowAgencyProfile();
     private void FilterOptions_Click(object sender, RoutedEventArgs e) => ShowFilterOptions();
     private void Commissions_Click(object sender, RoutedEventArgs e) => ShowCommissions();
     private void Shortcuts_Click(object sender, RoutedEventArgs e) => ShowShortcuts();

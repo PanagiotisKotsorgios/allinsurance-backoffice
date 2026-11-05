@@ -48,6 +48,7 @@ public sealed partial class SettingsPage : Page
             ElementTheme.Dark => 2,
             _ => 0
         };
+        CreditDisplayChoice.SelectedIndex = _preferences.CreditAsNegative ? 0 : 1;
         DatabasePathText.Text = "Βάση δεδομένων: " + Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "AllInsurance", "Data", "allinsurance.db");
@@ -98,6 +99,17 @@ public sealed partial class SettingsPage : Page
         {
             await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
         }
+    }
+
+    private async void SaveCreditDisplay_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _preferences.SetCreditAsNegative(CreditDisplayChoice.SelectedIndex != 1);
+            CreditDisplayStatusText.Text = "Η εμφάνιση πιστωτικού υπολοίπου αποθηκεύτηκε.";
+            await UiAlerts.ShowSuccessAsync(XamlRoot, CreditDisplayStatusText.Text);
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
     private async void SaveBackupSchedule_Click(object sender, RoutedEventArgs e)

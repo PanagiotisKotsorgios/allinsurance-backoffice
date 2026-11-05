@@ -72,6 +72,8 @@ public sealed partial class BusinessRecordCardWindow
         var enabled = _record.Id != Guid.Empty && _record.DocumentType is null or "Ασφαλιστήριο";
         if (_policyReceiptButton is not null) _policyReceiptButton.IsEnabled = enabled;
         if (_policyPaymentButton is not null) _policyPaymentButton.IsEnabled = enabled;
+        if (_footerReceiptButton is not null) _footerReceiptButton.IsEnabled = enabled;
+        if (_footerPaymentButton is not null) _footerPaymentButton.IsEnabled = enabled;
     }
 
     private void RefreshPolicyMovementRows()
@@ -81,13 +83,72 @@ public sealed partial class BusinessRecordCardWindow
         foreach (var item in _policyTransactions.OrderByDescending(value => value.OccurredAtUtc))
         {
             var label = item.Type == "receipt" ? "Είσπραξη" : "Πληρωμή προς πελάτη";
-            _policyMovementsList.Items.Add(new TextBlock { Text =
+            var row = new ListViewItem { Tag = item, Content = new TextBlock { Text =
                 $"{item.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}  ·  {label}  ·  " +
                 $"{item.Amount:N2} {TransactionSettingsService.Symbol(item.Currency)}  ·  " +
                 $"{item.PaymentMethod}  ·  {item.Reference ?? "—"}",
-                Margin = new Thickness(9, 7, 9, 7), TextWrapping = TextWrapping.Wrap });
+                Margin = new Thickness(9, 7, 9, 7), TextWrapping = TextWrapping.Wrap } };
+            row.DoubleTapped += async (_, _) => await ShowPolicyTransactionAsync(item);
+            row.RightTapped += (_, args) =>
+            {
+                var menu = new MenuFlyout();
+                var open = new MenuFlyoutItem { Text = "Προβολή κίνησης" };
+                open.Click += async (_, _) => await ShowPolicyTransactionAsync(item);
+                menu.Items.Add(open);
+                menu.ShowAt(row);
+                args.Handled = true;
+            };
+            _policyMovementsList.Items.Add(row);
         }
         _policyMovementsPager.Capture();
+    }
+
+    private async Task ShowPolicyTransactionAsync(CustomerTransaction transaction)
+    {
+        var customer = _record.CustomerId is Guid customerId
+            ? await _customers.GetAsync(customerId) : null;
+        var customerName = customer is null ? "—" : $"{customer.LastName} {customer.FirstName}".Trim();
+        var content = new StackPanel { Spacing = 8, Width = 440 };
+        void Add(string label, string? value)
+        {
+            content.Children.Add(new TextBlock { Text = label,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+            content.Children.Add(new TextBlock { Text = string.IsNullOrWhiteSpace(value) ? "—" : value,
+                TextWrapping = TextWrapping.Wrap });
+        }
+        Add("Αριθμός κίνησης", transaction.Id.ToString("N").ToUpperInvariant());
+        Add("Πελάτης", customerName);
+        Add("Ασφαλιστήριο", _record.Title);
+        Add("Ημερομηνία", transaction.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"));
+        Add("Ποσό", $"{transaction.Amount:N2} {transaction.Currency}");
+        Add("Τρόπος πληρωμής", transaction.PaymentMethod);
+        Add("Αναφορά", transaction.Reference);
+        Add("Αιτιολογία", transaction.Description);
+        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
+            Title = transaction.Type == "receipt" ? "Καρτέλα είσπραξης" : "Καρτέλα πληρωμής",
+            Content = new ScrollViewer { Content = content, MaxHeight = 520 },
+            PrimaryButtonText = transaction.Type == "receipt" ? "Εξαγωγή PDF" : null,
+            SecondaryButtonText = _record.CustomerId is not null ? "Άνοιγμα πελάτη" : null,
+            CloseButtonText = "Κλείσιμο" };
+        var result = await DialogButtonStyles.ShowAsync(dialog);
+        if (result == ContentDialogResult.Secondary && _record.CustomerId is Guid linkedCustomerId)
+        {
+            if (_linkedCustomerCard is not null) _linkedCustomerCard.BringToFront();
+            else
+            {
+                _linkedCustomerCard = new CustomerCardWindow(linkedCustomerId);
+                _linkedCustomerCard.Closed += (_, _) => { _linkedCustomerCard = null; BringToFront(); };
+                _linkedCustomerCard.BringToFront();
+            }
+            return;
+        }
+        if (result != ContentDialogResult.Primary) return;
+        try
+        {
+            if (await ReceiptPdfExporter.ExportAsync(this, transaction, customerName, _record.Title))
+                await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η απόδειξη PDF εξήχθη επιτυχώς.");
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
     private async Task AddPolicyTransactionAsync(string type)
@@ -95,10 +156,18 @@ public sealed partial class BusinessRecordCardWindow
         if (_record.Id == Guid.Empty || _record.CustomerId is not Guid customerId ||
             _record.DocumentType is not (null or "Ασφαλιστήριο"))
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Αποθηκεύστε πρώτα ένα εκδομένο ασφαλιστήριο."); return; }
+        if (type == "receipt" && _policyData.PaymentRecipient is
+            ("Στην ασφαλιστική" or "Στο πρακτορείο"))
+        {
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+                "Η πληρωμή έχει οριστεί απευθείας προς τον φορέα. Αλλάξτε πρώτα το «Πού πληρώνει ο πελάτης» για είσπραξη στο γραφείο.");
+            return;
+        }
         try
         {
             _policyCurrency = await _policySettings.GetCurrencyAsync();
             var methods = (await _policyFilters.ChoicesAsync("Τρόποι πληρωμής"))
+                .Concat(["Ταχυπληρωμή"])
                 .Concat(string.IsNullOrWhiteSpace(_policyData.PreferredPaymentMethod)
                     ? [] : [_policyData.PreferredPaymentMethod])
                 .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
@@ -310,10 +379,6 @@ public sealed partial class BusinessRecordCardWindow
             next.Click += async (_, _) => await OpenRelatedPolicyAsync(nextRecord.Id);
             links.Children.Add(next);
         }
-        var renew = new ActionButton { Kind = "Add", Label = "Νέα αίτηση ανανέωσης",
-            IsEnabled = _record.Id != Guid.Empty && _record.DocumentType is null or "Ασφαλιστήριο" };
-        renew.Click += async (_, _) => await OpenNewRenewalAsync();
-        links.Children.Add(renew);
         panel.Children.Add(links);
         _policyHistoryList = new ListView { Height = 350 };
         TableRowStriping.Attach(_policyHistoryList);
@@ -361,6 +426,8 @@ public sealed partial class BusinessRecordCardWindow
     {
         if (_record.Id == Guid.Empty || _record.CustomerId is not Guid ownerId)
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Αποθηκεύστε πρώτα το ασφαλιστήριο."); return; }
+        if (_record.DocumentType is not (null or "Ασφαλιστήριο"))
+        { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Ανανέωση δημιουργείται από εκδομένο ασφαλιστήριο."); return; }
         if (_policyRenewalCard is not null) { _policyRenewalCard.BringToFront(); return; }
         _policyRenewalCard = new BusinessRecordCardWindow("policies", customerId: ownerId,
             vehicleId: _policyData.VehicleId, insurerName: _policyData.Insurer,
@@ -370,5 +437,38 @@ public sealed partial class BusinessRecordCardWindow
         { _allPolicyRecords = await _records.SearchAsync("policies"); RecordSaved?.Invoke(this, EventArgs.Empty); };
         _policyRenewalCard.Closed += (_, _) => { _policyRenewalCard = null; BringToFront(); };
         _policyRenewalCard.BringToFront();
+    }
+
+    private async Task CancelPolicyAsync()
+    {
+        if (_record.Id == Guid.Empty || _record.DocumentType is not (null or "Ασφαλιστήριο") ||
+            _record.Status == "Ακυρωμένο") return;
+        var date = new EditableDateInput { Date = DateTimeOffset.Now, MinHeight = 40 };
+        var reason = new TextBox { Header = "Αιτιολογία ακύρωσης *", AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap, MinHeight = 90 };
+        var form = new StackPanel { Spacing = 9, Width = 420,
+            Children = { new TextBlock { Text = "Ημερομηνία ακύρωσης *" }, date, reason,
+                new TextBlock { Text = "Τυχόν επιστροφή χρημάτων καταχωρίζεται χωριστά ως πληρωμή προς πελάτη.",
+                    TextWrapping = TextWrapping.Wrap } } };
+        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
+            Title = "Ακύρωση ασφαλιστηρίου", Content = form,
+            PrimaryButtonText = "Καταχώριση ακύρωσης", CloseButtonText = "Πίσω" };
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
+        if (date.Date is null || string.IsNullOrWhiteSpace(reason.Text))
+        {
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+                "Συμπληρώστε ημερομηνία και αιτιολογία ακύρωσης.");
+            return;
+        }
+        var oldStatus = _statusChoice?.SelectedItem as string;
+        var oldDate = _dates["canceldate"].Date;
+        var oldReason = _text["cancelreason"].Text;
+        _dates["canceldate"].Date = date.Date;
+        _text["cancelreason"].Text = reason.Text.Trim();
+        _statusChoice!.SelectedItem = "Ακυρωμένο";
+        if (await SaveAsync()) return;
+        _statusChoice.SelectedItem = oldStatus;
+        _dates["canceldate"].Date = oldDate;
+        _text["cancelreason"].Text = oldReason;
     }
 }

@@ -41,6 +41,13 @@
                     </ComboBox>
                     <controls:ActionButton Kind="Save" Label="Αποθήκευση θέματος" Click="SaveTheme_Click" HorizontalAlignment="Left" />
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />
+                    <ComboBox x:Name="CreditDisplayChoice" Header="Πιστωτικό υπόλοιπο ασφαλιστηρίου" MinWidth="280">
+                        <ComboBoxItem Content="Αρνητικό ποσό (π.χ. −25,00 €)" />
+                        <ComboBoxItem Content="Πιστωτικό ποσό σε πράσινο φόντο" />
+                    </ComboBox>
+                    <controls:ActionButton Kind="Save" Label="Αποθήκευση εμφάνισης υπολοίπου"
+                                           Click="SaveCreditDisplay_Click" HorizontalAlignment="Left" />
+                    <TextBlock x:Name="CreditDisplayStatusText" TextWrapping="Wrap" />
                 </StackPanel>
             </Border>
             <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="22">
