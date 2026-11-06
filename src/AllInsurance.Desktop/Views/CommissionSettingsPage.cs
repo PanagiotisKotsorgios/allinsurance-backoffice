@@ -369,13 +369,12 @@ public sealed class CommissionSettingsPage : Page
     {
         var box = new AutoSuggestBox { Header = label, Text = value ?? "",
             HorizontalAlignment = HorizontalAlignment.Stretch };
-        void UpdateSuggestions()
+        void UpdateSuggestions(bool showAll = false)
         {
-            box.ItemsSource = options.Where(item => item.Contains(box.Text,
-                StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+            box.ItemsSource = SearchSuggestions.FirstHundred(options, showAll ? "" : box.Text);
             box.IsSuggestionListOpen = box.ItemsSource is string[] { Length: > 0 };
         }
-        box.GotFocus += (_, _) => UpdateSuggestions();
+        box.GotFocus += (_, _) => UpdateSuggestions(showAll: true);
         box.TextChanged += (_, args) =>
         {
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)

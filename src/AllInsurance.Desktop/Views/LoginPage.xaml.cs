@@ -3,7 +3,6 @@ using AllInsurance.Desktop.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
 
@@ -12,6 +11,7 @@ namespace AllInsurance.Desktop.Views;
 public sealed partial class LoginPage : Page
 {
     public LoginViewModel ViewModel { get; }
+    private bool _passwordVisible;
 
     public LoginPage()
     {
@@ -25,10 +25,12 @@ public sealed partial class LoginPage : Page
 
     private void ShowPasswordChanged(object sender, RoutedEventArgs e)
     {
-        var show = sender is ToggleButton { IsChecked: true };
-        PasswordInput.PasswordRevealMode = show ? PasswordRevealMode.Visible : PasswordRevealMode.Hidden;
+        _passwordVisible = !_passwordVisible;
+        PasswordInput.PasswordRevealMode = _passwordVisible
+            ? PasswordRevealMode.Visible : PasswordRevealMode.Hidden;
+        PasswordEyeIcon.Glyph = _passwordVisible ? "\uE8F5" : "\uE890";
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ShowPasswordButton,
-            show ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού");
+            _passwordVisible ? "Απόκρυψη κωδικού" : "Εμφάνιση κωδικού");
     }
 
     private void PasswordKeyDown(object sender, KeyRoutedEventArgs e)

@@ -66,8 +66,8 @@ public sealed partial class PartnerCardWindow
         Suggest(right, "city", "Πόλη", _profile.City, _cities);
         Text(right, "postal", "Ταχυδρομικός κώδικας", _profile.PostalCode);
         var due = _snapshot.Due;
-        var dueColor = due > 0 ? Color.FromArgb(255, 198, 40, 40) :
-            due < 0 ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 101, 111, 123);
+        var dueColor = due > 0 ? StatusPalette.Negative :
+            due < 0 ? StatusPalette.Positive : StatusPalette.Neutral;
         right.Children.Add(CardFieldLayout.CreateRow("Υπόλοιπο συνεργάτη",
             new Border { Background = new SolidColorBrush(dueColor),
                 CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 5, 8, 5),
@@ -171,8 +171,8 @@ public sealed partial class PartnerCardWindow
     {
         var panel = Panel();
         var due = _snapshot.Due;
-        var color = due > 0 ? Color.FromArgb(255, 198, 40, 40) :
-            due < 0 ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 101, 111, 123);
+        var color = due > 0 ? StatusPalette.Negative :
+            due < 0 ? StatusPalette.Positive : StatusPalette.Neutral;
         panel.Children.Add(new Border { Background = new SolidColorBrush(color),
             CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 9, 14, 9),
             HorizontalAlignment = HorizontalAlignment.Left,
@@ -259,7 +259,7 @@ public sealed partial class PartnerCardWindow
         edit.IsEnabled = _editing;
         edit.Click += async (_, _) => await EditBankAsync(_bankChoice.SelectedIndex);
         Grid.SetColumn(edit, 2); host.Children.Add(edit);
-        var delete = BankIconButton("Διαγραφή τράπεζας", "\uE74D", Color.FromArgb(255, 198, 40, 40));
+        var delete = BankIconButton("Διαγραφή τράπεζας", "\uE74D", StatusPalette.Negative);
         delete.IsEnabled = _editing;
         delete.Click += async (_, _) =>
         {

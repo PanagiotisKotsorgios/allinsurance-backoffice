@@ -160,9 +160,8 @@ public sealed partial class BusinessRecordCardWindow
         if (index is not null && existing is null)
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε πρόσωπο."); return; }
         var choices = _vehicleCustomers.Select(item => new Choice(item.Id, item.FullName)).ToArray();
-        var person = new ComboBox { Header = "Πρόσωπο *", ItemsSource = choices,
-            DisplayMemberPath = nameof(Choice.Name), HorizontalAlignment = HorizontalAlignment.Stretch,
-            SelectedItem = choices.FirstOrDefault(item => item.Id == existing?.CustomerId) };
+        var person = new SearchablePicker<Choice>("Πρόσωπο *", choices, item => item.Name,
+            choices.FirstOrDefault(item => item.Id == existing?.CustomerId));
         var role = new ComboBox { Header = "Ρόλος *", ItemsSource = new[]
             { "Ιδιοκτήτης", "Συνιδιοκτήτης", "Οδηγός", "Ιδιοκτήτης και οδηγός" },
             HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -431,7 +430,7 @@ public sealed partial class BusinessRecordCardWindow
                     rows[rowIndex][column] is "Ενεργό" or "Σε εξέλιξη")
                 {
                     border.Background = new SolidColorBrush(rows[rowIndex][column] == "Ενεργό"
-                        ? Color.FromArgb(255, 69, 119, 88) : Color.FromArgb(255, 150, 113, 52));
+                        ? StatusPalette.Positive : StatusPalette.Caution);
                     if (content is TextBlock statusText)
                         statusText.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
                 }

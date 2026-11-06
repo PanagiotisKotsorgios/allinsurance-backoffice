@@ -303,7 +303,7 @@ public sealed partial class CustomerCardWindow : Window
         var dark = IsDarkTheme();
         _mainBalanceBadge.Background = balance == 0
             ? new SolidColorBrush(dark ? Color.FromArgb(255, 68, 74, 82) : Color.FromArgb(255, 225, 229, 234))
-            : new SolidColorBrush(Color.FromArgb(255, 198, 40, 40));
+            : StatusPalette.Brush(StatusPalette.Negative);
         _mainBalanceText.Foreground = new SolidColorBrush(balance == 0
             ? dark ? Colors.White : Color.FromArgb(255, 37, 45, 55)
             : Colors.White);
@@ -373,7 +373,7 @@ public sealed partial class CustomerCardWindow : Window
             PlaceholderText = "Έως ημερομηνία" };
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 205, ItemHeight = 42 };
-        filters.Children.Add(stateFilter);
+        if (category != "vehicles") filters.Children.Add(stateFilter);
         if (category == "policies")
         {
             filters.Children.Add(dateBasis);
@@ -381,8 +381,21 @@ public sealed partial class CustomerCardWindow : Window
             filters.Children.Add(untilFilter);
         }
         var filterGroup = new StackPanel { Spacing = 7 };
-        filterGroup.Children.Add(SearchFieldVisual.Wrap(search));
-        filterGroup.Children.Add(filters);
+        if (category == "vehicles")
+        {
+            var compact = new Grid { ColumnSpacing = 10,
+                ColumnDefinitions = { new ColumnDefinition(),
+                    new ColumnDefinition { Width = GridLength.Auto } } };
+            compact.Children.Add(SearchFieldVisual.Wrap(search));
+            Grid.SetColumn(stateFilter, 1);
+            compact.Children.Add(stateFilter);
+            filterGroup.Children.Add(compact);
+        }
+        else
+        {
+            filterGroup.Children.Add(SearchFieldVisual.Wrap(search));
+            filterGroup.Children.Add(filters);
+        }
         Grid.SetRow(filterGroup, 1);
         root.Children.Add(filterGroup);
         var commands = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
@@ -403,12 +416,13 @@ public sealed partial class CustomerCardWindow : Window
         var headers = new Grid { ColumnSpacing = 0, Width = 980,
             Background = TableHeaderBrush() };
         var widths = category == "policies"
-            ? new[] { 140, 230, 145, 130, 145, 190 }
+            ? new[] { 165, 180, 150, 125, 105, 105, 150 }
             : new[] { 150, 140, 220, 150, 150, 170 };
         foreach (var width in widths)
             headers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
         var names = category == "policies"
-            ? new[] { "Τύπος", "Εταιρεία", "Έναρξη", "Διάρκεια", "Λήξη", "Όχημα / πινακίδα" }
+            ? new[] { "Αριθμός συμβολαίου", "Εταιρεία", "Όχημα / πινακίδα",
+                "Έναρξη", "Διάρκεια", "Λήξη", "Τύπος" }
             : new[] { "Πινακίδα", "Χρήση", "Περιγραφή", "Μάρκα", "Μοντέλο", "Κατάσταση" };
         for (var index = 0; index < names.Length; index++)
         {
@@ -486,9 +500,9 @@ public sealed partial class CustomerCardWindow : Window
         foreach (var item in details)
         {
             var values = category == "policies"
-                ? new[] { item.Value ?? "Παλαιά καταχώριση", item.Title,
+                ? new[] { item.Value ?? "—", item.Title, "—",
                     item.EffectiveFrom?.ToString("dd/MM/yyyy"), "—",
-                    item.EffectiveUntil?.ToString("dd/MM/yyyy"), "—" }
+                    item.EffectiveUntil?.ToString("dd/MM/yyyy"), "Παλαιά καταχώριση" }
                 : new[] { item.Title, item.Value, item.Notes, "—", "—",
                     item.IsHistorical ? "Ανενεργό" : "Ενεργό" };
             list.Items.Add(DetailListItem(category, item, values));
@@ -529,9 +543,11 @@ public sealed partial class CustomerCardWindow : Window
                     ? $"{value} {policy.CoverageDurationUnit ?? "μήνες"}"
                     : policy.CoverageDurationMonths is int months ? $"{months} μήνες" : "—";
                 list.Items.Add(DetailListItem(category, item,
-                    item.DocumentType ?? "Ασφαλιστήριο", policy.Insurer ?? item.RelatedParty,
+                    policy.PolicyNumber ?? item.Reference ?? item.Title,
+                    policy.Insurer ?? item.RelatedParty, plate,
                     policy.StartDate?.ToString("dd/MM/yyyy") ?? item.EventDate?.ToString("dd/MM/yyyy"),
-                    duration, policy.EndDate?.ToString("dd/MM/yyyy"), plate));
+                    duration, policy.EndDate?.ToString("dd/MM/yyyy"),
+                    item.DocumentType ?? "Ασφαλιστήριο"));
             }
             else
             {
@@ -556,7 +572,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         var row = new Grid { ColumnSpacing = 0, Width = 980, Height = 39 };
         var widths = category == "policies"
-            ? new[] { 140, 230, 145, 130, 145, 190 }
+            ? new[] { 165, 180, 150, 125, 105, 105, 150 }
             : new[] { 150, 140, 220, 150, 150, 170 };
         foreach (var width in widths)
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
@@ -568,7 +584,7 @@ public sealed partial class CustomerCardWindow : Window
                 BorderThickness = index == cells.Length - 1 ? new Thickness(0, 0, 0, 1) :
                     new Thickness(0, 0, 1, 1),
                 Padding = new Thickness(10, 5, 10, 5) };
-            if (category == "policies" && source is BusinessRecord policyRecord && index == 0)
+            if (category == "policies" && source is BusinessRecord policyRecord && index == cells.Length - 1)
             {
                 var policy = BusinessRecordDetails.Read<PolicyCardData>(policyRecord.DetailsJson);
                 var cancellation = policyRecord.DocumentType?.Contains("ακύρ",
@@ -576,8 +592,8 @@ public sealed partial class CustomerCardWindow : Window
                 cell.Background = cancellation ? PolicyStatusColors.Background(policyRecord.DocumentType,
                     policyRecord.Status, policy.EndDate) : policyRecord.Status switch
                 {
-                    "Ενεργό" => new SolidColorBrush(Color.FromArgb(255, 69, 119, 88)),
-                    "Σε εξέλιξη" => new SolidColorBrush(Color.FromArgb(255, 150, 113, 52)),
+                    "Ενεργό" => StatusPalette.Brush(StatusPalette.Positive),
+                    "Σε εξέλιξη" => StatusPalette.Brush(StatusPalette.Caution),
                     _ => PolicyStatusColors.Background(policyRecord.DocumentType,
                         policyRecord.Status, policy.EndDate)
                 };
@@ -587,8 +603,8 @@ public sealed partial class CustomerCardWindow : Window
             }
             if (category == "vehicles" && index == cells.Length - 1)
             {
-                cell.Background = new SolidColorBrush(cells[index] == "Ενεργό"
-                    ? Color.FromArgb(255, 69, 119, 88) : Color.FromArgb(255, 104, 112, 121));
+                cell.Background = StatusPalette.Brush(cells[index] == "Ενεργό"
+                    ? StatusPalette.Positive : StatusPalette.Neutral);
                 text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
             }
             Grid.SetColumn(cell, index);
@@ -820,16 +836,17 @@ public sealed partial class CustomerCardWindow : Window
                 .OrderBy(record => record.Title)
                 .Select(record => new PolicyChoice(record.Id,
                     $"{record.Title} · {record.Reference ?? "χωρίς αριθμό"}"))).ToArray();
-        var policy = new ComboBox { Header = "Σύνδεση με ασφαλιστήριο", ItemsSource = policies,
-            DisplayMemberPath = nameof(PolicyChoice.Name), SelectedIndex = 0,
-            HorizontalAlignment = HorizontalAlignment.Stretch };
+        var policy = new SearchablePicker<PolicyChoice>("Σύνδεση με ασφαλιστήριο",
+            policies, item => item.Name, policies[0]);
         policy.SelectionChanged += (_, _) =>
         {
-            var selectedId = (policy.SelectedItem as PolicyChoice)?.Id;
+            if (method.SelectedItem is string) return;
+            var selectedId = policy.SelectedItem?.Id;
             var selectedPolicy = _customer.BusinessRecords.FirstOrDefault(item => item.Id == selectedId);
             var preferred = selectedPolicy is null ? null :
                 BusinessRecordDetails.Read<PolicyCardData>(selectedPolicy.DetailsJson).PreferredPaymentMethod;
-            method.SelectedItem = methods.FirstOrDefault(value => value == preferred);
+            if (!string.IsNullOrWhiteSpace(preferred))
+                method.SelectedItem = methods.FirstOrDefault(value => value == preferred);
         };
         var description = new TextBox { Header = "Αιτιολογία / σημειώσεις", AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap, Height = 74 };
@@ -853,7 +870,7 @@ public sealed partial class CustomerCardWindow : Window
                 throw new InvalidOperationException("Το νόμισμα άλλαξε. Ανοίξτε ξανά την καταχώριση.");
             await _service.AddTransactionAsync(_customer.Id, type, ParseAmount(amount.Text, false),
                 description.Text, paymentMethod, reference.Text,
-                (policy.SelectedItem as PolicyChoice)?.Id);
+                policy.SelectedItem?.Id);
             _customer = await _service.GetAsync(_customer.Id) ?? _customer;
             BuildTabs(preserveSelectedTab: true);
             UpdateHeader();
@@ -1070,7 +1087,7 @@ public sealed partial class CustomerCardWindow : Window
             var mark = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4),
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Background = new SolidColorBrush(checkedValue
-                    ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115)),
+                    ? StatusPalette.Positive : StatusPalette.Neutral),
                 Child = new TextBlock { Text = checkedValue ? "✓" : "",
                     Foreground = new SolidColorBrush(Colors.White), FontSize = 16,
                     FontWeight = Microsoft.UI.Text.FontWeights.Bold,
@@ -1106,11 +1123,44 @@ public sealed partial class CustomerCardWindow : Window
             MinHeight = 38, Height = 38,
             PlaceholderText = "Επιλέξτε", HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
-        form.Children.Add(CreateFieldRow(label, input));
+        var host = new Grid { ColumnSpacing = 6,
+            ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto } } };
+        host.Children.Add(input);
+        if (_editing)
+        {
+            var add = new ActionButton { Kind = "Add", Label = "Προσθήκη " + label,
+                IconOnly = true, Width = 38, Height = 38 };
+            ToolTipService.SetToolTip(add, "Προσθήκη νέας επιλογής: " + label);
+            add.Click += async (_, _) => await AddCatalogValueAsync(input, category, label);
+            Grid.SetColumn(add, 1);
+            host.Children.Add(add);
+        }
+        form.Children.Add(CreateFieldRow(label, host));
         WireChoiceTransfer(form, input);
         _readFields.Add(() => setter(input.SelectedItem as string ?? selected));
         _ = LoadCatalogChoicesAsync(input, category, selected);
         return input;
+    }
+
+    private async Task AddCatalogValueAsync(ComboBox input, string category, string label)
+    {
+        var value = new TextBox { Header = "Νέα τιμή", PlaceholderText = "Πληκτρολογήστε " + label,
+            MinWidth = 300, MaxLength = 160 };
+        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
+            Title = "Προσθήκη: " + label, Content = value,
+            PrimaryButtonText = "Προσθήκη", CloseButtonText = "Ακύρωση" };
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
+        try
+        {
+            var added = value.Text.Trim();
+            if (added.Length == 0) throw new ArgumentException("Συμπληρώστε νέα τιμή.");
+            await _filterService.SaveAsync(null, category, added);
+            await LoadCatalogChoicesAsync(input, category, added);
+            input.SelectedItem = added;
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η επιλογή προστέθηκε επιτυχώς.");
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
     private async Task LoadCatalogChoicesAsync(ComboBox input, string category, string? selected)

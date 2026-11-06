@@ -206,16 +206,13 @@ public sealed partial class CustomerCardWindow
             input.Tag = options.ToArray();
             input.GotFocus += (_, _) =>
             {
-                input.ItemsSource = options.Where(value => value.Contains(input.Text.Trim(),
-                    StringComparison.CurrentCultureIgnoreCase)).Take(20).ToArray();
+                input.ItemsSource = SearchSuggestions.FirstHundred(options, "");
                 input.IsSuggestionListOpen = true;
             };
             input.TextChanged += (_, args) =>
             {
                 if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
-                var term = input.Text.Trim();
-                input.ItemsSource = options.Where(value =>
-                    value.Contains(term, StringComparison.CurrentCultureIgnoreCase)).Take(20).ToArray();
+                input.ItemsSource = SearchSuggestions.FirstHundred(options, input.Text);
             };
             input.SuggestionChosen += (_, args) => input.Text = args.SelectedItem as string ?? input.Text;
         }
@@ -462,9 +459,9 @@ public sealed partial class CustomerCardWindow
                     {
                         cell.Background = new SolidColorBrush(item.Type switch
                         {
-                            "receipt" => Color.FromArgb(255, 69, 119, 88),
-                            "payment" => Color.FromArgb(255, 173, 78, 78),
-                            _ => Color.FromArgb(255, 83, 115, 149)
+                            "receipt" => StatusPalette.Positive,
+                            "payment" => StatusPalette.Negative,
+                            _ => StatusPalette.Informational
                         });
                         text.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
                     }

@@ -8,7 +8,7 @@ namespace AllInsurance.Desktop.Controls;
 
 internal static class BalanceVisual
 {
-    private static readonly SolidColorBrush DebtBrush = new(Color.FromArgb(255, 198, 40, 40));
+    private static readonly SolidColorBrush DebtBrush = StatusPalette.Brush(StatusPalette.Negative);
 
     public static Border Create(decimal amount, string text, double fontSize = 14)
     {

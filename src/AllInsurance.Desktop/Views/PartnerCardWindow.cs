@@ -321,7 +321,7 @@ public sealed partial class PartnerCardWindow : Window
             var mark = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4),
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Background = new SolidColorBrush(value
-                    ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115)),
+                    ? StatusPalette.Positive : StatusPalette.Neutral),
                 Child = new TextBlock { Text = value ? "✓" : "",
                     Foreground = new SolidColorBrush(Colors.White), FontSize = 16,
                     FontWeight = Microsoft.UI.Text.FontWeights.Bold,
@@ -342,12 +342,16 @@ public sealed partial class PartnerCardWindow : Window
             IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Πληκτρολογήστε για αναζήτηση" };
+        void UpdateSuggestions(bool showAll = false)
+        {
+            field.ItemsSource = SearchSuggestions.FirstHundred(options, showAll ? "" : field.Text);
+            field.IsSuggestionListOpen = field.ItemsSource is string[] { Length: > 0 };
+        }
+        field.GotFocus += (_, _) => UpdateSuggestions(showAll: true);
         field.TextChanged += (_, args) =>
         {
             if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
-            var term = field.Text.Trim();
-            field.ItemsSource = term.Length < 2 ? [] : options.Where(item =>
-                item.Contains(term, StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+            UpdateSuggestions();
         };
         field.SuggestionChosen += (_, args) => field.Text = args.SelectedItem as string ?? field.Text;
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _suggest[key] = field;
@@ -376,7 +380,7 @@ public sealed partial class PartnerCardWindow : Window
         {
             var profile = ReadProfile();
             if (profile.TaxNumber is null || profile.TaxNumber.Length != 9 ||
-                !profile.TaxNumber.All(char.IsDigit))
+                !profile.TaxNumber.All(char.IsAsciiDigit))
                 throw new ArgumentException("Συμπληρώστε έγκυρο ΑΦΜ 9 ψηφίων.");
             if (profile.PersonType == "Νομικό πρόσωπο" && string.IsNullOrWhiteSpace(profile.CompanyName))
                 throw new ArgumentException("Η επωνυμία είναι υποχρεωτική για νομικό πρόσωπο.");

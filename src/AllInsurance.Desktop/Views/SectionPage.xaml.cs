@@ -755,8 +755,9 @@ public sealed partial class SectionPage : Page
             var status = _section.Key == "vehicles" ? row.ExtraDisplay : row.Record.Status;
             var highlighted = status is "Ενεργό" or "Ενεργός" or "Ασφαλισμένο" or
                 "Σε εξέλιξη" or "Πιθανός";
-            statusCell.Background = highlighted ? new SolidColorBrush(status is "Ενεργό" or "Ενεργός" or "Ασφαλισμένο"
-                ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 204, 111, 25)) : null;
+            statusCell.Background = highlighted ? StatusPalette.Brush(
+                status is "Ενεργό" or "Ενεργός" or "Ασφαλισμένο"
+                    ? StatusPalette.Positive : StatusPalette.Caution) : null;
             statusText.Foreground = highlighted ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
         }
         if (_section.Key == "partners" &&
@@ -764,7 +765,7 @@ public sealed partial class SectionPage : Page
         {
             var outstanding = row.PartnerBalance.GetValueOrDefault() != 0m;
             balanceCell.Background = outstanding
-                ? new SolidColorBrush(Color.FromArgb(255, 198, 40, 40)) : null;
+                ? StatusPalette.Brush(StatusPalette.Negative) : null;
             balanceText.Foreground = outstanding
                 ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
         }
@@ -772,7 +773,7 @@ public sealed partial class SectionPage : Page
             grid.Children[6] is Border { Child: TextBlock dueText } dueCell)
         {
             var outstanding = row.OrganizationBalance.GetValueOrDefault() != 0m;
-            dueCell.Background = outstanding ? new SolidColorBrush(Color.FromArgb(255, 198, 40, 40)) : null;
+            dueCell.Background = outstanding ? StatusPalette.Brush(StatusPalette.Negative) : null;
             dueText.Foreground = outstanding ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
         }
         if (firstLoad && FindRecordContainer(grid) is ListViewItem container)

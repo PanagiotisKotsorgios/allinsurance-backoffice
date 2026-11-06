@@ -4,6 +4,20 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
+    <Page.Resources>
+        <Style x:Key="PasswordEyeButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent" CornerRadius="6">
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <Grid>
         <Border MaxWidth="440" Margin="12" Padding="20" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12"
@@ -20,17 +34,17 @@
                 <TextBlock Text="Κωδικός πρόσβασης" />
                 <Grid>
                     <PasswordBox x:Name="PasswordInput" PasswordChanged="PasswordChanged"
-                                 PasswordRevealMode="Hidden" Padding="12,0,52,0"
+                                 PasswordRevealMode="Hidden" Padding="12,6,52,0"
                                  Height="44" MinHeight="44" VerticalContentAlignment="Center"
                                  KeyDown="PasswordKeyDown" AutomationProperties.Name="Κωδικός πρόσβασης" />
-                    <ToggleButton x:Name="ShowPasswordButton" Width="40" Height="36" MinHeight="36"
+                    <Button x:Name="ShowPasswordButton" Width="40" Height="36" MinHeight="36"
                                   Padding="0" Margin="0,0,5,0" HorizontalAlignment="Right"
-                                  VerticalAlignment="Center" Background="Transparent" BorderThickness="0"
-                                  Checked="ShowPasswordChanged" Unchecked="ShowPasswordChanged"
+                                  VerticalAlignment="Center" Style="{StaticResource PasswordEyeButtonStyle}"
+                                  Click="ShowPasswordChanged"
                                   AutomationProperties.Name="Εμφάνιση κωδικού">
-                        <FontIcon Glyph="&#xE890;" FontFamily="Segoe MDL2 Assets"
+                        <FontIcon x:Name="PasswordEyeIcon" Glyph="&#xE890;" FontFamily="Segoe MDL2 Assets"
                                   Foreground="{ThemeResource BrandAccentBrush}" FontSize="17" />
-                    </ToggleButton>
+                    </Button>
                 </Grid>
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="{ThemeResource ErrorTextBrush}"
                            TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive" />

@@ -6,7 +6,7 @@ using System.IO;
 
 namespace AllInsurance.Desktop.Views;
 
-internal static class DemoDataSeeder
+internal static partial class DemoDataSeeder
 {
     private static readonly string MarkerPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -29,47 +29,50 @@ internal static class DemoDataSeeder
             record.TaxNumber = taxNumber;
             await customers.SaveAsync(record);
         }
-        if (File.Exists(MarkerPath)) return;
-        Guid? sampleCustomerId = null;
-        if (existingCustomers.Count == 0)
+        if (!File.Exists(MarkerPath))
         {
-            sampleCustomerId = await customers.SaveAsync(new Customer
+            Guid? sampleCustomerId = null;
+            if (existingCustomers.Count == 0)
             {
-                LastName = "ΔΕΙΓΜΑ", FirstName = "Πελάτη", City = "Αθήνα",
-                TaxNumber = "900000001",
-                PrimaryMobile = "6900000000", PrimaryEmail = "demo@example.invalid",
-                Notes = "Δοκιμαστική καταχώριση για έλεγχο της εφαρμογής.",
-                OpeningBalance = 0m
-            });
-            await customers.SaveAsync(new Customer
-            {
-                LastName = "ΔΟΚΙΜΑΣΤΙΚΗ", FirstName = "Εταιρεία", City = "Πάτρα",
-                TaxNumber = "900000002",
-                CompanyName = "ΔΟΚΙΜΑΣΤΙΚΗ ΕΤΑΙΡΕΙΑ", CustomerKind = "Επιχείρηση",
-                PrimaryMobile = "6900000001", PrimaryEmail = "company@example.invalid",
-                Notes = "Δοκιμαστική καταχώριση για έλεγχο της εφαρμογής.",
-                OpeningBalance = 120m, IsActive = false
-            });
-        }
-        foreach (var section in WorkspaceSections.All.Where(item =>
-            item.Key is not ("customers" or "renewals")))
-        {
-            if ((await records.SearchAsync(section.Key)).Count != 0) continue;
-            for (var index = 1; index <= 2; index++)
-                await records.SaveAsync(new BusinessRecord
+                sampleCustomerId = await customers.SaveAsync(new Customer
                 {
-                    SectionKey = section.Key,
-                    Title = index == 1 ? $"ΔΕΙΓΜΑ · {section.Columns[0]}" :
-                        $"ΔΟΚΙΜΗ · {section.Columns[0]}",
-                    Reference = $"DEMO-{index:000}",
-                    RelatedParty = index == 1 ? "Δοκιμαστική καταχώριση" : "Δοκιμαστικό στοιχείο",
-                    Status = index == 1 ? "Ενεργό" : "Σε εξέλιξη",
-                    EventDate = DateTime.Today.AddDays(index == 1 ? 0 : -7),
-                    CustomerId = section.Key is "vehicles" or "policies" or "claims" ? sampleCustomerId : null,
-                    Notes = "Δοκιμαστική εγγραφή για έλεγχο της εμφάνισης και των ενεργειών."
+                    LastName = "ΔΕΙΓΜΑ", FirstName = "Πελάτη", City = "Αθήνα",
+                    TaxNumber = "900000001",
+                    PrimaryMobile = "6900000000", PrimaryEmail = "demo@example.invalid",
+                    Notes = "Δοκιμαστική καταχώριση για έλεγχο της εφαρμογής.",
+                    OpeningBalance = 0m
                 });
+                await customers.SaveAsync(new Customer
+                {
+                    LastName = "ΔΟΚΙΜΑΣΤΙΚΗ", FirstName = "Εταιρεία", City = "Πάτρα",
+                    TaxNumber = "900000002",
+                    CompanyName = "ΔΟΚΙΜΑΣΤΙΚΗ ΕΤΑΙΡΕΙΑ", CustomerKind = "Επιχείρηση",
+                    PrimaryMobile = "6900000001", PrimaryEmail = "company@example.invalid",
+                    Notes = "Δοκιμαστική καταχώριση για έλεγχο της εφαρμογής.",
+                    OpeningBalance = 120m, IsActive = false
+                });
+            }
+            foreach (var section in WorkspaceSections.All.Where(item =>
+                item.Key is not ("customers" or "renewals")))
+            {
+                if ((await records.SearchAsync(section.Key)).Count != 0) continue;
+                for (var index = 1; index <= 2; index++)
+                    await records.SaveAsync(new BusinessRecord
+                    {
+                        SectionKey = section.Key,
+                        Title = index == 1 ? $"ΔΕΙΓΜΑ · {section.Columns[0]}" :
+                            $"ΔΟΚΙΜΗ · {section.Columns[0]}",
+                        Reference = $"DEMO-{index:000}",
+                        RelatedParty = index == 1 ? "Δοκιμαστική καταχώριση" : "Δοκιμαστικό στοιχείο",
+                        Status = index == 1 ? "Ενεργό" : "Σε εξέλιξη",
+                        EventDate = DateTime.Today.AddDays(index == 1 ? 0 : -7),
+                        CustomerId = section.Key is "vehicles" or "policies" or "claims" ? sampleCustomerId : null,
+                        Notes = "Δοκιμαστική εγγραφή για έλεγχο της εμφάνισης και των ενεργειών."
+                    });
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(MarkerPath)!);
+            File.WriteAllText(MarkerPath, DateTime.UtcNow.ToString("O"));
         }
-        Directory.CreateDirectory(Path.GetDirectoryName(MarkerPath)!);
-        File.WriteAllText(MarkerPath, DateTime.UtcNow.ToString("O"));
+        await SeedRichFixturesOnceAsync(services);
     }
 }

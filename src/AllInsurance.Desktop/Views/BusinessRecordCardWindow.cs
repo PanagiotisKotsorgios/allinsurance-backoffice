@@ -361,7 +361,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             var checkedValue = field.IsChecked == true;
             badge.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
             badge.Background = new SolidColorBrush(checkedValue
-                ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115));
+                ? StatusPalette.Positive : StatusPalette.Neutral);
             if (badge.Child is TextBlock mark) mark.Text = checkedValue ? "✓" : "";
         }
         LockChoice(_customerChoice, _editing && _fixedCustomerId is null);
@@ -385,7 +385,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                 var checkedValue = _payInInstallments.IsChecked == true;
                 _payInInstallmentsBadge.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
                 _payInInstallmentsBadge.Background = new SolidColorBrush(checkedValue
-                    ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115));
+                    ? StatusPalette.Positive : StatusPalette.Neutral);
                 if (_payInInstallmentsBadge.Child is TextBlock mark)
                     mark.Text = checkedValue ? "✓" : "";
             }
@@ -586,11 +586,18 @@ public sealed partial class BusinessRecordCardWindow : Window
         _insurerSuggest = new AutoSuggestBox { Text = data.Insurer ?? "",
             PlaceholderText = "Αναζήτηση ασφαλιστικής εταιρείας", MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
+        void UpdateInsurerSuggestions(bool showAll = false)
+        {
+            _insurerSuggest.ItemsSource = SearchSuggestions.FirstHundred(insurerNames,
+                showAll ? "" : _insurerSuggest.Text);
+            _insurerSuggest.IsSuggestionListOpen =
+                _insurerSuggest.ItemsSource is string[] { Length: > 0 };
+        }
+        _insurerSuggest.GotFocus += (_, _) => UpdateInsurerSuggestions(showAll: true);
         _insurerSuggest.TextChanged += (_, args) =>
         {
             if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
-            _insurerSuggest.ItemsSource = insurerNames.Where(name => name.Contains(
-                _insurerSuggest.Text, StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+            UpdateInsurerSuggestions();
         };
         _insurerSuggest.SuggestionChosen += (_, args) =>
             _insurerSuggest.Text = args.SelectedItem as string ?? _insurerSuggest.Text;
@@ -626,12 +633,21 @@ public sealed partial class BusinessRecordCardWindow : Window
         var vehicleItems = VehicleItems(_record.CustomerId);
         _vehicleChoice = new ComboBox { ItemsSource = vehicleItems,
             DisplayMemberPath = nameof(Choice.Name), MinHeight = 40, Height = 40,
-            HorizontalAlignment = HorizontalAlignment.Stretch };
+            HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _vehicleChoice.SelectedItem = vehicleItems.FirstOrDefault(item => item.Id == data.VehicleId) ?? vehicleItems[0];
         var vehicleHost = new Grid { ColumnSpacing = 4 };
         vehicleHost.ColumnDefinitions.Add(new ColumnDefinition());
         vehicleHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         vehicleHost.Children.Add(_vehicleChoice);
+        var vehicleSearch = SearchChoice(() =>
+                (_vehicleChoice.ItemsSource as IEnumerable<Choice>)?.ToArray() ?? [],
+            _vehicleChoice, "Αναζήτηση οχήματος του πελάτη");
+        vehicleHost.Children.Add(vehicleSearch);
+        _vehicleChoice.SelectionChanged += (_, _) =>
+        {
+            var name = (_vehicleChoice.SelectedItem as Choice)?.Name ?? "";
+            if (vehicleSearch.Text != name) vehicleSearch.Text = name;
+        };
         var openVehicle = new ActionButton { Kind = "Open", Label = "Άνοιγμα οχήματος",
             IconOnly = true, Width = 38, Height = 38 };
         openVehicle.Click += async (_, _) =>
@@ -708,10 +724,10 @@ public sealed partial class BusinessRecordCardWindow : Window
             var days = (due.Date - DateTime.Today).Days;
             dueText.Text = days < 0 ? $"Εκπρόθεσμο κατά {-days} ημέρες" :
                 days == 0 ? "Η απόδοση λήγει σήμερα" : $"Απόδοση σε {days} ημέρες";
-            dueBadge.Background = new SolidColorBrush(days < 0
-                ? Color.FromArgb(255, 166, 62, 62)
-                : days <= 30 ? Color.FromArgb(255, 177, 126, 39)
-                : Color.FromArgb(255, 52, 132, 79));
+            dueBadge.Background = StatusPalette.Brush(days < 0
+                ? StatusPalette.Negative
+                : days <= 30 ? StatusPalette.Caution
+                : StatusPalette.Positive);
         }
         _dates["companydue"].DateChanged += (_, _) => UpdateDueCountdown();
         UpdateDueCountdown();

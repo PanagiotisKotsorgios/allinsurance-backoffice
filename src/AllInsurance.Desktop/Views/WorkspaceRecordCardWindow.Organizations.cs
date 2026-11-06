@@ -120,8 +120,8 @@ public sealed partial class WorkspaceRecordCardWindow
             var amount = OrganizationBalance.Calculate(_record, _data, _all.GetValueOrDefault("policies") ?? []);
             balance.Text = amount > 0 ? $"Οφειλή προς {Singular()}: {amount:N2} €" :
                 amount < 0 ? $"Πιστωτικό υπόλοιπο από {Singular()}: {-amount:N2} €" : "Μηδενικό υπόλοιπο: 0,00 €";
-            badge.Background = new SolidColorBrush(amount == 0
-                ? Color.FromArgb(255, 96, 105, 115) : Color.FromArgb(255, 198, 40, 40));
+            badge.Background = StatusPalette.Brush(amount == 0
+                ? StatusPalette.Neutral : StatusPalette.Negative);
         }
         add.Click += async (_, _) =>
         {

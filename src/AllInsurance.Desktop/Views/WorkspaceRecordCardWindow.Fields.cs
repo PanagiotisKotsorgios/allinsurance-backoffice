@@ -412,7 +412,7 @@ public sealed partial class WorkspaceRecordCardWindow
             badge.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
             var checkedValue = box.IsChecked == true;
             badge.Background = new SolidColorBrush(checkedValue
-                ? Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 96, 105, 115));
+                ? StatusPalette.Positive : StatusPalette.Neutral);
             if (badge.Child is TextBlock mark) mark.Text = checkedValue ? "✓" : "";
         }
     }

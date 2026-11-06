@@ -9,18 +9,21 @@ internal static class PolicyStatusColors
     {
         if (Contains(documentType, "ακύρ") || Contains(status, "ακύρ") ||
             Contains(status, "άκυρ") || Contains(status, "ληγ"))
-            return Brush(166, 62, 62);
-        if (Contains(documentType, "πράσινη κάρτα")) return Brush(44, 128, 70);
+            return StatusPalette.Brush(StatusPalette.Negative);
+        if (Contains(documentType, "πράσινη κάρτα"))
+            return StatusPalette.Brush(StatusPalette.Positive);
         if (Contains(documentType, "πρόσθετη πράξη") || Contains(status, "πρόσθετη πράξη"))
-            return Brush(89, 153, 118);
-        if (Contains(documentType, "προσφορά")) return Brush(86, 112, 145);
-        if (Contains(documentType, "ειδοποιητήριο")) return Brush(65, 125, 165);
+            return Brush(105, 151, 122);
+        if (Contains(documentType, "προσφορά")) return Brush(102, 124, 149);
+        if (Contains(documentType, "ειδοποιητήριο"))
+            return StatusPalette.Brush(StatusPalette.Informational);
         if (Contains(documentType, "αίτηση") || Contains(status, "σε εξέλιξη"))
-            return Brush(177, 126, 39);
-        if (expiry is DateTime end && end.Date < DateTime.Today) return Brush(166, 62, 62);
+            return StatusPalette.Brush(StatusPalette.Caution);
+        if (expiry is DateTime end && end.Date < DateTime.Today)
+            return StatusPalette.Brush(StatusPalette.Negative);
         if (expiry is DateTime approaching && approaching.Date <= DateTime.Today.AddDays(30))
-            return Brush(177, 126, 39);
-        return Brush(52, 132, 79);
+            return StatusPalette.Brush(StatusPalette.Caution);
+        return StatusPalette.Brush(StatusPalette.Positive);
     }
 
     private static bool Contains(string? value, string token) =>

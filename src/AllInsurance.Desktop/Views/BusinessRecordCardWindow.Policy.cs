@@ -71,24 +71,32 @@ public sealed partial class BusinessRecordCardWindow
         panel.Children.Add(CardFieldLayout.CreateRow("Συνεργάτης", search));
     }
 
-    private AutoSuggestBox SearchChoice(Choice[] choices, ComboBox selected, string hint)
+    private AutoSuggestBox SearchChoice(Choice[] choices, ComboBox selected, string hint) =>
+        SearchChoice(() => choices, selected, hint);
+
+    private AutoSuggestBox SearchChoice(Func<Choice[]> choices, ComboBox selected, string hint)
     {
         var search = new AutoSuggestBox { Text = (selected.SelectedItem as Choice)?.Name ?? "",
             PlaceholderText = hint, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
+        void UpdateSuggestions(bool showAll = false)
+        {
+            search.ItemsSource = SearchSuggestions.FirstHundred(choices().Select(item => item.Name),
+                showAll ? "" : search.Text);
+            search.IsSuggestionListOpen = search.ItemsSource is string[] { Length: > 0 };
+        }
+        search.GotFocus += (_, _) => UpdateSuggestions(showAll: true);
         search.TextChanged += (_, args) =>
         {
             if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
-            search.ItemsSource = choices.Select(item => item.Name)
-                .Where(name => name.Contains(search.Text, StringComparison.CurrentCultureIgnoreCase))
-                .Take(30).ToArray();
-            selected.SelectedItem = choices.FirstOrDefault(item =>
+            UpdateSuggestions();
+            selected.SelectedItem = choices().FirstOrDefault(item =>
                 string.Equals(item.Name, search.Text, StringComparison.CurrentCultureIgnoreCase));
         };
         search.SuggestionChosen += (_, args) =>
         {
             search.Text = args.SelectedItem as string ?? search.Text;
-            selected.SelectedItem = choices.FirstOrDefault(item => item.Name == search.Text);
+            selected.SelectedItem = choices().FirstOrDefault(item => item.Name == search.Text);
         };
         _policySearchFields.Add(search);
         return search;
@@ -104,12 +112,17 @@ public sealed partial class BusinessRecordCardWindow
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var search = new AutoSuggestBox { Text = initial ?? "", PlaceholderText = "Αναζήτηση " + label,
             MinHeight = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
+        void UpdateSuggestions(bool showAll = false)
+        {
+            search.ItemsSource = SearchSuggestions.FirstHundred(options, showAll ? "" : search.Text);
+            search.IsSuggestionListOpen = search.ItemsSource is string[] { Length: > 0 };
+        }
+        search.GotFocus += (_, _) => UpdateSuggestions(showAll: true);
         search.TextChanged += (_, args) =>
         {
             backing.Text = search.Text;
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
-                search.ItemsSource = options.Where(value => value.Contains(search.Text,
-                    StringComparison.CurrentCultureIgnoreCase)).Take(30).ToArray();
+                UpdateSuggestions();
         };
         search.SuggestionChosen += (_, args) => search.Text = args.SelectedItem as string ?? search.Text;
         _policySearchFields.Add(search);
@@ -236,9 +249,9 @@ public sealed partial class BusinessRecordCardWindow
             balance < 0 ? negativeCredit ? $"Υπόλοιπο: {balance:N2} {symbol}" :
                 $"Πιστωτικό: {-balance:N2} {symbol}" : $"0,00 {symbol}";
         if ((badge ?? _policyBalanceBadge) is Border target)
-            target.Background = new SolidColorBrush(balance > 0 ? Color.FromArgb(255, 198, 40, 40) :
-                balance < 0 ? negativeCredit ? Color.FromArgb(255, 101, 111, 123) :
-                    Color.FromArgb(255, 25, 135, 75) : Color.FromArgb(255, 101, 111, 123));
+            target.Background = StatusPalette.Brush(balance > 0 ? StatusPalette.Negative :
+                balance < 0 ? negativeCredit ? StatusPalette.Neutral :
+                    StatusPalette.Positive : StatusPalette.Neutral);
     }
 
     private void BuildPolicyExtendedTabs(IReadOnlyList<CustomerListItem> customers,

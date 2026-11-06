@@ -33,24 +33,18 @@ public sealed partial class OfficeOperationsPage
         TextBox? net = null;
         TextBox? office = null;
         TextBox? over = null;
-        ComboBox? partner = null;
-        ComboBox? company = null;
+        SearchablePicker<Choice>? partner = null;
+        SearchablePicker<Choice>? company = null;
         if (_overcommissions)
         {
-            partner = new ComboBox { ItemsSource = _partners.Select(item =>
-                    new Choice(item.Id, item.Title)).ToArray(),
-                DisplayMemberPath = nameof(Choice.Name), MinHeight = 40,
-                HorizontalAlignment = HorizontalAlignment.Stretch };
-            partner.SelectedItem = (partner.ItemsSource as Choice[])?.FirstOrDefault(item =>
-                item.Id == existing?.PartnerId);
-            Add("Συνεργάτης *", partner);
-            company = new ComboBox { ItemsSource = _companies.Select(item =>
-                    new Choice(item.Id, item.Title)).ToArray(),
-                DisplayMemberPath = nameof(Choice.Name), MinHeight = 40,
-                HorizontalAlignment = HorizontalAlignment.Stretch };
-            company.SelectedItem = (company.ItemsSource as Choice[])?.FirstOrDefault(item =>
-                item.Id == existing?.CompanyId);
-            Add("Ασφαλιστική εταιρεία *", company);
+            var partners = _partners.Select(item => new Choice(item.Id, item.Title)).ToArray();
+            partner = new SearchablePicker<Choice>("Συνεργάτης *", partners, item => item.Name,
+                partners.FirstOrDefault(item => item.Id == existing?.PartnerId));
+            form.Children.Add(partner);
+            var companies = _companies.Select(item => new Choice(item.Id, item.Title)).ToArray();
+            company = new SearchablePicker<Choice>("Ασφαλιστική εταιρεία *", companies,
+                item => item.Name, companies.FirstOrDefault(item => item.Id == existing?.CompanyId));
+            form.Children.Add(company);
             gross = new TextBox { Text = Format(existing?.GrossPremium), PlaceholderText = "0,00" };
             net = new TextBox { Text = Format(existing?.NetPremium), PlaceholderText = "0,00" };
             office = new TextBox { Text = Format(existing?.OfficeCommission), PlaceholderText = "0,00" };
@@ -99,8 +93,8 @@ public sealed partial class OfficeOperationsPage
                 PaymentMethod = method?.Text,
                 Reference = reference.Text,
                 Notes = notes.Text,
-                PartnerId = (partner?.SelectedItem as Choice)?.Id,
-                CompanyId = (company?.SelectedItem as Choice)?.Id,
+                PartnerId = partner?.SelectedItem?.Id,
+                CompanyId = company?.SelectedItem?.Id,
                 GrossPremium = gross is null ? null : Parse(gross.Text, "μικτά ασφάλιστρα"),
                 NetPremium = net is null ? null : Parse(net.Text, "καθαρά ασφάλιστρα"),
                 OfficeCommission = office is null ? null : Parse(office.Text, "προμήθεια έδρας"),

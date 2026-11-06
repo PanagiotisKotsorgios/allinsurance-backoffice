@@ -105,7 +105,7 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
         if (record.SectionKey == "partners" && record.DetailsJson is not null)
         {
             var profile = PartnerProfileData.Read(record.DetailsJson);
-            if (profile.TaxNumber is not { Length: 9 } || !profile.TaxNumber.All(char.IsDigit))
+            if (profile.TaxNumber is not { Length: 9 } || !profile.TaxNumber.All(char.IsAsciiDigit))
                 throw new ArgumentException("Ο ΑΦΜ συνεργάτη πρέπει να έχει 9 ψηφία.");
             var otherProfiles = await db.BusinessRecords.AsNoTracking()
                 .Where(item => item.SectionKey == "partners" && item.Id != record.Id &&
