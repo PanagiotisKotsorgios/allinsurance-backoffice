@@ -210,6 +210,17 @@ public sealed partial class BusinessRecordCardWindow
         if (otherShares + percentage > 100)
         { await UiAlerts.ShowErrorAsync(_root.XamlRoot,
             $"Το σύνολο ιδιοκτησίας θα γίνει {otherShares + percentage:N2}%. Τα ποσοστά όλων των ιδιοκτητών δεν μπορούν να ξεπερνούν το 100%."); return; }
+        var activePolicy = _vehiclePolicies.Any(item =>
+            item.DocumentType is null or "Ασφαλιστήριο" && item.Status == "Ενεργό");
+        if (activePolicy &&
+            ((existing?.IsPrimaryOwner == true &&
+              (existing.CustomerId != customerId || primary.IsChecked != true)) ||
+             (primary.IsChecked == true && existing?.IsPrimaryOwner != true)))
+        {
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+                "Ο κύριος ιδιοκτήτης δεν αλλάζει όσο το όχημα έχει ενεργό ασφαλιστήριο.");
+            return;
+        }
         var updated = new VehiclePerson { CustomerId = customerId, Role = selectedRole,
             OwnershipPercent = percentage, IsPrimaryOwner = primary.IsChecked == true };
         if (updated.IsPrimaryOwner)
