@@ -142,7 +142,7 @@ public sealed partial class FilterOptionsPage : Page
     {
         try
         {
-            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "Data", "greek-settlements.txt");
+            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "Reference", "greek-settlements.txt");
             var values = await File.ReadAllLinesAsync(path);
             var count = await _filters.ImportAsync("Πόλεις", values);
             CustomCategory.Text = "";

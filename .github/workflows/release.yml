@@ -16,20 +16,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - name: Install installer compiler
-        shell: pwsh
-        env:
-          INNO_LICENSE_KEY: ${{ secrets.INNO_LICENSE_KEY }}
-        run: |
-          if (-not $env:INNO_LICENSE_KEY) {
-            throw 'Configure INNO_LICENSE_KEY for commercial installer builds.'
-          }
-          choco install innosetup --yes --no-progress
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $licensePath = 'HKCU:\Software\Jordan Russell\Inno Setup\License'
-          New-Item -Path $licensePath -Force | Out-Null
-          New-ItemProperty -Path $licensePath -Name LicenseKey -PropertyType String `
-            -Value $env:INNO_LICENSE_KEY -Force | Out-Null
       - name: Build complete Windows application
         shell: pwsh
         run: |
@@ -40,15 +26,52 @@ jobs:
           if (-not (Test-Path "$output\AllInsurance.Desktop.pri") -or -not (Test-Path "$output\App.xbf")) {
             throw 'Required WinUI resources are missing.'
           }
-      - name: Sign application and build signed installer
+      - name: Package backward-compatible application update
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $app = 'src\AllInsurance.Desktop\bin\Release\net10.0-windows10.0.19041.0\win-x64'
+          $appRoot = (Resolve-Path $app).Path.TrimEnd('\', '/') + '\'
+          $files = Get-ChildItem -LiteralPath $app -Recurse -File
+          foreach ($file in $files) {
+            $relative = $file.FullName.Substring($appRoot.Length).Replace('\', '/')
+            $parts = $relative.Split('/')
+            if ($parts | Where-Object { $_ -in @('Data', 'Backups', 'RecordFiles') }) {
+              throw "Update package contains a user-data directory: $relative"
+            }
+            if ([IO.Path]::GetExtension($relative) -in @('.db', '.sqlite')) {
+              throw "Update package contains a database file: $relative"
+            }
+          }
+          $archive = Join-Path $env:RUNNER_TEMP 'allinsurance-backoffice-win-x64.zip'
+          Compress-Archive -Path "$app\*" -DestinationPath $archive -CompressionLevel Optimal
+          $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+          try {
+            if (-not $zip.GetEntry('AllInsurance.Desktop.exe')) {
+              throw 'Update package is missing AllInsurance.Desktop.exe.'
+            }
+            if ($zip.Entries | Where-Object {
+              $_.FullName.Split('/') | Where-Object { $_ -in @('Data', 'Backups', 'RecordFiles') }
+            }) { throw 'Update package has a path rejected by older clients.' }
+          } finally { $zip.Dispose() }
+      - name: Build signed installer when signing credentials are configured
         shell: pwsh
         env:
+          INNO_LICENSE_KEY: ${{ secrets.INNO_LICENSE_KEY }}
           CODE_SIGNING_PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
           CODE_SIGNING_PFX_PASSWORD: ${{ secrets.CODE_SIGNING_PFX_PASSWORD }}
         run: |
-          if (-not $env:CODE_SIGNING_PFX_BASE64 -or -not $env:CODE_SIGNING_PFX_PASSWORD) {
-            throw 'Configure CODE_SIGNING_PFX_BASE64 and CODE_SIGNING_PFX_PASSWORD before publishing.'
+          if (-not $env:INNO_LICENSE_KEY -or -not $env:CODE_SIGNING_PFX_BASE64 -or
+              -not $env:CODE_SIGNING_PFX_PASSWORD) {
+            Write-Warning 'Installer signing credentials are unavailable; publishing the update ZIP only.'
+            return
           }
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $licensePath = 'HKCU:\Software\Jordan Russell\Inno Setup\License'
+          New-Item -Path $licensePath -Force | Out-Null
+          New-ItemProperty -Path $licensePath -Name LicenseKey -PropertyType String `
+            -Value $env:INNO_LICENSE_KEY -Force | Out-Null
           $pfx = Join-Path $env:RUNNER_TEMP 'release-signing.pfx'
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODE_SIGNING_PFX_BASE64))
           try {
@@ -69,8 +92,6 @@ jobs:
             & ./scripts/build-installer.ps1 -Version $version -PublishDir $app `
               -OutputDir $env:RUNNER_TEMP -IsccPath $iscc -SignToolPath $signTool.FullName `
               -CertificateThumbprint $certificate.Thumbprint
-            Compress-Archive -Path "$app\*" `
-              -DestinationPath "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip" -CompressionLevel Optimal
           } finally {
             Remove-Item -LiteralPath $pfx -Force -ErrorAction SilentlyContinue
             if ($certificate) { Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($certificate.Thumbprint)" -Force -ErrorAction SilentlyContinue }
@@ -82,9 +103,10 @@ jobs:
         run: |
           $tag = '${{ github.ref_name }}'
           $assets = @(
-            "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip",
-            "$env:RUNNER_TEMP\AllInsurance-Backoffice-Setup-$($tag.TrimStart('v'))-win-x64.exe"
+            "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip"
           )
+          $installer = "$env:RUNNER_TEMP\AllInsurance-Backoffice-Setup-$($tag.TrimStart('v'))-win-x64.exe"
+          if (Test-Path -LiteralPath $installer) { $assets += $installer }
           gh release view $tag --repo '${{ github.repository }}' *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag @assets --repo '${{ github.repository }}' --clobber

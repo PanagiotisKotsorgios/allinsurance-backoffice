@@ -190,7 +190,7 @@ public sealed class DatabaseInitializer(
             ["Πόλεις"] = ["Αθήνα", "Θεσσαλονίκη", "Πάτρα", "Ηράκλειο", "Λάρισα",
                 "Βόλος", "Ιωάννινα", "Μεσολόγγι", "Αγρίνιο"]
         };
-        var cityFile = Path.Combine(AppContext.BaseDirectory, "Assets", "Data", "greek-settlements.txt");
+        var cityFile = Path.Combine(AppContext.BaseDirectory, "Assets", "Reference", "greek-settlements.txt");
         if (File.Exists(cityFile))
             defaults["Πόλεις"] = defaults["Πόλεις"].Concat(File.ReadLines(cityFile))
                 .Select(value => value.Trim()).Where(value => value.Length > 0)

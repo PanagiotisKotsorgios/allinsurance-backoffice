@@ -23,6 +23,8 @@ public sealed partial class ReportsPage : Page
     private PartnerPayout[] _payouts = [];
     private ReportEntry[] _shown = [];
     private string[] _headings = [];
+    private readonly Dictionary<Guid, string> _partnerNames = [];
+    private readonly Dictionary<Guid, decimal> _partnerRates = [];
     private readonly TablePagination _pager;
 
     public ReportsPage()
@@ -42,6 +44,9 @@ public sealed partial class ReportsPage : Page
             }
         }), true);
         ReportType.SelectedIndex = 0;
+        foreach (var filter in new[] { ProductionCompanies, ProductionBranches,
+            ProductionCoverages, ProductionPackages, ProductionPartners, ProductionCustomers })
+            filter.SelectionChanged += (_, _) => Refresh();
         MonthFilter.Items.Add("Όλοι οι μήνες");
         for (var month = 0; month < 36; month++)
             MonthFilter.Items.Add(DateTime.Today.AddMonths(-month).ToString("MM/yyyy"));
@@ -57,11 +62,29 @@ public sealed partial class ReportsPage : Page
             _customers = [.. await db.Customers.AsNoTracking().Include(item => item.Transactions).ToListAsync()];
             _records = [.. await db.BusinessRecords.AsNoTracking().Include(item => item.Customer).ToListAsync()];
             _payouts = [.. await db.PartnerPayouts.AsNoTracking().ToListAsync()];
-            var policies = Policies().ToArray();
-            SetOptions(CompanyFilter, "Όλες οι εταιρείες", policies.Select(item => item.Data.Insurer));
-            SetOptions(BranchFilter, "Όλοι οι κλάδοι", policies.Select(item => item.Data.Branch));
+            _partnerNames.Clear(); _partnerRates.Clear();
+            foreach (var partner in _records.Where(item => item.SectionKey == "partners"))
+            {
+                _partnerNames[partner.Id] = partner.Title;
+                _partnerRates[partner.Id] = PartnerProfileData.Read(partner.DetailsJson)
+                    .DefaultCommissionPercent ?? 0m;
+            }
+            var sourcePolicies = _records.Where(item => item.SectionKey == "policies" &&
+                item.DocumentType is null or "Ασφαλιστήριο")
+                .Select(item => (Record: item,
+                    Data: BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson))).ToArray();
+            SetOptions(CompanyFilter, "Όλες οι εταιρείες", sourcePolicies.Select(item => item.Data.Insurer));
+            SetOptions(BranchFilter, "Όλοι οι κλάδοι", sourcePolicies.Select(item => item.Data.Branch));
             SetOptions(PartnerFilter, "Όλοι οι συνεργάτες", _records.Where(item => item.SectionKey == "partners")
                 .Select(item => item.Title));
+            ProductionCompanies.SetOptions(sourcePolicies.Select(item => item.Data.Insurer ?? "Χωρίς εταιρεία"));
+            ProductionBranches.SetOptions(sourcePolicies.Select(item => item.Data.Branch ?? "Χωρίς κλάδο"));
+            ProductionCoverages.SetOptions(sourcePolicies.SelectMany(item =>
+                item.Data.Coverages is { Count: > 0 } ? item.Data.Coverages.Select(coverage => coverage.Name)
+                    : ["Χωρίς κάλυψη"]));
+            ProductionPackages.SetOptions(sourcePolicies.Select(item => item.Data.Product ?? "Χωρίς πακέτο"));
+            ProductionPartners.SetOptions(sourcePolicies.Select(PartnerName));
+            ProductionCustomers.SetOptions(sourcePolicies.Select(CustomerName));
             SetOptions(ReceiptCustomerFilter, "Όλοι οι πελάτες", _customers.Select(CustomerDisplay));
             SetOptions(ReceiptMethodFilter, "Όλοι οι τρόποι πληρωμής", _customers
                 .SelectMany(item => item.Transactions).Where(item => item.Type == "receipt")
@@ -86,6 +109,11 @@ public sealed partial class ReportsPage : Page
 
     private static string CustomerDisplay(Customer customer) =>
         $"{customer.Code} · {customer.LastName} {customer.FirstName}".Trim();
+    private string PartnerName((BusinessRecord Record, PolicyCardData Data) item) =>
+        item.Data.PartnerId is Guid id && _partnerNames.TryGetValue(id, out var name)
+            ? name : item.Record.Customer?.PartnerName ?? "Χωρίς συνεργάτη";
+    private static string CustomerName((BusinessRecord Record, PolicyCardData Data) item) =>
+        item.Record.Customer is { } customer ? CustomerDisplay(customer) : "Χωρίς πελάτη";
 
     private static ListViewItem? FindReportRow(object source)
     {
@@ -126,11 +154,23 @@ public sealed partial class ReportsPage : Page
             .Where(item => InPeriod(DateBasis.SelectedIndex == 1
                     ? item.Data.StartDate ?? item.Data.IssueDate ?? item.Record.CreatedAtUtc
                     : item.Data.IssueDate ?? item.Data.StartDate ?? item.Record.CreatedAtUtc) &&
-                (Selected(CompanyFilter) is not string company || item.Data.Insurer == company) &&
-                (Selected(BranchFilter) is not string branch || item.Data.Branch == branch) &&
-                (Selected(PartnerFilter) is not string partner ||
-                    item.Record.Customer?.PartnerName == partner ||
-                    _records.Any(record => record.SectionKey == "partners" && record.Id == item.Data.PartnerId && record.Title == partner)));
+                (ReportType.SelectedIndex == 9 ?
+                    ProductionCompanies.SelectedValues.Contains(item.Data.Insurer ?? "Χωρίς εταιρεία") &&
+                    ProductionBranches.SelectedValues.Contains(item.Data.Branch ?? "Χωρίς κλάδο") &&
+                    ProductionPackages.SelectedValues.Contains(item.Data.Product ?? "Χωρίς πακέτο") &&
+                    ProductionPartners.SelectedValues.Contains(PartnerName(item)) &&
+                    ProductionCustomers.SelectedValues.Contains(CustomerName(item)) &&
+                    (item.Data.Coverages is { Count: > 0 }
+                        ? item.Data.Coverages.Any(coverage =>
+                            ProductionCoverages.SelectedValues.Contains(coverage.Name))
+                        : ProductionCoverages.SelectedValues.Contains("Χωρίς κάλυψη")) &&
+                    Matches(item.Record.Title, item.Record.Reference, item.Data.Insurer,
+                        item.Data.Branch, item.Data.Product, PartnerName(item), CustomerName(item))
+                    : (Selected(CompanyFilter) is not string company || item.Data.Insurer == company) &&
+                      (Selected(BranchFilter) is not string branch || item.Data.Branch == branch) &&
+                      (Selected(PartnerFilter) is not string partner ||
+                          item.Record.Customer?.PartnerName == partner ||
+                          _partnerNames.GetValueOrDefault(item.Data.PartnerId ?? Guid.Empty) == partner)));
 
     private void Refresh()
     {
@@ -139,16 +179,18 @@ public sealed partial class ReportsPage : Page
         var policies = Policies().ToArray();
         var kind = ReportType.SelectedIndex;
         var receiptsOnly = kind == 8;
-        CompanyFilter.Visibility = receiptsOnly ? Visibility.Collapsed : Visibility.Visible;
-        BranchFilter.Visibility = receiptsOnly ? Visibility.Collapsed : Visibility.Visible;
-        PartnerFilter.Visibility = receiptsOnly ? Visibility.Collapsed : Visibility.Visible;
+        var production = kind == 9;
+        CompanyFilter.Visibility = receiptsOnly || production ? Visibility.Collapsed : Visibility.Visible;
+        BranchFilter.Visibility = receiptsOnly || production ? Visibility.Collapsed : Visibility.Visible;
+        PartnerFilter.Visibility = receiptsOnly || production ? Visibility.Collapsed : Visibility.Visible;
+        ProductionFilters.Visibility = production ? Visibility.Visible : Visibility.Collapsed;
         ReceiptCustomerFilter.Visibility = receiptsOnly ? Visibility.Visible : Visibility.Collapsed;
         ReceiptMethodFilter.Visibility = receiptsOnly ? Visibility.Visible : Visibility.Collapsed;
         ReportList.SelectionMode = receiptsOnly ? ListViewSelectionMode.Single : ListViewSelectionMode.None;
         _headings = kind switch
         {
             8 => ["Ημερομηνία", "Πελάτης", "Ασφαλιστήριο", "Ποσό", "Τρόπος πληρωμής", "Αναφορά"],
-            9 or 10 or 11 => ["Ομαδοποίηση", "Ασφαλιστήρια", "Καθαρά", "Μικτά",
+            9 => ["Ασφαλιστήριο / ομάδα", "Πελάτης / σύνολο", "Καθαρά", "Μικτά",
                 "Προμήθεια έδρας € / %", "Προμήθεια συνεργάτη € / %"],
             1 => ["Ασφαλιστήριο", "Πελάτης", "Εταιρεία", "Καθαρά", "Μικτά", "Λήξη"],
             2 => ["Ασφαλιστική", "Πλήθος", "Μικτά", "Προμήθεια γραφείου", "Προς απόδοση*", "Κλάδοι"],
@@ -164,9 +206,9 @@ public sealed partial class ReportsPage : Page
             1 => PolicyRows(policies), 2 => InsurerRows(policies), 3 => PartnerRows(policies),
             4 => CustomerRows(), 5 => ClaimRows(), 6 => VehicleRows(),
             7 => CustomerMovementRows(), 8 => ReceiptRows(),
-            9 or 10 or 11 => ProductionGroupRows(policies, kind), _ => SummaryRows(policies)
+            9 => ProductionRows(policies), _ => SummaryRows(policies)
         };
-        _shown = rows.Where(row => Matches(row.Values)).ToArray();
+        _shown = production ? rows : rows.Where(row => Matches(row.Values)).ToArray();
         var heads = new[] { HeadA, HeadB, HeadC, HeadD, HeadE, HeadF };
         for (var index = 0; index < heads.Length; index++) heads[index].Text = _headings[index];
         ReportList.Items.Clear();
@@ -174,16 +216,17 @@ public sealed partial class ReportsPage : Page
         _pager.Capture();
         SummaryText.Text = receiptsOnly
             ? $"{_shown.Length} εισπράξεις · Σύνολο: {_shown.Sum(row => row.ReceiptAmount ?? 0):N2} €"
-            : kind is 9 or 10 or 11
-            ? $"{_shown.Length} ομάδες · {_shown.Sum(row => row.PolicyCount)} ασφαλιστήρια · " +
-                $"Καθαρά {Money(_shown.Sum(row => row.NetAmount))} · " +
-                $"Μικτά {Money(_shown.Sum(row => row.GrossAmount))}"
+            : production
+            ? $"{_shown.Count(row => row.Kind == ProductionRowKind.Group)} ομάδες · " +
+                $"{_shown.Count(row => row.Kind == ProductionRowKind.Detail)} ασφαλιστήρια · " +
+                $"Καθαρά {Money(_shown.Where(row => row.Kind == ProductionRowKind.Detail).Sum(row => row.NetAmount))} · " +
+                $"Μικτά {Money(_shown.Where(row => row.Kind == ProductionRowKind.Detail).Sum(row => row.GrossAmount))}"
             : $"{_shown.Length} γραμμές στην αναφορά";
         DetailText.Text = receiptsOnly
             ? "Διπλό κλικ σε μία είσπραξη για πλήρη καρτέλα και εξαγωγή απόδειξης PDF."
-            : kind is 9 or 10 or 11
-            ? $"Προμήθεια έδρας: {Money(_shown.Sum(row => row.OfficeAmount))} · " +
-                $"Προμήθεια συνεργατών: {Money(_shown.Sum(row => row.PartnerAmount))}. " +
+            : production
+            ? $"Προμήθεια έδρας: {Money(_shown.Where(row => row.Kind == ProductionRowKind.Detail).Sum(row => row.OfficeAmount))} · " +
+                $"Προμήθεια συνεργατών: {Money(_shown.Where(row => row.Kind == ProductionRowKind.Detail).Sum(row => row.PartnerAmount))}. " +
                 "Τα ποσοστά είναι σταθμισμένα στα καθαρά ασφάλιστρα."
             : kind == 2
             ? "* Η προς απόδοση αξία εκτιμάται από τα μικτά ασφάλιστρα μείον την προμήθεια γραφείου επί των καθαρών. Οι καταβολές προς εταιρείες δεν καταχωρίζονται ακόμη."
@@ -197,41 +240,67 @@ public sealed partial class ReportsPage : Page
                 item.Data.Insurer ?? "—", Money(item.Data.NetPremium ?? 0), Money(item.Data.GrossPremium ?? 0),
                 item.Data.EndDate?.ToString("dd/MM/yyyy") ?? "—")).ToArray();
 
-    private ReportEntry[] ProductionGroupRows(
-        (BusinessRecord Record, PolicyCardData Data)[] policies, int mode)
+    private ReportEntry[] ProductionRows((BusinessRecord Record, PolicyCardData Data)[] policies)
     {
-        var partnerNames = _records.Where(item => item.SectionKey == "partners")
-            .ToDictionary(item => item.Id, item => item.Title);
-        var partnerRates = _records.Where(item => item.SectionKey == "partners")
-            .ToDictionary(item => item.Id,
-                item => PartnerProfileData.Read(item.DetailsJson).DefaultCommissionPercent ?? 0m);
-        string PartnerName((BusinessRecord Record, PolicyCardData Data) item) =>
-            item.Data.PartnerId is Guid id && partnerNames.TryGetValue(id, out var name)
-                ? name : item.Record.Customer?.PartnerName ?? "Χωρίς συνεργάτη";
-        var groups = policies.GroupBy(item => mode switch
+        var mode = GroupingMode.SelectedIndex;
+        string GroupKey((BusinessRecord Record, PolicyCardData Data) item) => mode switch
         {
-            9 => PartnerName(item) + " · " + (item.Data.Insurer ?? "Χωρίς εταιρεία"),
-            10 => PartnerName(item),
-            _ => item.Data.Insurer ?? "Χωρίς εταιρεία"
-        }, StringComparer.CurrentCultureIgnoreCase);
-        return groups.OrderBy(group => group.Key).Select(group =>
-        {
-            var net = group.Sum(item => item.Data.NetPremium ?? 0m);
-            var gross = group.Sum(item => item.Data.GrossPremium ?? 0m);
-            var office = group.Sum(item => decimal.Round((item.Data.NetPremium ?? 0m) *
+            1 => item.Data.Insurer ?? "Χωρίς εταιρεία",
+            2 => PartnerName(item),
+            3 => item.Data.Branch ?? "Χωρίς κλάδο",
+            4 => CustomerName(item),
+            5 => item.Data.Product ?? "Χωρίς πακέτο",
+            _ => PartnerName(item) + " · " + (item.Data.Insurer ?? "Χωρίς εταιρεία")
+        };
+        decimal Office((BusinessRecord Record, PolicyCardData Data) item) =>
+            decimal.Round((item.Data.NetPremium ?? 0m) *
                 (item.Data.OfficeCommissionPercent ?? 0m) / 100m, 2,
-                MidpointRounding.AwayFromZero));
-            var partner = group.Sum(item => decimal.Round((item.Data.NetPremium ?? 0m) *
+                MidpointRounding.AwayFromZero);
+        decimal Partner((BusinessRecord Record, PolicyCardData Data) item) =>
+            decimal.Round((item.Data.NetPremium ?? 0m) *
                 (item.Data.PartnerCommissionPercent ??
-                    (item.Data.PartnerId is Guid partnerId && partnerRates.TryGetValue(partnerId, out var rate)
-                        ? rate : 0m)) / 100m, 2,
-                MidpointRounding.AwayFromZero));
-            return new ReportEntry(group.Key, group.Count().ToString(), Money(net), Money(gross),
-                $"{Money(office)} · {(net == 0 ? 0 : office / net * 100):N2}%",
-                $"{Money(partner)} · {(net == 0 ? 0 : partner / net * 100):N2}%")
-            { PolicyCount = group.Count(), NetAmount = net, GrossAmount = gross,
-                OfficeAmount = office, PartnerAmount = partner };
-        }).ToArray();
+                    (item.Data.PartnerId is Guid id && _partnerRates.TryGetValue(id, out var rate)
+                        ? rate : 0m)) / 100m, 2, MidpointRounding.AwayFromZero);
+        static string Commission(decimal value, decimal net) =>
+            $"{Money(value)} · {(net == 0 ? 0 : value / net * 100):N2}%";
+        var rows = new List<ReportEntry>();
+        foreach (var group in policies.GroupBy(GroupKey, StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.CurrentCultureIgnoreCase))
+        {
+            rows.Add(new ReportEntry($"{group.Key}  ·  {group.Count()} ασφαλιστήρια",
+                "", "", "", "", "") { Kind = ProductionRowKind.Group });
+            foreach (var item in group.OrderBy(item => item.Data.IssueDate ?? item.Data.StartDate)
+                .ThenBy(item => item.Record.Title))
+            {
+                var net = item.Data.NetPremium ?? 0m;
+                var gross = item.Data.GrossPremium ?? 0m;
+                var office = Office(item);
+                var partner = Partner(item);
+                rows.Add(new ReportEntry(item.Data.PolicyNumber ?? item.Record.Reference ?? item.Record.Title,
+                    CustomerName(item), Money(net), Money(gross), Commission(office, net),
+                    Commission(partner, net))
+                { Kind = ProductionRowKind.Detail, PolicyCount = 1, NetAmount = net,
+                    GrossAmount = gross, OfficeAmount = office, PartnerAmount = partner });
+            }
+            var groupNet = group.Sum(item => item.Data.NetPremium ?? 0m);
+            var groupGross = group.Sum(item => item.Data.GrossPremium ?? 0m);
+            var groupOffice = group.Sum(Office);
+            var groupPartner = group.Sum(Partner);
+            rows.Add(new ReportEntry("", "Σύνολο ομάδας", Money(groupNet), Money(groupGross),
+                Commission(groupOffice, groupNet), Commission(groupPartner, groupNet))
+            { Kind = ProductionRowKind.Subtotal });
+        }
+        if (policies.Length > 0)
+        {
+            var totalNet = policies.Sum(item => item.Data.NetPremium ?? 0m);
+            var totalOffice = policies.Sum(Office);
+            var totalPartner = policies.Sum(Partner);
+            rows.Add(new ReportEntry("", "ΓΕΝΙΚΟ ΣΥΝΟΛΟ", Money(totalNet),
+                Money(policies.Sum(item => item.Data.GrossPremium ?? 0m)),
+                Commission(totalOffice, totalNet), Commission(totalPartner, totalNet))
+            { Kind = ProductionRowKind.GrandTotal });
+        }
+        return [.. rows];
     }
 
     private ReportEntry[] InsurerRows((BusinessRecord Record, PolicyCardData Data)[] policies) =>
@@ -367,18 +436,50 @@ public sealed partial class ReportsPage : Page
             new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) },
             new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) }
         } };
+        var cells = new List<Border>();
         for (var index = 0; index < 6; index++)
         {
             var border = new Border { BorderBrush = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TableBorderBrush"],
                 BorderThickness = new Thickness(0, 0, index == 5 ? 0 : 1, 1),
                 Child = new TextBlock { Text = row.Values[index], Margin = new Thickness(9, 0, 9, 0),
-                    VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis } };
+                    VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                    FontWeight = row.Kind is ProductionRowKind.Group or ProductionRowKind.Subtotal or
+                        ProductionRowKind.GrandTotal ? Microsoft.UI.Text.FontWeights.SemiBold :
+                        Microsoft.UI.Text.FontWeights.Normal } };
             Grid.SetColumn(border, index);
             grid.Children.Add(border);
+            cells.Add(border);
         }
         var item = new ListViewItem { Content = grid, Tag = row,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Padding = new Thickness(0), Margin = new Thickness(0) };
+        item.Loaded += (_, _) =>
+        {
+            var dark = item.ActualTheme == ElementTheme.Dark;
+            for (var index = 0; index < cells.Count; index++)
+            {
+                var color = row.Kind switch
+                {
+                    ProductionRowKind.Group => dark
+                        ? Windows.UI.Color.FromArgb(255, 55, 65, 77)
+                        : Windows.UI.Color.FromArgb(255, 224, 233, 241),
+                    ProductionRowKind.Subtotal => dark
+                        ? Windows.UI.Color.FromArgb(255, 48, 76, 64)
+                        : Windows.UI.Color.FromArgb(255, 207, 231, 215),
+                    ProductionRowKind.GrandTotal => dark
+                        ? Windows.UI.Color.FromArgb(255, 35, 94, 59)
+                        : Windows.UI.Color.FromArgb(255, 180, 225, 193),
+                    ProductionRowKind.Detail when index == 4 => dark
+                        ? Windows.UI.Color.FromArgb(255, 99, 53, 53)
+                        : Windows.UI.Color.FromArgb(255, 241, 213, 213),
+                    ProductionRowKind.Detail when index == 5 => dark
+                        ? Windows.UI.Color.FromArgb(255, 48, 76, 64)
+                        : Windows.UI.Color.FromArgb(255, 207, 231, 215),
+                    _ => default
+                };
+                cells[index].Background = color.A == 0 ? null : new SolidColorBrush(color);
+            }
+        };
         if (row.TransactionId is Guid transactionId)
         {
             var menu = new MenuFlyout();
@@ -418,5 +519,7 @@ public sealed partial class ReportsPage : Page
         public decimal GrossAmount { get; init; }
         public decimal OfficeAmount { get; init; }
         public decimal PartnerAmount { get; init; }
+        public ProductionRowKind Kind { get; init; }
     }
+    private enum ProductionRowKind { None, Group, Detail, Subtotal, GrandTotal }
 }

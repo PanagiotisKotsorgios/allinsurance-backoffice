@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <Version>0.7.15</Version>
+    <Version>0.7.16</Version>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
@@ -22,7 +22,7 @@
     <Content Include="Assets\allinsurance.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Icons\*.svg" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Sections\*.png" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Assets\Data\*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Reference\*.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets\Icons\LICENSE-lucide.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

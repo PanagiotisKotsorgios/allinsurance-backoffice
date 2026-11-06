@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Input;
 using System.Text.Json;
 using System.Net;
 using System.Text;
+using System.Globalization;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
@@ -191,6 +192,56 @@ public sealed partial class CommunicationsPage : Page
     private void Bold_Click(object sender, RoutedEventArgs e) => ToggleFormat("bold");
     private void Italic_Click(object sender, RoutedEventArgs e) => ToggleFormat("italic");
     private void Underline_Click(object sender, RoutedEventArgs e) => ToggleFormat("underline");
+    private void Font_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (EmailBody is null || FontChoice.SelectedItem is not ComboBoxItem { Content: string name }) return;
+        EmailBody.Document.Selection.CharacterFormat.Name = name;
+        EmailBody.Focus(FocusState.Programmatic);
+    }
+
+    private void FontSize_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (EmailBody is null || FontSizeChoice.SelectedItem is not ComboBoxItem item ||
+            !float.TryParse(item.Content?.ToString(), CultureInfo.InvariantCulture, out var size)) return;
+        EmailBody.Document.Selection.CharacterFormat.Size = size;
+        EmailBody.Focus(FocusState.Programmatic);
+    }
+
+    private void TextColor_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (EmailBody is null || TextColorChoice.SelectedItem is not ComboBoxItem item) return;
+        var code = item.Tag?.ToString();
+        Windows.UI.Color color;
+        if (code == "default")
+            color = EmailBody.ActualTheme == ElementTheme.Dark
+                ? Microsoft.UI.Colors.White : Windows.UI.Color.FromArgb(255, 32, 38, 45);
+        else if (code is { Length: 7 } && code.StartsWith('#') &&
+            byte.TryParse(code.AsSpan(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var red) &&
+            byte.TryParse(code.AsSpan(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var green) &&
+            byte.TryParse(code.AsSpan(5, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var blue))
+            color = Windows.UI.Color.FromArgb(255, red, green, blue);
+        else return;
+        EmailBody.Document.Selection.CharacterFormat.ForegroundColor = color;
+        EmailBody.Focus(FocusState.Programmatic);
+    }
+
+    private void AlignLeft_Click(object sender, RoutedEventArgs e)
+    {
+        EmailBody.Document.Selection.ParagraphFormat.Alignment = ParagraphAlignment.Left;
+        EmailBody.Focus(FocusState.Programmatic);
+    }
+
+    private void AlignCenter_Click(object sender, RoutedEventArgs e)
+    {
+        EmailBody.Document.Selection.ParagraphFormat.Alignment = ParagraphAlignment.Center;
+        EmailBody.Focus(FocusState.Programmatic);
+    }
+
+    private void Bullet_Click(object sender, RoutedEventArgs e)
+    {
+        EmailBody.Document.Selection.SetText(TextSetOptions.None, "• ");
+        EmailBody.Focus(FocusState.Programmatic);
+    }
     private void ToggleFormat(string kind)
     {
         var format = EmailBody.Document.Selection.CharacterFormat;
@@ -380,33 +431,59 @@ public sealed partial class CommunicationsPage : Page
     {
         EmailBody.Document.GetText(TextGetOptions.None, out var value);
         var html = new StringBuilder("<div style=\"white-space:pre-wrap\">");
-        var previous = (Bold: false, Italic: false, Underline: false);
+        string? previousStyle = null;
+        void OpenParagraph(int index)
+        {
+            var alignment = EmailBody.Document.GetRange(index, index + 1).ParagraphFormat.Alignment;
+            var css = alignment == ParagraphAlignment.Center ? "center" :
+                alignment == ParagraphAlignment.Right ? "right" : "left";
+            html.Append("<p style=\"margin:0;text-align:").Append(css).Append("\">");
+        }
+        OpenParagraph(0);
         for (var index = 0; index < value.Length; index++)
         {
-            var format = EmailBody.Document.GetRange(index, index + 1).CharacterFormat;
-            var current = (Bold: format.Bold.Equals(FormatEffect.On),
-                Italic: format.Italic.Equals(FormatEffect.On),
-                Underline: !format.Underline.Equals(UnderlineType.None));
-            if (current != previous)
+            if (value[index] is '\r' or '\n')
             {
-                if (previous.Underline) html.Append("</u>");
-                if (previous.Italic) html.Append("</i>");
-                if (previous.Bold) html.Append("</b>");
-                if (current.Bold) html.Append("<b>");
-                if (current.Italic) html.Append("<i>");
-                if (current.Underline) html.Append("<u>");
-                previous = current;
+                if (previousStyle is not null) html.Append("</span>");
+                previousStyle = null;
+                html.Append("</p>");
+                if (value[index] == '\r' && index + 1 < value.Length && value[index + 1] == '\n') index++;
+                if (index + 1 < value.Length) OpenParagraph(index + 1);
+                continue;
             }
-            html.Append(WebUtility.HtmlEncode(value[index].ToString()));
+            var format = EmailBody.Document.GetRange(index, index + 1).CharacterFormat;
+            var color = format.ForegroundColor;
+            var css = new StringBuilder();
+            if (format.Bold.Equals(FormatEffect.On)) css.Append("font-weight:700;");
+            if (format.Italic.Equals(FormatEffect.On)) css.Append("font-style:italic;");
+            if (!format.Underline.Equals(UnderlineType.None)) css.Append("text-decoration:underline;");
+            if (color.A > 0) css.Append($"color:#{color.R:X2}{color.G:X2}{color.B:X2};");
+            if (format.Size > 0) css.Append("font-size:")
+                .Append(format.Size.ToString("0.##", CultureInfo.InvariantCulture)).Append("pt;");
+            if (!string.IsNullOrWhiteSpace(format.Name)) css.Append("font-family:'")
+                .Append(WebUtility.HtmlEncode(format.Name.Replace("'", ""))).Append("';");
+            var style = css.ToString();
+            if (style != previousStyle)
+            {
+                if (previousStyle is not null) html.Append("</span>");
+                html.Append("<span style=\"").Append(style).Append("\">");
+                previousStyle = style;
+            }
+            string rendered;
+            var remaining = value.AsSpan(index);
+            if (remaining.StartsWith("{όνομα}".AsSpan(), StringComparison.CurrentCultureIgnoreCase))
+            { rendered = recipient.CustomerName; index += "{όνομα}".Length - 1; }
+            else if (remaining.StartsWith("{αριθμός}".AsSpan(), StringComparison.CurrentCultureIgnoreCase))
+            { rendered = recipient.Number; index += "{αριθμός}".Length - 1; }
+            else if (remaining.StartsWith("{λήξη}".AsSpan(), StringComparison.CurrentCultureIgnoreCase))
+            { rendered = recipient.DueDate.ToString("dd/MM/yyyy"); index += "{λήξη}".Length - 1; }
+            else rendered = value[index].ToString();
+            html.Append(WebUtility.HtmlEncode(rendered));
         }
-        if (previous.Underline) html.Append("</u>");
-        if (previous.Italic) html.Append("</i>");
-        if (previous.Bold) html.Append("</b>");
+        if (previousStyle is not null) html.Append("</span>");
+        if (value.Length == 0 || value[^1] is not ('\r' or '\n')) html.Append("</p>");
         html.Append("</div>");
-        return html.ToString()
-            .Replace("{όνομα}", WebUtility.HtmlEncode(recipient.CustomerName), StringComparison.CurrentCultureIgnoreCase)
-            .Replace("{αριθμός}", WebUtility.HtmlEncode(recipient.Number), StringComparison.CurrentCultureIgnoreCase)
-            .Replace("{λήξη}", recipient.DueDate.ToString("dd/MM/yyyy"), StringComparison.CurrentCultureIgnoreCase);
+        return html.ToString();
     }
 
     private string Personalize(string value, Candidate candidate) => value
