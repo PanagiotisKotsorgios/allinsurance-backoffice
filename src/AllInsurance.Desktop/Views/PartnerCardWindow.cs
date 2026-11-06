@@ -305,9 +305,8 @@ public sealed partial class PartnerCardWindow : Window
         if (_editing && (choices.Length > 12 || key is "capacity" or "taxoffice" or
             "business" or "category"))
         {
-            var lookup = CatalogSearchButton.Create(field, label);
-            Grid.SetColumn(lookup, 1);
-            host.Children.Add(lookup);
+            field.Visibility = Visibility.Collapsed;
+            host.Children.Add(CatalogSearchButton.CreateInline(field, label));
         }
         panel.Children.Add(CardFieldLayout.CreateRow(label, host)); _choice[key] = field;
         return field;

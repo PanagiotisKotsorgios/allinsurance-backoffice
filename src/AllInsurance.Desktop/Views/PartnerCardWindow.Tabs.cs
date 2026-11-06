@@ -265,22 +265,24 @@ public sealed partial class PartnerCardWindow
     {
         var host = new Grid { ColumnSpacing = 4 };
         host.ColumnDefinitions.Add(new ColumnDefinition());
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 3; i++)
             host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _bankChoice = new ComboBox { PlaceholderText = "Επιλέξτε τράπεζα",
             Height = 32, MinHeight = 32, HorizontalAlignment = HorizontalAlignment.Stretch };
         host.Children.Add(_bankChoice);
-        var lookup = CatalogSearchButton.Create(_bankChoice, "τράπεζας / IBAN");
-        lookup.IsEnabled = _editing;
-        Grid.SetColumn(lookup, 1); host.Children.Add(lookup);
+        if (_editing)
+        {
+            _bankChoice.Visibility = Visibility.Collapsed;
+            host.Children.Add(CatalogSearchButton.CreateInline(_bankChoice, "τράπεζας / IBAN"));
+        }
         var add = BankIconButton("Προσθήκη τράπεζας", "\uE710", StatusPalette.Positive);
         add.IsEnabled = _editing;
         add.Click += async (_, _) => await EditBankAsync(null);
-        Grid.SetColumn(add, 2); host.Children.Add(add);
+        Grid.SetColumn(add, 1); host.Children.Add(add);
         var edit = BankIconButton("Επεξεργασία τράπεζας", "\uE70F", StatusPalette.Informational);
         edit.IsEnabled = _editing;
         edit.Click += async (_, _) => await EditBankAsync(_bankChoice.SelectedIndex);
-        Grid.SetColumn(edit, 3); host.Children.Add(edit);
+        Grid.SetColumn(edit, 2); host.Children.Add(edit);
         var delete = BankIconButton("Διαγραφή τράπεζας", "\uE74D", StatusPalette.Negative);
         delete.IsEnabled = _editing;
         delete.Click += async (_, _) =>
@@ -290,7 +292,7 @@ public sealed partial class PartnerCardWindow
             _bankAccounts.RemoveAt(_bankChoice.SelectedIndex);
             RefreshBankList();
         };
-        Grid.SetColumn(delete, 4); host.Children.Add(delete);
+        Grid.SetColumn(delete, 3); host.Children.Add(delete);
         panel.Children.Add(CardFieldLayout.CreateRow("Τράπεζες / IBAN", host));
         RefreshBankList();
     }

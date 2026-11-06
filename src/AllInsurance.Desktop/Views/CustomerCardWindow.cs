@@ -1124,23 +1124,24 @@ public sealed partial class CustomerCardWindow : Window
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         var host = new Grid { ColumnSpacing = 6,
             ColumnDefinitions = { new ColumnDefinition(),
-                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto } } };
         host.Children.Add(input);
+        UIElement? searchTarget = null;
         if (_editing)
         {
-            var lookup = CatalogSearchButton.Create(input, label);
-            Grid.SetColumn(lookup, 1);
-            host.Children.Add(lookup);
+            input.Visibility = Visibility.Collapsed;
+            var search = CatalogSearchButton.CreateInline(input, label);
+            host.Children.Add(search);
+            searchTarget = search;
             var add = new ActionButton { Kind = "Add", Label = "Προσθήκη " + label,
                 IconOnly = true, Width = 38, Height = 38 };
             ToolTipService.SetToolTip(add, "Προσθήκη νέας επιλογής: " + label);
             add.Click += async (_, _) => await AddCatalogValueAsync(input, category, label);
-            Grid.SetColumn(add, 2);
+            Grid.SetColumn(add, 1);
             host.Children.Add(add);
         }
         form.Children.Add(CreateFieldRow(label, host));
-        WireChoiceTransfer(form, input);
+        WireChoiceTransfer(form, input, searchTarget);
         _readFields.Add(() => setter(input.SelectedItem as string ?? selected));
         _ = LoadCatalogChoicesAsync(input, category, selected);
         return input;
@@ -1181,7 +1182,7 @@ public sealed partial class CustomerCardWindow : Window
         catch (Exception exception) { _status.Text = exception.Message; }
     }
 
-    private void WireChoiceTransfer(StackPanel form, ComboBox input)
+    private void WireChoiceTransfer(StackPanel form, ComboBox input, UIElement? target = null)
     {
         if (!_editing)
         {
@@ -1193,13 +1194,14 @@ public sealed partial class CustomerCardWindow : Window
             };
             return;
         }
-        input.AllowDrop = true;
-        input.DragOver += (_, args) =>
+        var destination = target ?? input;
+        destination.AllowDrop = true;
+        destination.DragOver += (_, args) =>
         {
             if (args.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.Text))
                 args.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
         };
-        input.Drop += async (_, args) =>
+        destination.Drop += async (_, args) =>
         {
             var value = await args.DataView.GetTextAsync();
             var match = input.Items.OfType<string>().FirstOrDefault(item =>

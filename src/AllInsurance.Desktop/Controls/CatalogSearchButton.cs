@@ -6,10 +6,11 @@ namespace AllInsurance.Desktop.Controls;
 
 internal static class CatalogSearchButton
 {
-    public static Button Create(ComboBox target, string label)
+    public static AutoSuggestBox CreateInline(ComboBox target, string label)
     {
         var search = new AutoSuggestBox { PlaceholderText = "Αναζήτηση " + label,
-            MinHeight = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
+            Text = target.SelectedItem as string ?? "", MinHeight = 40,
+            HorizontalAlignment = HorizontalAlignment.Stretch };
         string[] Choices() => (target.ItemsSource as System.Collections.IEnumerable)?.Cast<object>()
             .OfType<string>().Where(item => !string.IsNullOrWhiteSpace(item)).ToArray() ?? [];
         void Refresh(string query)
@@ -39,6 +40,14 @@ internal static class CatalogSearchButton
                 target.SelectedItem = only[0];
         };
         search.GotFocus += (_, _) => Refresh("");
+        target.SelectionChanged += (_, _) =>
+            search.Text = target.SelectedItem as string ?? "";
+        return search;
+    }
+
+    public static Button Create(ComboBox target, string label)
+    {
+        var search = CreateInline(target, label);
         var button = new Button { Width = 38, Height = 38, MinHeight = 38,
             Padding = new Thickness(0), Content = new FontIcon { Glyph = "\uE721",
                 FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 16 } };
