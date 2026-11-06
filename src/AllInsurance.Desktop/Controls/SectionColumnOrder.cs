@@ -50,6 +50,7 @@ internal static class SectionColumnOrder
         {
             "partners" => new double[] { 240, 140, 165, 175, 150, 160, 130 },
             "vehicles" => [180, 135, 145, 210, 140, 165, 125, 125],
+            "policies" => [205, 145, 165, 145, 120, 115, 115, 155],
             _ => [240, 140, 190, 130, 130, 240, 100]
         };
         try
@@ -101,7 +102,7 @@ internal static class SectionColumnOrder
         ? JsonSerializer.Deserialize<Dictionary<string, int[]>>(File.ReadAllText(PathOnDisk)) ?? []
         : [];
 
-    private static int ColumnCount(string sectionKey) => sectionKey == "vehicles" ? 8 : 7;
+    private static int ColumnCount(string sectionKey) => sectionKey is "vehicles" or "policies" ? 8 : 7;
 
     private static bool Valid(int[]? order, string sectionKey) =>
         order is not null && order.Length == ColumnCount(sectionKey) &&

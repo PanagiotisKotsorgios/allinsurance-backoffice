@@ -5,6 +5,16 @@ namespace AllInsurance.Desktop.Controls;
 
 internal static class PolicyStatusColors
 {
+    public static SolidColorBrush DocumentTypeBackground(string? documentType) => documentType switch
+    {
+        "Προσφορά" => Brush(102, 124, 149),
+        "Αίτηση" => StatusPalette.Brush(StatusPalette.Caution),
+        "Ειδοποιητήριο" => StatusPalette.Brush(StatusPalette.Informational),
+        "Πρόσθετη πράξη" => Brush(105, 151, 122),
+        "Πράσινη κάρτα" => StatusPalette.Brush(StatusPalette.Positive),
+        _ => Brush(76, 139, 114)
+    };
+
     public static SolidColorBrush Background(string? documentType, string? status, DateTime? expiry)
     {
         if (Contains(documentType, "ακύρ") || Contains(status, "ακύρ") ||

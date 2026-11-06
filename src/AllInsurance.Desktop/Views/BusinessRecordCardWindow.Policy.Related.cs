@@ -322,6 +322,15 @@ public sealed partial class BusinessRecordCardWindow
             $"Τελευταία ενημέρωση: {_record.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}",
             FontSize = 15 };
         panel.Children.Add(_historyText);
+        if (_policyData.PreviousPolicyId.HasValue)
+            panel.Children.Add(new Border
+            {
+                Background = PolicyStatusColors.DocumentTypeBackground("Ασφαλιστήριο"),
+                CornerRadius = new CornerRadius(5), Padding = new Thickness(9, 5, 9, 5),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Child = new TextBlock { Text = "Ανανεωτήριο · συνέχεια προηγούμενου ασφαλιστηρίου",
+                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+            });
         var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
         if (_policyData.PreviousPolicyId is Guid previousId)
         {

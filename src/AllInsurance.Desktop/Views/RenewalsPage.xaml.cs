@@ -129,6 +129,11 @@ public sealed partial class RenewalsPage : Page
         public string Expiry => EndDate.ToString("dd/MM/yyyy");
         public string DaysLeft => (EndDate.Date - DateTime.Today).Days.ToString();
         public Microsoft.UI.Xaml.Media.SolidColorBrush ExpiryBackground =>
-            PolicyStatusColors.Background(Record.DocumentType, Record.Status, EndDate);
+            StatusPalette.Brush((EndDate.Date - DateTime.Today).Days switch
+            {
+                <= 0 => StatusPalette.Negative,
+                <= 30 => StatusPalette.Caution,
+                _ => StatusPalette.Positive
+            });
     }
 }

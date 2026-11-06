@@ -169,6 +169,7 @@ public sealed partial class SectionPage : Page
             EventHeader.Text = "Κλάδος";
             CustomerHeader.Text = "Έναρξη";
             CreatedHeader.Text = "Λήξη";
+            ExtraHeader.Text = "Είδος";
         }
         else if (section.Key == "claims")
         {
@@ -581,6 +582,7 @@ public sealed partial class SectionPage : Page
                 4 => row => row.EventDateDisplay,
                 5 => row => row.CustomerName,
                 6 => row => row.CreatedDisplay,
+                7 => row => row.ExtraDisplay,
                 _ => row => row.Title
             };
             if (_section.Key == "policies" && _sortColumn is 5 or 6)
@@ -732,14 +734,10 @@ public sealed partial class SectionPage : Page
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
         if (_section.Key == "policies" &&
-            grid.Children[2] is Border { Child: TextBlock policyText } policyCell)
+            grid.Children[8] is Border { Child: TextBlock policyText } policyCell)
         {
-            var policy = BusinessRecordDetails.Read<PolicyCardData>(row.Record.DetailsJson);
-            policyCell.Background = PolicyStatusColors.Background(row.Record.DocumentType,
-                row.Record.Status, policy.EndDate);
+            policyCell.Background = PolicyStatusColors.DocumentTypeBackground(row.Record.DocumentType);
             policyText.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
-            if (!policyText.Text.StartsWith("✓ ", StringComparison.Ordinal))
-                policyText.Text = "✓ " + policyText.Text;
         }
         var statusIndex = _section.Key switch
         {
@@ -834,7 +832,7 @@ public sealed partial class SectionPage : Page
     {
         var names = new[] { TitleHeader.Text, CodeHeader.Text, PartyHeader.Text,
             StatusHeader.Text, EventHeader.Text, CustomerHeader.Text, CreatedHeader.Text }
-            .Concat(_section.Key == "vehicles" ? [ExtraHeader.Text] : [])
+            .Concat(_section.Key is "vehicles" or "policies" ? [ExtraHeader.Text] : [])
             .Take(_section.Key == "claims" ? 6 : int.MaxValue).ToArray();
         var fields = names.Select((name, index) => new CheckBox
         {
@@ -1053,7 +1051,9 @@ public sealed partial class SectionPage : Page
             ? VehicleProfile.Fuel ?? "—" : PartnerProfile is null
             ? Record.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")
             : Record.Status ?? "";
-        public string ExtraDisplay => VehicleInsuranceState ?? Record.Status ?? "—";
+        public string ExtraDisplay => PolicyProfile is not null
+            ? Record.DocumentType ?? "Ασφαλιστήριο"
+            : VehicleInsuranceState ?? Record.Status ?? "—";
         private string CustomerLabel => Record.Customer is null ? "—" :
             $"{Record.Customer.LastName} {Record.Customer.FirstName}".Trim();
         public override string ToString() => Record.Title;

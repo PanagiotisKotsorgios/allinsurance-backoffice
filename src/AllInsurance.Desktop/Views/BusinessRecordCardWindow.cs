@@ -105,7 +105,8 @@ public sealed partial class BusinessRecordCardWindow : Window
         _editing = recordId is null || beginEditing;
         _ownerHandle = ownerHandle == default ? App.MainWindowHandle() : ownerHandle;
         _record = new BusinessRecord { SectionKey = section, Title = "",
-            CustomerId = customerId, DocumentType = section == "policies" ? "Αίτηση" : null,
+            CustomerId = customerId, DocumentType = section == "policies"
+                ? previousPolicyId.HasValue ? "Ασφαλιστήριο" : "Αίτηση" : null,
             DetailsJson = section == "policies"
                 ? BusinessRecordDetails.Write(new PolicyCardData { VehicleId = vehicleId,
                     Insurer = insurerName, Agency = agencyName,
@@ -262,8 +263,10 @@ public sealed partial class BusinessRecordCardWindow : Window
             Background = gradient };
         _heading.Text = _section == "vehicles"
             ? (_record.Id == Guid.Empty ? "Νέο όχημα" : _record.Title)
-            : (_record.Id == Guid.Empty ? "Νέο έγγραφο ασφάλισης" :
-                $"✓ {_record.DocumentType ?? "Ασφαλιστήριο"} · {_record.Title}");
+            : (_record.Id == Guid.Empty
+                ? BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PreviousPolicyId.HasValue
+                    ? "Νέο ανανεωτήριο · Ασφαλιστήριο" : "Νέο έγγραφο ασφάλισης" :
+                $"✓ {(_section == "policies" && BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PreviousPolicyId.HasValue ? "Ανανεωτήριο · " : "")}{_record.DocumentType ?? "Ασφαλιστήριο"} · {_record.Title}");
         _headerState.Text = $"● {_record.Status ?? (_section == "vehicles" ? "Ενεργό" : "Σε εξέλιξη")}";
         _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "Νέο");
         var bannerText = new StackPanel { Spacing = 8 };
@@ -1032,7 +1035,8 @@ public sealed partial class BusinessRecordCardWindow : Window
                 _historyText.Text = $"Δημιουργία: {_record.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
                     $"Τελευταία ενημέρωση: {_record.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}";
             _heading.Text = _section == "policies"
-                ? $"✓ {_record.DocumentType} · {_record.Title}" : _record.Title;
+                ? $"✓ {(_policyData.PreviousPolicyId.HasValue ? "Ανανεωτήριο · " : "")}{_record.DocumentType} · {_record.Title}"
+                : _record.Title;
             _headerState.Text = $"● {_record.Status ?? "—"}";
             UpdatePolicyHeaderBadge();
             _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "—");
