@@ -19,10 +19,15 @@
                         <ComboBoxItem Content="Ασφαλιστικές / αποδόσεις" /><ComboBoxItem Content="Συνεργάτες / προμήθειες" />
                         <ComboBoxItem Content="Πελάτες / υπόλοιπα" /><ComboBoxItem Content="Ζημιές" />
                         <ComboBoxItem Content="Οχήματα" /><ComboBoxItem Content="Κινήσεις πελατών" />
+                        <ComboBoxItem Content="Εισπράξεις" />
                     </ComboBox>
                     <ComboBox x:Name="CompanyFilter" Header="Εταιρεία" Width="195" SelectionChanged="FiltersChanged" />
                     <ComboBox x:Name="BranchFilter" Header="Κλάδος" Width="195" SelectionChanged="FiltersChanged" />
                     <ComboBox x:Name="PartnerFilter" Header="Συνεργάτης" Width="195" SelectionChanged="FiltersChanged" />
+                    <ComboBox x:Name="ReceiptCustomerFilter" Header="Πελάτης" Width="195"
+                              Visibility="Collapsed" SelectionChanged="FiltersChanged" />
+                    <ComboBox x:Name="ReceiptMethodFilter" Header="Τρόπος πληρωμής" Width="195"
+                              Visibility="Collapsed" SelectionChanged="FiltersChanged" />
                     <StackPanel><TextBlock Text="Από" /><controls:EditableDateInput x:Name="FromDate" Width="195" Height="42" DateChanged="FiltersChanged" /></StackPanel>
                     <StackPanel><TextBlock Text="Έως" /><controls:EditableDateInput x:Name="UntilDate" Width="195" Height="42" DateChanged="FiltersChanged" /></StackPanel>
                 </VariableSizedWrapGrid>
@@ -36,7 +41,7 @@
             <controls:ActionButton Grid.Column="1" Kind="File" Label="Εξαγωγή CSV" Click="Export_Click" VerticalAlignment="Center" />
         </Grid>
         <Border Grid.Row="3" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="12">
-            <Grid RowDefinitions="Auto,*">
+            <Grid x:Name="ReportTableGrid" RowDefinitions="Auto,*,Auto">
                 <Grid ColumnDefinitions="2*,1.3*,1.3*,1.2*,1.2*,1.2*" Background="{ThemeResource TableHeaderBackgroundBrush}">
                     <TextBlock x:Name="HeadA" Margin="10,9" FontWeight="SemiBold" />
                     <TextBlock x:Name="HeadB" Grid.Column="1" Margin="10,9" FontWeight="SemiBold" />

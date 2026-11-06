@@ -1,10 +1,12 @@
 using AllInsurance.Application.Abstractions;
 using AllInsurance.Application.Customers;
 using AllInsurance.Domain.Entities;
+using AllInsurance.Desktop.Controls;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -21,11 +23,24 @@ public sealed partial class ReportsPage : Page
     private PartnerPayout[] _payouts = [];
     private ReportEntry[] _shown = [];
     private string[] _headings = [];
+    private readonly TablePagination _pager;
 
     public ReportsPage()
     {
         InitializeComponent();
-        AllInsurance.Desktop.Controls.TableRowStriping.Attach(ReportList);
+        TableRowStriping.Attach(ReportList);
+        _pager = new TablePagination(ReportList);
+        Grid.SetRow(_pager.Bar, 2);
+        ReportTableGrid.Children.Add(_pager.Bar);
+        ReportList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler((_, args) =>
+        {
+            var row = FindReportRow(args.OriginalSource) ?? ReportList.SelectedItem as ListViewItem;
+            if (row?.Tag is ReportEntry { TransactionId: Guid transactionId })
+            {
+                ReceiptCardWindow.Open(transactionId, App.MainWindowHandle());
+                args.Handled = true;
+            }
+        }), true);
         ReportType.SelectedIndex = 0;
         Loaded += async (_, _) => await LoadAsync();
     }
@@ -43,6 +58,10 @@ public sealed partial class ReportsPage : Page
             SetOptions(BranchFilter, "Όλοι οι κλάδοι", policies.Select(item => item.Data.Branch));
             SetOptions(PartnerFilter, "Όλοι οι συνεργάτες", _records.Where(item => item.SectionKey == "partners")
                 .Select(item => item.Title));
+            SetOptions(ReceiptCustomerFilter, "Όλοι οι πελάτες", _customers.Select(CustomerDisplay));
+            SetOptions(ReceiptMethodFilter, "Όλοι οι τρόποι πληρωμής", _customers
+                .SelectMany(item => item.Transactions).Where(item => item.Type == "receipt")
+                .Select(item => item.PaymentMethod));
             Refresh();
         }
         catch (Exception exception)
@@ -59,6 +78,20 @@ public sealed partial class ReportsPage : Page
                      .Distinct(StringComparer.CurrentCultureIgnoreCase).OrderBy(value => value))
             box.Items.Add(value);
         box.SelectedIndex = 0;
+    }
+
+    private static string CustomerDisplay(Customer customer) =>
+        $"{customer.Code} · {customer.LastName} {customer.FirstName}".Trim();
+
+    private static ListViewItem? FindReportRow(object source)
+    {
+        var current = source as DependencyObject;
+        while (current is not null)
+        {
+            if (current is ListViewItem { Tag: ReportEntry }) return (ListViewItem)current;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return null;
     }
 
     private void FiltersChanged(object sender, object args) => Refresh();
@@ -86,8 +119,16 @@ public sealed partial class ReportsPage : Page
             BranchFilter is null || PartnerFilter is null || FromDate is null || UntilDate is null) return;
         var policies = Policies().ToArray();
         var kind = ReportType.SelectedIndex;
+        var receiptsOnly = kind == 8;
+        CompanyFilter.Visibility = receiptsOnly ? Visibility.Collapsed : Visibility.Visible;
+        BranchFilter.Visibility = receiptsOnly ? Visibility.Collapsed : Visibility.Visible;
+        PartnerFilter.Visibility = receiptsOnly ? Visibility.Collapsed : Visibility.Visible;
+        ReceiptCustomerFilter.Visibility = receiptsOnly ? Visibility.Visible : Visibility.Collapsed;
+        ReceiptMethodFilter.Visibility = receiptsOnly ? Visibility.Visible : Visibility.Collapsed;
+        ReportList.SelectionMode = receiptsOnly ? ListViewSelectionMode.Single : ListViewSelectionMode.None;
         _headings = kind switch
         {
+            8 => ["Ημερομηνία", "Πελάτης", "Ασφαλιστήριο", "Ποσό", "Τρόπος πληρωμής", "Αναφορά"],
             1 => ["Ασφαλιστήριο", "Πελάτης", "Εταιρεία", "Καθαρά", "Μικτά", "Λήξη"],
             2 => ["Ασφαλιστική", "Πλήθος", "Μικτά", "Προμήθεια γραφείου", "Προς απόδοση*", "Κλάδοι"],
             3 => ["Συνεργάτης", "Ασφαλιστήρια", "Προμήθειες", "Αποδόθηκαν", "Υπόλοιπο", "Κατηγορία"],
@@ -101,15 +142,20 @@ public sealed partial class ReportsPage : Page
         {
             1 => PolicyRows(policies), 2 => InsurerRows(policies), 3 => PartnerRows(policies),
             4 => CustomerRows(), 5 => ClaimRows(), 6 => VehicleRows(),
-            7 => CustomerMovementRows(), _ => SummaryRows(policies)
+            7 => CustomerMovementRows(), 8 => ReceiptRows(), _ => SummaryRows(policies)
         };
         _shown = rows.Where(row => Matches(row.Values)).ToArray();
         var heads = new[] { HeadA, HeadB, HeadC, HeadD, HeadE, HeadF };
         for (var index = 0; index < heads.Length; index++) heads[index].Text = _headings[index];
         ReportList.Items.Clear();
         foreach (var row in _shown) ReportList.Items.Add(BuildRow(row));
-        SummaryText.Text = $"{_shown.Length} γραμμές στην αναφορά";
-        DetailText.Text = kind == 2
+        _pager.Capture();
+        SummaryText.Text = receiptsOnly
+            ? $"{_shown.Length} εισπράξεις · Σύνολο: {_shown.Sum(row => row.ReceiptAmount ?? 0):N2} €"
+            : $"{_shown.Length} γραμμές στην αναφορά";
+        DetailText.Text = receiptsOnly
+            ? "Διπλό κλικ σε μία είσπραξη για πλήρη καρτέλα και εξαγωγή απόδειξης PDF."
+            : kind == 2
             ? "* Η προς απόδοση αξία εκτιμάται από τα μικτά ασφάλιστρα μείον την προμήθεια γραφείου επί των καθαρών. Οι καταβολές προς εταιρείες δεν καταχωρίζονται ακόμη."
             : "Τα στοιχεία υπολογίζονται από τις αποθηκευμένες εγγραφές και τα επιλεγμένα φίλτρα.";
     }
@@ -197,6 +243,26 @@ public sealed partial class ReportsPage : Page
                 record.Id == item.Transaction.BusinessRecordId)?.Title ?? "—"))
         .ToArray();
 
+    private ReportEntry[] ReceiptRows() => _customers
+        .Where(customer => Selected(ReceiptCustomerFilter) is not string selected ||
+            CustomerDisplay(customer) == selected)
+        .SelectMany(customer => customer.Transactions
+            .Where(transaction => transaction.Type == "receipt" &&
+                InPeriod(transaction.OccurredAtUtc.ToLocalTime()) &&
+                (Selected(ReceiptMethodFilter) is not string method || transaction.PaymentMethod == method))
+            .Select(transaction => (Customer: customer, Transaction: transaction)))
+        .OrderByDescending(item => item.Transaction.OccurredAtUtc)
+        .Select(item => new ReportEntry(
+            item.Transaction.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+            $"{item.Customer.LastName} {item.Customer.FirstName}".Trim(),
+            _records.FirstOrDefault(record => record.Id == item.Transaction.BusinessRecordId)?.Title ?? "—",
+            Money(item.Transaction.Amount), item.Transaction.PaymentMethod,
+            item.Transaction.Reference ?? "—")
+        {
+            TransactionId = item.Transaction.Id,
+            ReceiptAmount = item.Transaction.Amount
+        }).ToArray();
+
     private ReportEntry[] SummaryRows((BusinessRecord Record, PolicyCardData Data)[] policies)
     {
         var claims = _records.Where(item => item.SectionKey == "claims" && InPeriod(item.EventDate ?? item.CreatedAtUtc)).ToArray();
@@ -243,8 +309,18 @@ public sealed partial class ReportsPage : Page
             Grid.SetColumn(border, index);
             grid.Children.Add(border);
         }
-        return new ListViewItem { Content = grid, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+        var item = new ListViewItem { Content = grid, Tag = row,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Padding = new Thickness(0), Margin = new Thickness(0) };
+        if (row.TransactionId is Guid transactionId)
+        {
+            var menu = new MenuFlyout();
+            var open = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας είσπραξης" };
+            open.Click += (_, _) => ReceiptCardWindow.Open(transactionId, App.MainWindowHandle());
+            menu.Items.Add(open);
+            item.ContextFlyout = menu;
+        }
+        return item;
     }
 
     private async void Export_Click(object sender, RoutedEventArgs e)
@@ -268,5 +344,7 @@ public sealed partial class ReportsPage : Page
     private sealed record ReportEntry(string A, string B, string C, string D, string E, string F)
     {
         public string[] Values => [A, B, C, D, E, F];
+        public Guid? TransactionId { get; init; }
+        public decimal? ReceiptAmount { get; init; }
     }
 }

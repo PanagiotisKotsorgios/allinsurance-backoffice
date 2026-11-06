@@ -116,34 +116,36 @@
             </Setter>
         </Style>
         <Style x:Key="DialogConfirmButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#FF16803D" />
+            <Setter Property="Background" Value="#FF4F806F" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="MinHeight" Value="40" />
+            <Setter Property="MinWidth" Value="106" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                <Image Source="ms-appx:///Assets/Icons/action-save.svg" Width="16" Height="16" />
-                                <ContentPresenter Content="{TemplateBinding Content}" Foreground="White" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="18,Auto" ColumnSpacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-save.svg" Width="16" Height="16" VerticalAlignment="Center" />
+                                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
         <Style x:Key="DialogDangerButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#FFC62828" />
+            <Setter Property="Background" Value="#FFAD4E4E" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="MinHeight" Value="40" />
+            <Setter Property="MinWidth" Value="106" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                <Image Source="ms-appx:///Assets/Icons/action-trash.svg" Width="16" Height="16" />
-                                <ContentPresenter Content="{TemplateBinding Content}" Foreground="White" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="18,Auto" ColumnSpacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-trash.svg" Width="16" Height="16" VerticalAlignment="Center" />
+                                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -153,14 +155,69 @@
             <Setter Property="Background" Value="#FF52657D" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="MinHeight" Value="40" />
+            <Setter Property="MinWidth" Value="106" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
-                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                <Image Source="ms-appx:///Assets/Icons/action-x.svg" Width="16" Height="16" />
-                                <ContentPresenter Content="{TemplateBinding Content}" Foreground="White" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="18,Auto" ColumnSpacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-x.svg" Width="16" Height="16" VerticalAlignment="Center" />
+                                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="DialogOkayButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FF4F806F" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="MinWidth" Value="106" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
+                            <Grid ColumnDefinitions="18,Auto" ColumnSpacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-check.svg" Width="16" Height="16" VerticalAlignment="Center" />
+                                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="DialogCancelButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FFAD4E4E" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="MinWidth" Value="106" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
+                            <Grid ColumnDefinitions="18,Auto" ColumnSpacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-x.svg" Width="16" Height="16" VerticalAlignment="Center" />
+                                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="DialogSecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FF517FA4" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="MinWidth" Value="106" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,8">
+                            <Grid ColumnDefinitions="18,Auto" ColumnSpacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="ms-appx:///Assets/Icons/action-external-link.svg" Width="16" Height="16" VerticalAlignment="Center" />
+                                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Foreground="White" VerticalAlignment="Center" />
+                            </Grid>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>

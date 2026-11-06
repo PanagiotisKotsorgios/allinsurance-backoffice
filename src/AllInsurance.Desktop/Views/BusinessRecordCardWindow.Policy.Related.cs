@@ -104,52 +104,10 @@ public sealed partial class BusinessRecordCardWindow
         _policyMovementsPager.Capture();
     }
 
-    private async Task ShowPolicyTransactionAsync(CustomerTransaction transaction)
+    private Task ShowPolicyTransactionAsync(CustomerTransaction transaction)
     {
-        var customer = _record.CustomerId is Guid customerId
-            ? await _customers.GetAsync(customerId) : null;
-        var customerName = customer is null ? "—" : $"{customer.LastName} {customer.FirstName}".Trim();
-        var content = new StackPanel { Spacing = 8, Width = 440 };
-        void Add(string label, string? value)
-        {
-            content.Children.Add(new TextBlock { Text = label,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-            content.Children.Add(new TextBlock { Text = string.IsNullOrWhiteSpace(value) ? "—" : value,
-                TextWrapping = TextWrapping.Wrap });
-        }
-        Add("Αριθμός κίνησης", transaction.Id.ToString("N").ToUpperInvariant());
-        Add("Πελάτης", customerName);
-        Add("Ασφαλιστήριο", _record.Title);
-        Add("Ημερομηνία", transaction.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"));
-        Add("Ποσό", $"{transaction.Amount:N2} {transaction.Currency}");
-        Add("Τρόπος πληρωμής", transaction.PaymentMethod);
-        Add("Αναφορά", transaction.Reference);
-        Add("Αιτιολογία", transaction.Description);
-        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
-            Title = transaction.Type == "receipt" ? "Καρτέλα είσπραξης" : "Καρτέλα πληρωμής",
-            Content = new ScrollViewer { Content = content, MaxHeight = 520 },
-            PrimaryButtonText = transaction.Type == "receipt" ? "Εξαγωγή PDF" : null,
-            SecondaryButtonText = _record.CustomerId is not null ? "Άνοιγμα πελάτη" : null,
-            CloseButtonText = "Κλείσιμο" };
-        var result = await DialogButtonStyles.ShowAsync(dialog);
-        if (result == ContentDialogResult.Secondary && _record.CustomerId is Guid linkedCustomerId)
-        {
-            if (_linkedCustomerCard is not null) _linkedCustomerCard.BringToFront();
-            else
-            {
-                _linkedCustomerCard = new CustomerCardWindow(linkedCustomerId);
-                _linkedCustomerCard.Closed += (_, _) => { _linkedCustomerCard = null; BringToFront(); };
-                _linkedCustomerCard.BringToFront();
-            }
-            return;
-        }
-        if (result != ContentDialogResult.Primary) return;
-        try
-        {
-            if (await ReceiptPdfExporter.ExportAsync(this, transaction, customerName, _record.Title))
-                await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η απόδειξη PDF εξήχθη επιτυχώς.");
-        }
-        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
+        ReceiptCardWindow.Open(transaction.Id, WindowNative.GetWindowHandle(this));
+        return Task.CompletedTask;
     }
 
     private async Task AddPolicyTransactionAsync(string type)

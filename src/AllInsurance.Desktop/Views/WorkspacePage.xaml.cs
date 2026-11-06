@@ -353,6 +353,7 @@ public sealed partial class WorkspacePage : Page
                     new ProgressBar { IsIndeterminate = true, Height = 8 },
                     new TextBlock { Text = "Επικοινωνία με το GitHub Releases" }
                 } } };
+            DialogButtonStyles.Apply(checking);
             var checkingTask = checking.ShowAsync();
             AvailableUpdate? update;
             var minimumDelay = Task.Delay(TimeSpan.FromSeconds(4));
@@ -383,6 +384,7 @@ public sealed partial class WorkspacePage : Page
                     new TextBlock { Text = "Γίνεται λήψη και έλεγχος του πακέτου..." },
                     new ProgressRing { IsActive = true, Width = 36, Height = 36 }
                 } } };
+            DialogButtonStyles.Apply(progress);
             var progressTask = progress.ShowAsync();
             try
             {
