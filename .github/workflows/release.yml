@@ -16,6 +16,20 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Install installer compiler
+        shell: pwsh
+        env:
+          INNO_LICENSE_KEY: ${{ secrets.INNO_LICENSE_KEY }}
+        run: |
+          if (-not $env:INNO_LICENSE_KEY) {
+            throw 'Configure INNO_LICENSE_KEY for commercial installer builds.'
+          }
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $licensePath = 'HKCU:\Software\Jordan Russell\Inno Setup\License'
+          New-Item -Path $licensePath -Force | Out-Null
+          New-ItemProperty -Path $licensePath -Name LicenseKey -PropertyType String `
+            -Value $env:INNO_LICENSE_KEY -Force | Out-Null
       - name: Build complete Windows application
         shell: pwsh
         run: |
@@ -26,18 +40,55 @@ jobs:
           if (-not (Test-Path "$output\AllInsurance.Desktop.pri") -or -not (Test-Path "$output\App.xbf")) {
             throw 'Required WinUI resources are missing.'
           }
-          Compress-Archive -Path "$output\*" -DestinationPath "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip" -CompressionLevel Optimal
+      - name: Sign application and build signed installer
+        shell: pwsh
+        env:
+          CODE_SIGNING_PFX_BASE64: ${{ secrets.CODE_SIGNING_PFX_BASE64 }}
+          CODE_SIGNING_PFX_PASSWORD: ${{ secrets.CODE_SIGNING_PFX_PASSWORD }}
+        run: |
+          if (-not $env:CODE_SIGNING_PFX_BASE64 -or -not $env:CODE_SIGNING_PFX_PASSWORD) {
+            throw 'Configure CODE_SIGNING_PFX_BASE64 and CODE_SIGNING_PFX_PASSWORD before publishing.'
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP 'release-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CODE_SIGNING_PFX_BASE64))
+          try {
+            $password = ConvertTo-SecureString $env:CODE_SIGNING_PFX_PASSWORD -AsPlainText -Force
+            $imported = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+            $certificate = $imported | Where-Object HasPrivateKey | Select-Object -First 1
+            if (-not $certificate) { throw 'The signing certificate has no private key.' }
+            $signTool = Get-ChildItem -LiteralPath "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe -File |
+              Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+            if (-not $signTool) { throw 'Windows SDK SignTool was not found.' }
+            $iscc = @(
+              "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+              "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+            ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+            if (-not $iscc) { throw 'Inno Setup compiler was not found.' }
+            $version = '${{ github.ref_name }}'.TrimStart('v')
+            $app = 'src\AllInsurance.Desktop\bin\Release\net10.0-windows10.0.19041.0\win-x64'
+            & ./scripts/build-installer.ps1 -Version $version -PublishDir $app `
+              -OutputDir $env:RUNNER_TEMP -IsccPath $iscc -SignToolPath $signTool.FullName `
+              -CertificateThumbprint $certificate.Thumbprint
+            Compress-Archive -Path "$app\*" `
+              -DestinationPath "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip" -CompressionLevel Optimal
+          } finally {
+            Remove-Item -LiteralPath $pfx -Force -ErrorAction SilentlyContinue
+            if ($certificate) { Remove-Item -LiteralPath "Cert:\CurrentUser\My\$($certificate.Thumbprint)" -Force -ErrorAction SilentlyContinue }
+          }
       - name: Publish GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = '${{ github.ref_name }}'
-          $asset = "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip"
+          $assets = @(
+            "$env:RUNNER_TEMP\allinsurance-backoffice-win-x64.zip",
+            "$env:RUNNER_TEMP\AllInsurance-Backoffice-Setup-$($tag.TrimStart('v'))-win-x64.exe"
+          )
           gh release view $tag --repo '${{ github.repository }}' *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $asset --repo '${{ github.repository }}' --clobber
+            gh release upload $tag @assets --repo '${{ github.repository }}' --clobber
           } else {
-            gh release create $tag $asset --repo '${{ github.repository }}' --verify-tag --generate-notes --latest
+            gh release create $tag @assets --repo '${{ github.repository }}' --verify-tag --generate-notes --latest
           }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

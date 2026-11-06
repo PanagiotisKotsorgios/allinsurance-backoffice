@@ -122,17 +122,6 @@ public sealed partial class WorkspacePage : Page
         {
             SetSidebarLabelsVisible(MainNavigation.IsPaneOpen);
             AnimateSidebarLabels();
-            try
-            {
-                await DemoDataSeeder.SeedOnceAsync(App.Services);
-                if (MainNavigation.SelectedItem is NavigationViewItem { Tag: "customers" })
-                    SectionHost.Content = new CustomersPage();
-            }
-            catch (Exception exception)
-            {
-                await UiAlerts.ShowErrorAsync(XamlRoot,
-                    "Δεν ήταν δυνατή η δημιουργία δοκιμαστικών δεδομένων: " + exception.Message);
-            }
             await RefreshDatabaseStatusAsync();
             _databaseTimer.Start();
         };

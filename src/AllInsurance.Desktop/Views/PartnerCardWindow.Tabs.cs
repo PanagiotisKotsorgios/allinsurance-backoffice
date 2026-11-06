@@ -67,12 +67,6 @@ public sealed partial class PartnerCardWindow
         var due = _snapshot.Due;
         var dueColor = due > 0 ? StatusPalette.Negative :
             due < 0 ? StatusPalette.Positive : StatusPalette.Neutral;
-        right.Children.Add(CardFieldLayout.CreateRow("Υπόλοιπο συνεργάτη",
-            new Border { Background = new SolidColorBrush(dueColor),
-                CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 5, 8, 5),
-                Child = new TextBlock { Text = due > 0 ? $"Οφειλή γραφείου: {due:N2} €" :
-                    due < 0 ? $"Προκαταβολή: {-due:N2} €" : "0,00 €",
-                    Foreground = new SolidColorBrush(Colors.White), FontSize = 14 } }));
         Text(right, "contract", "Αριθμός σύμβασης", _profile.ContractNumber);
         Date(right, "start", "Έναρξη συνεργασίας", _profile.StartDate);
         Date(right, "end", "Λήξη συνεργασίας", _profile.EndDate);
@@ -80,6 +74,12 @@ public sealed partial class PartnerCardWindow
         Choice(right, "paymentmethod", "Προτιμώμενος τρόπος πληρωμής",
             _paymentMethods, _profile.PaymentMethod);
         BuildBankAccounts(right);
+        right.Children.Add(CardFieldLayout.CreateRow("Υπόλοιπο συνεργάτη",
+            new Border { Background = new SolidColorBrush(dueColor),
+                CornerRadius = new CornerRadius(6), Padding = new Thickness(8, 5, 8, 5),
+                Child = new TextBlock { Text = due > 0 ? $"Οφειλή γραφείου: {due:N2} €" :
+                    due < 0 ? $"Προκαταβολή: {-due:N2} €" : "0,00 €",
+                    Foreground = new SolidColorBrush(Colors.White), FontSize = 14 } }));
         var body = new StackPanel { Spacing = 4 };
         body.Children.Add(form);
         var extra = new Expander { Header = "Πρόσθετα στοιχεία συνεργάτη  ▾",
@@ -92,6 +92,15 @@ public sealed partial class PartnerCardWindow
             if (_tabContent.Content is ScrollViewer scroll)
                 scroll.ChangeView(null, scroll.ScrollableHeight, null);
         });
+        extra.SizeChanged += (_, args) =>
+        {
+            if (!extra.IsExpanded || args.NewSize.Height <= args.PreviousSize.Height) return;
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_tabContent.Content is ScrollViewer scroll)
+                    scroll.ChangeView(null, scroll.ScrollableHeight, null);
+            });
+        };
         body.Children.Add(extra);
         AddTab("Καρτέλα συνεργάτη", body);
     }

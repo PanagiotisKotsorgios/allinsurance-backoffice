@@ -65,30 +65,31 @@ public sealed partial class WorkspaceRecordCardWindow
         search.TextChanged += (_, _) => Render();
         add.Click += async (_, _) =>
         {
-            if (!await RequireEditAsync()) return;
-            if (await ContactDialogAsync(null) is { } contact) { _data.Contacts.Add(contact); Render(); }
+            if (!await CanRecordOrganizationActionAsync()) return;
+            if (await ContactDialogAsync(null) is { } contact)
+            { _data.Contacts.Add(contact); await PersistOrganizationChangesAsync("Το πρόσωπο αποθηκεύτηκε."); }
         };
         edit.Click += async (_, _) =>
         {
-            if (!await RequireEditAsync()) return;
+            if (!await CanRecordOrganizationActionAsync()) return;
             if (list.SelectedItem is not ContactRow row) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε πρόσωπο."); return; }
             if (await ContactDialogAsync(row.Contact) is { } updated)
             {
                 var index = _data.Contacts.FindIndex(item => item.Id == row.Contact.Id);
                 if (index >= 0) _data.Contacts[index] = updated;
-                Render();
+                await PersistOrganizationChangesAsync("Το πρόσωπο αποθηκεύτηκε.");
             }
         };
         delete.Click += async (_, _) =>
         {
-            if (!await RequireEditAsync()) return;
+            if (!await CanRecordOrganizationActionAsync()) return;
             if (list.SelectedItem is not ContactRow row) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε πρόσωπο."); return; }
             var confirm = new ContentDialog { XamlRoot = _root.XamlRoot, Title = "Διαγραφή προσώπου επικοινωνίας",
                 Content = $"Να αφαιρεθεί ο/η {row.Contact.Name};", PrimaryButtonText = "Διαγραφή",
                 CloseButtonText = "Ακύρωση" };
             if (await DialogButtonStyles.ShowAsync(confirm, destructive: true) != ContentDialogResult.Primary) return;
             _data.Contacts.RemoveAll(item => item.Id == row.Contact.Id);
-            Render();
+            await PersistOrganizationChangesAsync("Το πρόσωπο διαγράφηκε.");
         };
         Render();
         return panel;
@@ -226,25 +227,25 @@ public sealed partial class WorkspaceRecordCardWindow
         }
         edit.Click += async (_, _) =>
         {
-            if (!await RequireEditAsync()) return;
+            if (!await CanRecordOrganizationActionAsync()) return;
             if (list.SelectedItem is not SettlementRow row) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε απόδοση."); return; }
             if (await SettlementDialogAsync(row.Item) is { } item)
             {
                 var index = _data.Settlements.FindIndex(value => value.Id == row.Item.Id);
                 if (index >= 0) _data.Settlements[index] = item;
-                Render();
+                await PersistOrganizationChangesAsync("Η οικονομική κίνηση αποθηκεύτηκε.");
             }
         };
         delete.Click += async (_, _) =>
         {
-            if (!await RequireEditAsync()) return;
+            if (!await CanRecordOrganizationActionAsync()) return;
             if (list.SelectedItem is not SettlementRow row) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε απόδοση."); return; }
             var confirm = new ContentDialog { XamlRoot = _root.XamlRoot, Title = "Διαγραφή απόδοσης",
                 Content = "Να αφαιρεθεί η επιλεγμένη οικονομική κίνηση;",
                 PrimaryButtonText = "Διαγραφή", CloseButtonText = "Ακύρωση" };
             if (await DialogButtonStyles.ShowAsync(confirm, destructive: true) != ContentDialogResult.Primary) return;
             _data.Settlements.RemoveAll(item => item.Id == row.Item.Id);
-            Render();
+            await PersistOrganizationChangesAsync("Η οικονομική κίνηση διαγράφηκε.");
         };
         Render();
         return panel;
@@ -252,10 +253,43 @@ public sealed partial class WorkspaceRecordCardWindow
 
     private async Task AddOrganizationSettlementAsync()
     {
-        if (!await RequireEditAsync()) return;
+        if (!await CanRecordOrganizationActionAsync()) return;
         if (await SettlementDialogAsync(null) is not { } item) return;
         _data.Settlements.Add(item);
-        BuildTabs(preserve: true);
+        await PersistOrganizationChangesAsync("Η οικονομική κίνηση αποθηκεύτηκε.");
+    }
+
+    private async Task<bool> CanRecordOrganizationActionAsync()
+    {
+        if (_record.Id == Guid.Empty || _editing)
+        {
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot,
+                _record.Id == Guid.Empty ? "Αποθηκεύστε πρώτα την καρτέλα." :
+                    "Αποθηκεύστε πρώτα τις αλλαγές της καρτέλας.");
+            return false;
+        }
+        return true;
+    }
+
+    private async Task PersistOrganizationChangesAsync(string message)
+    {
+        try
+        {
+            _record.DetailsJson = _data.Write();
+            await _records.SaveAsync(_record);
+            _record = await _records.GetAsync(_record.Id) ?? _record;
+            _data = WorkspaceCardData.Read(_record.DetailsJson);
+            BuildTabs(preserve: true);
+            RecordSaved?.Invoke(this, EventArgs.Empty);
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot, message);
+        }
+        catch (Exception exception)
+        {
+            _record = await _records.GetAsync(_record.Id) ?? _record;
+            _data = WorkspaceCardData.Read(_record.DetailsJson);
+            BuildTabs(preserve: true);
+            await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message);
+        }
     }
 
     private async Task<OrganizationSettlement?> SettlementDialogAsync(OrganizationSettlement? existing)
@@ -280,13 +314,6 @@ public sealed partial class WorkspaceRecordCardWindow
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); return null; }
         return new OrganizationSettlement { Id = existing?.Id ?? Guid.NewGuid(),
             Date = selected ?? DateTime.Today, Amount = value, Note = note.Text.Trim() };
-    }
-
-    private async Task<bool> RequireEditAsync()
-    {
-        if (_editing) return true;
-        await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Πατήστε πρώτα «Επεξεργασία» στην καρτέλα.");
-        return false;
     }
 
     private sealed record ContactRow(OrganizationContact Contact)

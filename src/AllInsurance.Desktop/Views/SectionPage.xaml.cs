@@ -143,8 +143,8 @@ public sealed partial class SectionPage : Page
         {
             TitleHeader.Text = "Όχημα";
             CodeHeader.Text = "Πινακίδα";
-            PartyHeader.Text = "Μάρκα";
-            StatusHeader.Text = "Πελάτης";
+            PartyHeader.Text = "Πελάτης";
+            StatusHeader.Text = "Μάρκα";
             EventHeader.Text = "Χρήση";
             CustomerHeader.Text = "Πρώτη άδεια";
             CreatedHeader.Text = "Καύσιμο";
@@ -1024,12 +1024,11 @@ public sealed partial class SectionPage : Page
         public string? RelatedParty => PolicyProfile is not null ? PolicyProfile.Insurer ?? "—" :
             ClaimProfile is not null ? CustomerLabel : OrganizationProfile is not null
             ? OrganizationProfile.Fields.GetValueOrDefault("taxNumber") ?? "—" :
-            VehicleProfile?.Make ?? PartnerProfile?.City ?? Record.RelatedParty;
+            VehicleProfile is not null ? CustomerLabel : PartnerProfile?.City ?? Record.RelatedParty;
         public string? Status => PolicyProfile is not null ? PolicyPartner ?? "Χωρίς συνεργάτη" :
             ClaimProfile is not null ? ClaimInsurer ?? "—" : OrganizationProfile is not null
             ? OrganizationProfile.Fields.GetValueOrDefault("phone") ?? "—" : VehicleProfile is not null
-            ? Record.Customer is null ? "—" :
-                $"{Record.Customer.LastName} {Record.Customer.FirstName}".Trim()
+            ? VehicleProfile.Make ?? "—"
             : PartnerProfile?.PersonType ?? Record.Status;
         public string EventDateDisplay => PolicyProfile is not null ? PolicyProfile.Branch ?? "—" :
             ClaimProfile is not null ? Record.EventDate?.ToString("dd/MM/yyyy") ?? "—" :

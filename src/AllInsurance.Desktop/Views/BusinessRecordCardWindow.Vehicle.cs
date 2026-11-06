@@ -261,8 +261,8 @@ public sealed partial class BusinessRecordCardWindow
         add.Click += async (_, _) => await OpenNewPolicyForVehicleAsync();
         panel.Children.Add(add);
         _policiesList = VehicleTable(panel,
-            ["Αριθμός / άνοιγμα", "Τύπος", "Έναρξη", "Λήξη", "Κατάσταση", "Πελάτης"],
-            [210, 145, 125, 125, 145, 190]);
+            ["Αριθμός / άνοιγμα", "Πελάτης", "Τύπος", "Έναρξη", "Λήξη", "Κατάσταση"],
+            [210, 190, 145, 125, 125, 145]);
         _policiesList.DoubleTapped += async (_, _) =>
         {
             if ((_policiesList.SelectedItem as ListViewItem)?.Tag is Guid id)
@@ -270,12 +270,13 @@ public sealed partial class BusinessRecordCardWindow
         };
         FillVehicleTable(_policiesList, _vehiclePolicies.Select(item => new[]
         {
-            item.Title, item.DocumentType ?? "Ασφαλιστήριο",
+            item.Title,
+            _vehicleCustomers.FirstOrDefault(customer => customer.Id == item.CustomerId)?.FullName ?? "—",
+            item.DocumentType ?? "Ασφαλιστήριο",
             BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).StartDate?.ToString("dd/MM/yyyy") ?? "—",
             BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).EndDate?.ToString("dd/MM/yyyy") ?? "—",
-            item.Status ?? "—",
-            _vehicleCustomers.FirstOrDefault(customer => customer.Id == item.CustomerId)?.FullName ?? "—"
-        }).ToArray(), [210, 145, 125, 125, 145, 190], _vehiclePolicies.Select(item => item.Id).ToArray(),
+            item.Status ?? "—"
+        }).ToArray(), [210, 190, 145, 125, 125, 145], _vehiclePolicies.Select(item => item.Id).ToArray(),
             async id => await OpenLinkedPolicyAsync(id));
         AddTab("Συμβόλαια", panel);
     }
@@ -314,12 +315,13 @@ public sealed partial class BusinessRecordCardWindow
         if (_policiesList is not null)
             FillVehicleTable(_policiesList, _vehiclePolicies.Select(item => new[]
             {
-                item.Title, item.DocumentType ?? "Ασφαλιστήριο",
+                item.Title,
+                _vehicleCustomers.FirstOrDefault(customer => customer.Id == item.CustomerId)?.FullName ?? "—",
+                item.DocumentType ?? "Ασφαλιστήριο",
                 BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).StartDate?.ToString("dd/MM/yyyy") ?? "—",
                 BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).EndDate?.ToString("dd/MM/yyyy") ?? "—",
-                item.Status ?? "—",
-                _vehicleCustomers.FirstOrDefault(customer => customer.Id == item.CustomerId)?.FullName ?? "—"
-            }).ToArray(), [210, 145, 125, 125, 145, 190], _vehiclePolicies.Select(item => item.Id).ToArray(),
+                item.Status ?? "—"
+            }).ToArray(), [210, 190, 145, 125, 125, 145], _vehiclePolicies.Select(item => item.Id).ToArray(),
                 async id => await OpenLinkedPolicyAsync(id));
     }
 
@@ -342,8 +344,8 @@ public sealed partial class BusinessRecordCardWindow
         actions.Children.Add(add); actions.Children.Add(edit); actions.Children.Add(delete);
         panel.Children.Add(actions);
         _claimsList = VehicleTable(panel,
-            ["Ζημιά / άνοιγμα", "Κατάσταση", "Ημερομηνία", "Πελάτης", "Σημειώσεις"],
-            [240, 180, 170, 200, 250]);
+            ["Ζημιά / άνοιγμα", "Πελάτης", "Ημερομηνία", "Κατάσταση", "Σημειώσεις"],
+            [240, 200, 170, 180, 250]);
         _claimsList.DoubleTapped += async (_, _) =>
         {
             if (SelectedClaimId() is Guid id) await EditClaimAsync(id);
@@ -403,10 +405,10 @@ public sealed partial class BusinessRecordCardWindow
         if (_claimsList is null) return;
         FillVehicleTable(_claimsList, _vehicleClaims.Select(item => new[]
         {
-            item.Title, item.Status ?? "—", item.EventDate?.ToString("dd/MM/yyyy") ?? "—",
-            _vehicleCustomers.FirstOrDefault(customer => customer.Id == item.CustomerId)?.FullName ?? "—",
+            item.Title, _vehicleCustomers.FirstOrDefault(customer => customer.Id == item.CustomerId)?.FullName ?? "—",
+            item.EventDate?.ToString("dd/MM/yyyy") ?? "—", item.Status ?? "—",
             item.Notes ?? "—"
-        }).ToArray(), [240, 180, 170, 200, 250], _vehicleClaims.Select(item => item.Id).ToArray(),
+        }).ToArray(), [240, 200, 170, 180, 250], _vehicleClaims.Select(item => item.Id).ToArray(),
             async id => await EditClaimAsync(id));
     }
 
@@ -472,7 +474,7 @@ public sealed partial class BusinessRecordCardWindow
                     BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
                     BorderThickness = column == rows[rowIndex].Length - 1 ? new Thickness(0, 0, 0, 1) :
                         new Thickness(0, 0, 1, 1), Padding = new Thickness(9, 3, 9, 3) };
-                if (ReferenceEquals(list, _policiesList) && column == 4 &&
+                if (ReferenceEquals(list, _policiesList) && column == 5 &&
                     rows[rowIndex][column] is "Ενεργό" or "Σε εξέλιξη")
                 {
                     border.Background = new SolidColorBrush(rows[rowIndex][column] == "Ενεργό"
