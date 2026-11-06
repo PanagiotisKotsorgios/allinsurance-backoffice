@@ -173,7 +173,7 @@ public sealed partial class CustomerCardWindow : Window
         var leftActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         AddButton(leftActions, "Γενική είσπραξη", async () => await AddTransactionAsync("receipt"));
         AddButton(leftActions, "Γενική πληρωμή", async () => await AddTransactionAsync("payment"));
-        AddButton(leftActions, "Μεταφορά πιστωτικού", TransferCreditAsync);
+        AddButton(leftActions, "Μεταφορά υπολοίπου", TransferCreditAsync);
         actions.Children.Add(leftActions);
         var rightActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         Grid.SetColumn(rightActions, 1);
@@ -362,7 +362,7 @@ public sealed partial class CustomerCardWindow : Window
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var stateFilter = new ComboBox { Width = 195, Height = 38,
             ItemsSource = category == "policies"
-                ? new[] { "Όλα", "Σε εξέλιξη", "Ενεργά", "Ιστορικά", "Αιτήσεις", "Ειδοποιητήρια",
+                ? new[] { "Όλα", "Σε εξέλιξη", "Ενεργά", "Αιτήσεις", "Ειδοποιητήρια",
                     "Ασφαλιστήρια", "Προσφορές", "Πρόσθετες πράξεις", "Πράσινες κάρτες" }
                 : new[] { "Όλα", "Ενεργά", "Ανενεργά" }, SelectedIndex = 0 };
         var dateBasis = new ComboBox { Width = 195, Height = 38,
@@ -416,13 +416,13 @@ public sealed partial class CustomerCardWindow : Window
         var headers = new Grid { ColumnSpacing = 0, Width = 980,
             Background = TableHeaderBrush() };
         var widths = category == "policies"
-            ? new[] { 165, 180, 150, 125, 105, 105, 150 }
+            ? new[] { 155, 160, 140, 115, 105, 95, 105, 105 }
             : new[] { 150, 140, 220, 150, 150, 170 };
         foreach (var width in widths)
             headers.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
         var names = category == "policies"
             ? new[] { "Αριθμός συμβολαίου", "Εταιρεία", "Όχημα / πινακίδα",
-                "Έναρξη", "Διάρκεια", "Λήξη", "Τύπος" }
+                "Κλάδος", "Έναρξη", "Διάρκεια", "Λήξη", "Τύπος" }
             : new[] { "Πινακίδα", "Χρήση", "Περιγραφή", "Μάρκα", "Μοντέλο", "Κατάσταση" };
         for (var index = 0; index < names.Length; index++)
         {
@@ -493,14 +493,14 @@ public sealed partial class CustomerCardWindow : Window
             .Where(item => state == 0 ||
                 (state == 1 && !item.IsHistorical) ||
                 (category == "policies" && state == 2 && !item.IsHistorical) ||
-                (state == (category == "policies" ? 3 : 2) && item.IsHistorical))
+                (category != "policies" && state == 2 && item.IsHistorical))
             .Where(item => !from.HasValue || DetailDate(item) >= from.Value)
             .Where(item => !until.HasValue || DetailDate(item) <= until.Value)
             .OrderByDescending(item => item.CreatedAtUtc);
         foreach (var item in details)
         {
             var values = category == "policies"
-                ? new[] { item.Value ?? "—", item.Title, "—",
+                ? new[] { item.Value ?? "—", item.Title, "—", "—",
                     item.EffectiveFrom?.ToString("dd/MM/yyyy"), "—",
                     item.EffectiveUntil?.ToString("dd/MM/yyyy"), "Παλαιά καταχώριση" }
                 : new[] { item.Title, item.Value, item.Notes, "—", "—",
@@ -517,13 +517,12 @@ public sealed partial class CustomerCardWindow : Window
             {
                 1 => item.Status == "Σε εξέλιξη",
                 2 => item.Status == "Ενεργό",
-                3 => item.Status is "Ανενεργό" or "Ολοκληρωμένο",
-                4 => item.DocumentType == "Αίτηση",
-                5 => item.DocumentType == "Ειδοποιητήριο",
-                6 => item.DocumentType == "Ασφαλιστήριο",
-                7 => item.DocumentType == "Προσφορά",
-                8 => item.DocumentType == "Πρόσθετη πράξη",
-                9 => item.DocumentType == "Πράσινη κάρτα",
+                3 => item.DocumentType == "Αίτηση",
+                4 => item.DocumentType == "Ειδοποιητήριο",
+                5 => item.DocumentType == "Ασφαλιστήριο",
+                6 => item.DocumentType == "Προσφορά",
+                7 => item.DocumentType == "Πρόσθετη πράξη",
+                8 => item.DocumentType == "Πράσινη κάρτα",
                 _ => true
             } : state == 1 ? item.Status != "Ανενεργό" : item.Status == "Ανενεργό"))
             .Where(item => !from.HasValue || FilterDate(item, category, dateBasis) >= from)
@@ -544,7 +543,7 @@ public sealed partial class CustomerCardWindow : Window
                     : policy.CoverageDurationMonths is int months ? $"{months} μήνες" : "—";
                 list.Items.Add(DetailListItem(category, item,
                     policy.PolicyNumber ?? item.Reference ?? item.Title,
-                    policy.Insurer ?? item.RelatedParty, plate,
+                    policy.Insurer ?? item.RelatedParty, plate, policy.Branch,
                     policy.StartDate?.ToString("dd/MM/yyyy") ?? item.EventDate?.ToString("dd/MM/yyyy"),
                     duration, policy.EndDate?.ToString("dd/MM/yyyy"),
                     item.DocumentType ?? "Ασφαλιστήριο"));
@@ -572,7 +571,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         var row = new Grid { ColumnSpacing = 0, Width = 980, Height = 39 };
         var widths = category == "policies"
-            ? new[] { 165, 180, 150, 125, 105, 105, 150 }
+            ? new[] { 155, 160, 140, 115, 105, 95, 105, 105 }
             : new[] { 150, 140, 220, 150, 150, 170 };
         foreach (var width in widths)
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
@@ -1125,15 +1124,19 @@ public sealed partial class CustomerCardWindow : Window
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         var host = new Grid { ColumnSpacing = 6,
             ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto },
                 new ColumnDefinition { Width = GridLength.Auto } } };
         host.Children.Add(input);
         if (_editing)
         {
+            var lookup = CatalogSearchButton.Create(input, label);
+            Grid.SetColumn(lookup, 1);
+            host.Children.Add(lookup);
             var add = new ActionButton { Kind = "Add", Label = "Προσθήκη " + label,
                 IconOnly = true, Width = 38, Height = 38 };
             ToolTipService.SetToolTip(add, "Προσθήκη νέας επιλογής: " + label);
             add.Click += async (_, _) => await AddCatalogValueAsync(input, category, label);
-            Grid.SetColumn(add, 1);
+            Grid.SetColumn(add, 2);
             host.Children.Add(add);
         }
         form.Children.Add(CreateFieldRow(label, host));
@@ -1269,7 +1272,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         "Γενική είσπραξη" => "Receipt",
         "Γενική πληρωμή" => "Payment",
-        "Μεταφορά πιστωτικού" => "CreditTransfer",
+        "Μεταφορά υπολοίπου" => "CreditTransfer",
         "Επισύναψη αρχείου" => "Upload",
         "Άνοιγμα" => "Open",
         "Προσθήκη" => "Add",

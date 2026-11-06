@@ -15,6 +15,19 @@ namespace AllInsurance.Desktop.Views;
 
 public sealed partial class BusinessRecordCardWindow
 {
+    private AutoSuggestBox? _vehicleCustomerSearch;
+    private CustomerCardWindow? _linkedVehicleCustomerCard;
+
+    private async Task OpenVehicleCustomerAsync(Guid id)
+    {
+        if (_linkedVehicleCustomerCard is not null)
+        { _linkedVehicleCustomerCard.BringToFront(); return; }
+        _linkedVehicleCustomerCard = new CustomerCardWindow(id);
+        _linkedVehicleCustomerCard.Closed += (_, _) =>
+        { _linkedVehicleCustomerCard = null; BringToFront(); };
+        _linkedVehicleCustomerCard.BringToFront();
+        await Task.CompletedTask;
+    }
     private CheckBox VehicleCheck(StackPanel panel, string key, string label, bool value)
     {
         var field = new CheckBox { IsChecked = value, Height = 40, MinHeight = 40 };
@@ -149,7 +162,14 @@ public sealed partial class BusinessRecordCardWindow
         panel.Children.Add(actions);
         _peopleList = VehicleTable(panel, ["Πρόσωπο", "Ρόλος", "Ποσοστό", "Κύριος"],
             [330, 280, 180, 150]);
-        _peopleList.DoubleTapped += async (_, _) => { if (_editing) await EditPersonAsync(SelectedPersonIndex()); };
+        _peopleList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
+        {
+            var source = args.OriginalSource as DependencyObject;
+            while (source is not null && source is not HyperlinkButton && source is not ListViewItem)
+                source = VisualTreeHelper.GetParent(source);
+            if (source is HyperlinkButton) return;
+            if (_editing) await EditPersonAsync(SelectedPersonIndex());
+        }), true);
         RefreshPeopleList();
         AddTab("Πρόσωπα", panel);
     }
@@ -213,7 +233,9 @@ public sealed partial class BusinessRecordCardWindow
         {
             _vehicleCustomers.FirstOrDefault(item => item.Id == person.CustomerId)?.FullName ?? "Άγνωστος πελάτης",
             person.Role, $"{person.OwnershipPercent:N2} %", person.IsPrimaryOwner ? "Ναι" : "Όχι"
-        }).ToArray(), [330, 280, 180, 150]);
+        }).ToArray(), [330, 280, 180, 150],
+            _vehiclePeople.Select(person => person.CustomerId).ToArray(),
+            async id => await OpenVehicleCustomerAsync(id));
     }
 
     private void BuildVehiclePoliciesTab()
@@ -228,14 +250,21 @@ public sealed partial class BusinessRecordCardWindow
         add.Click += async (_, _) => await OpenNewPolicyForVehicleAsync();
         panel.Children.Add(add);
         _policiesList = VehicleTable(panel,
-            ["Αριθμός / άνοιγμα", "Τύπος", "Κατάσταση", "Ημερομηνία", "Πελάτης"],
-            [250, 210, 190, 170, 200]);
+            ["Αριθμός / άνοιγμα", "Τύπος", "Έναρξη", "Λήξη", "Κατάσταση", "Πελάτης"],
+            [210, 145, 125, 125, 145, 190]);
+        _policiesList.DoubleTapped += async (_, _) =>
+        {
+            if ((_policiesList.SelectedItem as ListViewItem)?.Tag is Guid id)
+                await OpenLinkedPolicyAsync(id);
+        };
         FillVehicleTable(_policiesList, _vehiclePolicies.Select(item => new[]
         {
-            item.Title, item.DocumentType ?? "Ασφαλιστήριο", item.Status ?? "—",
-            item.EventDate?.ToString("dd/MM/yyyy") ?? "—",
+            item.Title, item.DocumentType ?? "Ασφαλιστήριο",
+            BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).StartDate?.ToString("dd/MM/yyyy") ?? "—",
+            BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).EndDate?.ToString("dd/MM/yyyy") ?? "—",
+            item.Status ?? "—",
             _vehicleCustomers.FirstOrDefault(customer => customer.Id == item.CustomerId)?.FullName ?? "—"
-        }).ToArray(), [250, 210, 190, 170, 200], _vehiclePolicies.Select(item => item.Id).ToArray(),
+        }).ToArray(), [210, 145, 125, 125, 145, 190], _vehiclePolicies.Select(item => item.Id).ToArray(),
             async id => await OpenLinkedPolicyAsync(id));
         AddTab("Συμβόλαια", panel);
     }
@@ -274,10 +303,12 @@ public sealed partial class BusinessRecordCardWindow
         if (_policiesList is not null)
             FillVehicleTable(_policiesList, _vehiclePolicies.Select(item => new[]
             {
-                item.Title, item.DocumentType ?? "Ασφαλιστήριο", item.Status ?? "—",
-                item.EventDate?.ToString("dd/MM/yyyy") ?? "—",
+                item.Title, item.DocumentType ?? "Ασφαλιστήριο",
+                BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).StartDate?.ToString("dd/MM/yyyy") ?? "—",
+                BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).EndDate?.ToString("dd/MM/yyyy") ?? "—",
+                item.Status ?? "—",
                 _vehicleCustomers.FirstOrDefault(customer => customer.Id == item.CustomerId)?.FullName ?? "—"
-            }).ToArray(), [250, 210, 190, 170, 200], _vehiclePolicies.Select(item => item.Id).ToArray(),
+            }).ToArray(), [210, 145, 125, 125, 145, 190], _vehiclePolicies.Select(item => item.Id).ToArray(),
                 async id => await OpenLinkedPolicyAsync(id));
     }
 
@@ -302,6 +333,10 @@ public sealed partial class BusinessRecordCardWindow
         _claimsList = VehicleTable(panel,
             ["Ζημιά / άνοιγμα", "Κατάσταση", "Ημερομηνία", "Πελάτης", "Σημειώσεις"],
             [240, 180, 170, 200, 250]);
+        _claimsList.DoubleTapped += async (_, _) =>
+        {
+            if (SelectedClaimId() is Guid id) await EditClaimAsync(id);
+        };
         RefreshClaimsList();
         AddTab("Ζημιές", panel);
     }
@@ -426,7 +461,7 @@ public sealed partial class BusinessRecordCardWindow
                     BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
                     BorderThickness = column == rows[rowIndex].Length - 1 ? new Thickness(0, 0, 0, 1) :
                         new Thickness(0, 0, 1, 1), Padding = new Thickness(9, 3, 9, 3) };
-                if (ReferenceEquals(list, _policiesList) && column == 2 &&
+                if (ReferenceEquals(list, _policiesList) && column == 4 &&
                     rows[rowIndex][column] is "Ενεργό" or "Σε εξέλιξη")
                 {
                     border.Background = new SolidColorBrush(rows[rowIndex][column] == "Ενεργό"

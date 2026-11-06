@@ -69,13 +69,15 @@ public sealed partial class WorkspaceRecordCardWindow
              N("printDeadline", "Εκτύπωση εντός (ημέρες)"),
              N("renewalDays", "Ημέρες ανανέωσης"), B("splitTax", "Split φόρου"),
              M("notes", "Σημειώσεις")]);
-        AppendToLastTab(OrganizationSettlementsPanel());
+        AppendToLastTab(OrganizationBalanceBadge());
+        AddTab("Οικονομικά εταιρείας", OrganizationSettlementsPanel());
         FormTab("Επικοινωνία",
             [T("contact", "Πρόσωπο επικοινωνίας"), T("phone", "Τηλέφωνο"),
              T("mobile", "Κινητό"), T("email", "Email"), T("website", "Ιστότοπος")],
             [T("address", "Διεύθυνση"), T("city", "Πόλη"), T("postalCode", "Τ.Κ."),
              T("claimsEmail", "Email ζημιών"), T("accountingEmail", "Email λογιστηρίου")]);
         AppendToLastTab(OrganizationContactsPanel());
+        AppendToLastTab(OrganizationContactFilesPanel());
         var production = RelatedPanel();
         production.Children.Add(RelatedTable("Ασφαλιστήρια εταιρείας", "policies",
             item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson) is var policy &&
@@ -96,13 +98,15 @@ public sealed partial class WorkspaceRecordCardWindow
             [T("contractNumber", "Αριθμός σύμβασης"), D("startDate", "Έναρξη συνεργασίας"),
              D("endDate", "Λήξη συνεργασίας"), N("creditLimit", "Πιστωτικό όριο (€)"),
              T("branchCode", "Κωδικός υποκαταστήματος"), M("notes", "Σημειώσεις")]);
-        AppendToLastTab(OrganizationSettlementsPanel());
+        AppendToLastTab(OrganizationBalanceBadge());
+        AddTab("Οικονομικά πρακτορείου", OrganizationSettlementsPanel());
         FormTab("Επικοινωνία",
             [T("phone", "Τηλέφωνο"), T("mobile", "Κινητό"), T("email", "Email"),
              T("website", "Ιστότοπος")],
             [T("address", "Διεύθυνση"), T("city", "Πόλη"), T("postalCode", "Τ.Κ."),
              T("contact", "Πρόσωπο επικοινωνίας")]);
         AppendToLastTab(OrganizationContactsPanel());
+        AppendToLastTab(OrganizationContactFilesPanel());
         var policies = RelatedPanel();
         policies.Children.Add(RelatedTable("Ασφαλιστήρια πρακτορείου", "policies",
             item => BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson) is var policy &&

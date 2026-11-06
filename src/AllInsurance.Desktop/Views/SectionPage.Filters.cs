@@ -18,7 +18,7 @@ public sealed partial class SectionPage
         };
         CityFilter.Title = _section.Key switch
         {
-            "partners" => "Πόλη", "vehicles" => "Συμβόλαιο",
+            "partners" => "Πόλη",
             "companies" or "agencies" => "Προέλευση", "policies" => "Εταιρεία", _ => "Πόλη"
         };
         PersonTypeFilter.Title = _section.Key switch
@@ -28,7 +28,7 @@ public sealed partial class SectionPage
         var visible = _section.Key switch
         {
             "partners" => new FrameworkElement[] { StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter },
-            "vehicles" => [StatusFilter, CustomerFilter, CityFilter, PersonTypeFilter, DateRangeFilter],
+            "vehicles" => [StatusFilter, CustomerFilter, PersonTypeFilter, DateRangeFilter],
             "companies" or "agencies" => [StatusFilter, CustomerFilter, CityFilter],
             "policies" => [StatusFilter, PolicyDocumentFilter, CustomerFilter, CityFilter, PersonTypeFilter,
                 PolicyCustomerFilter, PolicyPartnerFilter, DateRangeFilter],
@@ -118,7 +118,6 @@ public sealed partial class SectionPage
                 break;
             case "vehicles":
                 CustomerFilter.SetOptions(records.Select(item => Vehicle(item).Use ?? "Χωρίς χρήση"));
-                CityFilter.SetOptions(["Ενεργό συμβόλαιο", "Χωρίς ενεργό συμβόλαιο"]);
                 PersonTypeFilter.SetOptions(records.Select(item => Vehicle(item).Make ?? "Χωρίς μάρκα"));
                 break;
             case "companies":
@@ -170,8 +169,6 @@ public sealed partial class SectionPage
         var third = _section.Key switch
         {
             "partners" => PartnerProfileData.Read(item.DetailsJson).City ?? "Χωρίς πόλη",
-            "vehicles" => _vehiclesWithActivePolicy.Contains(item.Id)
-                ? "Ενεργό συμβόλαιο" : "Χωρίς ενεργό συμβόλαιο",
             "companies" or "agencies" => Workspace(item, "origin", "Χωρίς προέλευση"),
             "policies" => Policy(item).Insurer ?? "Χωρίς εταιρεία",
             _ => null

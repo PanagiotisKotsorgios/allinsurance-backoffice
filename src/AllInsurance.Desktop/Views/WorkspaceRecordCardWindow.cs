@@ -64,6 +64,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private ActionButton? _editButton;
     private ActionButton? _saveButton;
+    private ActionButton? _settlementFooterButton;
     private Window? _child;
     private bool _editing;
     private bool _building;
@@ -182,7 +183,16 @@ public sealed partial class WorkspaceRecordCardWindow : Window
         var footer = new Grid { ColumnDefinitions = { new ColumnDefinition(),
             new ColumnDefinition { Width = GridLength.Auto } },
             Margin = new Thickness(18, 9, 18, 14) };
-        footer.Children.Add(_status);
+        var footerLeft = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        footerLeft.Children.Add(_status);
+        if (_section.Key is "companies" or "agencies")
+        {
+            _settlementFooterButton = new ActionButton { Kind = "Add",
+                Label = "Καταχώριση απόδοσης" };
+            _settlementFooterButton.Click += async (_, _) => await AddOrganizationSettlementAsync();
+            footerLeft.Children.Add(_settlementFooterButton);
+        }
+        footer.Children.Add(footerLeft);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         _editButton = new ActionButton { Kind = "Edit", Label = "Επεξεργασία " + Singular() };
         _editButton.Click += (_, _) => { _editing = true; ApplyEditMode(); };

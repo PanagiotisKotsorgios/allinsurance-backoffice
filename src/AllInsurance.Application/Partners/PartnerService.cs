@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AllInsurance.Application.Partners;
 
 public sealed record PartnerProductionItem(Guid PolicyId, string Number, string CustomerName,
-    DateTime? StartDate, DateTime RecordedAtUtc, decimal NetPremium,
+    DateTime? StartDate, DateTime RecordedAtUtc, decimal NetPremium, decimal GrossPremium,
     decimal CommissionPercent, decimal Commission);
 
 public sealed record PartnerSnapshot(IReadOnlyList<PartnerProductionItem> Production,
@@ -23,7 +23,8 @@ public interface IPartnerService
     Task<Guid> AddPayoutAsync(Guid partnerId, decimal amount, string method,
         string? reference, string? description, CancellationToken cancellationToken = default);
     Task<Guid> AddMovementAsync(Guid partnerId, string kind, decimal amount, string method,
-        string? reference, string? description, CancellationToken cancellationToken = default);
+        string? reference, string? description, Guid? policyId = null,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class PartnerService(IApplicationDbContextFactory factory, ISessionService session)
@@ -98,7 +99,7 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
                     item.Record.Customer is null ? "—" :
                         $"{item.Record.Customer.LastName} {item.Record.Customer.FirstName}".Trim(),
                     item.Details.StartDate ?? item.Record.EventDate,
-                    item.Record.CreatedAtUtc, premium, rate,
+                    item.Record.CreatedAtUtc, premium, item.Details.GrossPremium ?? 0m, rate,
                     decimal.Round(premium * rate / 100m, 2, MidpointRounding.AwayFromZero));
             }).OrderByDescending(item => item.StartDate).ToArray();
         var payouts = await db.PartnerPayouts.AsNoTracking().Where(item => item.PartnerId == partnerId)
@@ -112,10 +113,11 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
     public async Task<Guid> AddPayoutAsync(Guid partnerId, decimal amount, string method,
         string? reference, string? description, CancellationToken cancellationToken = default)
         => await AddMovementAsync(partnerId, "payment", amount, method, reference,
-            description, cancellationToken);
+            description, cancellationToken: cancellationToken);
 
     public async Task<Guid> AddMovementAsync(Guid partnerId, string kind, decimal amount, string method,
-        string? reference, string? description, CancellationToken cancellationToken = default)
+        string? reference, string? description, Guid? policyId = null,
+        CancellationToken cancellationToken = default)
     {
         RequireSession();
         if (kind is not ("payment" or "receipt")) throw new ArgumentException("Μη έγκυρος τύπος κίνησης.");
@@ -128,9 +130,13 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
         if (!await db.BusinessRecords.AnyAsync(item => item.Id == partnerId &&
             item.SectionKey == "partners", cancellationToken))
             throw new InvalidOperationException("Ο συνεργάτης δεν υπάρχει.");
+        if (policyId is Guid linkedId && !await db.BusinessRecords.AnyAsync(item =>
+            item.Id == linkedId && item.SectionKey == "policies", cancellationToken))
+            throw new InvalidOperationException("Το ασφαλιστήριο δεν υπάρχει.");
         var payout = new PartnerPayout
         {
-            Id = Guid.NewGuid(), PartnerId = partnerId, Amount = amount, Kind = kind,
+            Id = Guid.NewGuid(), PartnerId = partnerId, PolicyId = policyId,
+            Amount = amount, Kind = kind,
             PaymentMethod = method, Reference = reference, Description = description,
             OccurredAtUtc = DateTime.UtcNow, CreatedByUserId = session.Current!.UserId
         };

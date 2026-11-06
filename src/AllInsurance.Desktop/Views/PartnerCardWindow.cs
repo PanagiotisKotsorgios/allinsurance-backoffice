@@ -298,7 +298,18 @@ public sealed partial class PartnerCardWindow : Window
             SelectedItem = value ?? "", MinHeight = 40, Height = 40,
             IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
-        panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _choice[key] = field;
+        var host = new Grid { ColumnSpacing = 6,
+            ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto } } };
+        host.Children.Add(field);
+        if (_editing && (choices.Length > 12 || key is "capacity" or "taxoffice" or
+            "business" or "category"))
+        {
+            var lookup = CatalogSearchButton.Create(field, label);
+            Grid.SetColumn(lookup, 1);
+            host.Children.Add(lookup);
+        }
+        panel.Children.Add(CardFieldLayout.CreateRow(label, host)); _choice[key] = field;
         return field;
     }
 

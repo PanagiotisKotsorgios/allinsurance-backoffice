@@ -364,7 +364,9 @@ public sealed partial class BusinessRecordCardWindow : Window
                 ? StatusPalette.Positive : StatusPalette.Neutral);
             if (badge.Child is TextBlock mark) mark.Text = checkedValue ? "✓" : "";
         }
-        LockChoice(_customerChoice, _editing && _fixedCustomerId is null);
+        var ownerLockedByPolicy = _section == "vehicles" && _vehiclePolicies.Any(item =>
+            item.DocumentType is null or "Ασφαλιστήριο" && item.Status == "Ενεργό");
+        LockChoice(_customerChoice, _editing && _fixedCustomerId is null && !ownerLockedByPolicy);
         LockChoice(_vehicleChoice, _editing);
         LockChoice(_typeChoice, _editing);
         LockChoice(_statusChoice, _editing);
@@ -392,6 +394,8 @@ public sealed partial class BusinessRecordCardWindow : Window
         }
         LockChoice(_insurerSuggest, _editing);
         foreach (var search in _policySearchFields) LockChoice(search, _editing);
+        if (_section == "vehicles" && _vehicleCustomerSearch is not null)
+            LockChoice(_vehicleCustomerSearch, _editing && _fixedCustomerId is null && !ownerLockedByPolicy);
         if (_convertButton is not null) _convertButton.IsEnabled = true;
         foreach (var button in _editControls) button.IsEnabled = _editing;
     }
@@ -548,7 +552,13 @@ public sealed partial class BusinessRecordCardWindow : Window
             HorizontalAlignment = HorizontalAlignment.Stretch,
             IsEnabled = _fixedCustomerId is null, MinHeight = 40, Height = 40 };
         _customerChoice.SelectedItem = items.FirstOrDefault(item => item.Id == _record.CustomerId);
-        panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *", _customerChoice));
+        var search = SearchChoice(items, _customerChoice, "Αναζήτηση πελάτη ή κωδικού");
+        _vehicleCustomerSearch = search;
+        _customerChoice.SelectionChanged += (_, _) =>
+            search.Text = (_customerChoice.SelectedItem as Choice)?.Name ?? "";
+        _customerChoice.Visibility = Visibility.Collapsed;
+        panel.Children.Add(_customerChoice);
+        panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *", search));
         return _customerChoice;
     }
 

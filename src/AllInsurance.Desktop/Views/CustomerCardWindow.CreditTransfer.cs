@@ -53,7 +53,7 @@ public sealed partial class CustomerCardWindow
             form.Children.Add(policies);
             form.Children.Add(reason);
             var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
-                Title = "Μεταφορά πιστωτικού σε άλλον πελάτη", Content = form,
+                Title = "Μεταφορά υπολοίπου σε άλλον πελάτη", Content = form,
                 PrimaryButtonText = "Μεταφορά", CloseButtonText = "Ακύρωση" };
             if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
             if (destination.SelectedItem is not CustomerListItem targetCustomer)

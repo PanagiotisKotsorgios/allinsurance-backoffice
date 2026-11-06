@@ -4,6 +4,7 @@ public sealed class PartnerPayout
 {
     public Guid Id { get; set; }
     public Guid PartnerId { get; set; }
+    public Guid? PolicyId { get; set; }
     public BusinessRecord Partner { get; set; } = null!;
     public decimal Amount { get; set; }
     public string Kind { get; set; } = "payment";

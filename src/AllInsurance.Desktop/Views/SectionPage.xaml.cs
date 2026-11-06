@@ -135,8 +135,8 @@ public sealed partial class SectionPage : Page
         if (section.Key == "partners")
         {
             StatusHeader.Text = "Τύπος προσώπου";
-            EventHeader.Text = "Υπόλοιπο";
-            CustomerHeader.Text = "Πιστωτικό όριο";
+            EventHeader.Text = "Πιστωτικό όριο";
+            CustomerHeader.Text = "Υπόλοιπο";
             CreatedHeader.Text = "Κατάσταση";
         }
         else if (section.Key == "vehicles")
@@ -635,8 +635,8 @@ public sealed partial class SectionPage : Page
             if (_sortColumn is 4 or 5)
             {
                 Func<BusinessRecordRow, decimal> amount = _sortColumn == 4
-                    ? row => row.PartnerBalance ?? 0m
-                    : row => row.PartnerProfile?.CreditLimit ?? 0m;
+                    ? row => row.PartnerProfile?.CreditLimit ?? 0m
+                    : row => row.PartnerBalance ?? 0m;
                 _filtered = (_sortDescending ? _filtered.OrderByDescending(amount) :
                     _filtered.OrderBy(amount)).ToArray();
                 return;
@@ -761,7 +761,7 @@ public sealed partial class SectionPage : Page
             statusText.Foreground = highlighted ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
         }
         if (_section.Key == "partners" &&
-            grid.Children[5] is Border { Child: TextBlock balanceText } balanceCell)
+            grid.Children[6] is Border { Child: TextBlock balanceText } balanceCell)
         {
             var outstanding = row.PartnerBalance.GetValueOrDefault() != 0m;
             balanceCell.Background = outstanding
@@ -1037,7 +1037,7 @@ public sealed partial class SectionPage : Page
             ? OrganizationProfile.Fields.GetValueOrDefault("email") ?? "—" : VehicleProfile is not null
             ? VehicleProfile.Use ?? "—" : PartnerProfile is null
             ? Record.EventDate?.ToString("dd/MM/yyyy") ?? ""
-            : $"{PartnerBalance.GetValueOrDefault():N2} €";
+            : PartnerProfile.CreditLimit is decimal credit ? $"{credit:N2} €" : "—";
         public string CustomerName => PolicyProfile is not null
             ? PolicyProfile.StartDate?.ToString("dd/MM/yyyy") ?? "—" :
             ClaimProfile is not null ? Record.Status ?? "—" : OrganizationProfile is not null
@@ -1046,7 +1046,7 @@ public sealed partial class SectionPage : Page
             : PartnerProfile is null
             ? Record.Customer is null ? "" :
                 $"{Record.Customer.LastName} {Record.Customer.FirstName}"
-            : PartnerProfile.CreditLimit is decimal limit ? $"{limit:N2} €" : "—";
+            : $"{PartnerBalance.GetValueOrDefault():N2} €";
         public string CreatedDisplay => PolicyProfile is not null
             ? PolicyProfile.EndDate?.ToString("dd/MM/yyyy") ?? "—" :
             ClaimProfile is not null ? "" : OrganizationProfile is not null

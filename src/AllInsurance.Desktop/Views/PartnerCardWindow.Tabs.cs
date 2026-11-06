@@ -27,7 +27,6 @@ public sealed partial class PartnerCardWindow
         BuildPoliciesTab();
         BuildCustomersTab();
         BuildFinanceTab();
-        BuildCommissionsTab();
         BuildHistoryTab();
         SelectTab(Math.Clamp(index, 0, _tabs.Count - 1));
     }
@@ -83,11 +82,17 @@ public sealed partial class PartnerCardWindow
         BuildBankAccounts(right);
         var body = new StackPanel { Spacing = 4 };
         body.Children.Add(form);
-        body.Children.Add(new Expander { Header = "Πρόσθετα στοιχεία συνεργάτη  ▾",
+        var extra = new Expander { Header = "Πρόσθετα στοιχεία συνεργάτη  ▾",
             Content = BuildExtraFields(), Margin = new Thickness(20, 0, 20, 16),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 34, 116, 185)),
-            BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(7) });
+            BorderThickness = new Thickness(2), CornerRadius = new CornerRadius(7) };
+        extra.Expanding += (_, _) => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_tabContent.Content is ScrollViewer scroll)
+                scroll.ChangeView(null, scroll.ScrollableHeight, null);
+        });
+        body.Children.Add(extra);
         AddTab("Καρτέλα συνεργάτη", body);
     }
 
@@ -139,10 +144,10 @@ public sealed partial class PartnerCardWindow
         panel.Children.Add(Info("Τα ασφαλιστήρια ανοίγουν με διπλό κλικ."));
         var rows = _snapshot.Production.Select(item => new PartnerTableRow([
             item.Number, item.CustomerName, item.StartDate?.ToString("dd/MM/yyyy") ?? "—",
-            item.NetPremium.ToString("N2") + " €", item.CommissionPercent.ToString("N2") + " %",
+            item.NetPremium.ToString("N2") + " €", item.GrossPremium.ToString("N2") + " €",
             item.Commission.ToString("N2") + " €"], item.PolicyId)).ToArray();
-        panel.Children.Add(Table(["Ασφαλιστήριο", "Πελάτης", "Έναρξη", "Ασφάλιστρα", "Ποσοστό", "Προμήθεια"],
-            [190, 240, 150, 170, 150, 170], rows,
+        panel.Children.Add(Table(["Αριθμός συμβολαίου", "Πελάτης", "Έναρξη", "Καθαρά", "Μεικτά", "Προμήθεια συνεργάτη"],
+            [190, 240, 150, 150, 150, 190], rows,
             "Αναζήτηση αριθμού ασφαλιστηρίου, πελάτη ή ποσού...", async id => await OpenPolicyAsync(id)));
         AddTab("Ασφαλιστήρια", panel);
     }
@@ -191,7 +196,7 @@ public sealed partial class PartnerCardWindow
             item.OccurredAtUtc, item.Kind == "receipt" ? "Είσπραξη" : "Πληρωμή",
             item.Reference ?? "—", $"{item.PaymentMethod} · {item.Description ?? "—"}", 0,
             item.Kind == "receipt" ? 0 : item.Amount,
-            item.Kind == "receipt" ? item.Amount : 0, null)))
+            item.Kind == "receipt" ? item.Amount : 0, item.Id)))
             .OrderBy(item => item.OccurredAtUtc).ThenBy(item => item.Type).ToArray();
         decimal balance = 0;
         var rows = entries.Select(item =>
@@ -209,7 +214,12 @@ public sealed partial class PartnerCardWindow
                 "Προμήθεια", "Πληρώθηκαν", "Εισπράχθηκαν", "Υπόλοιπο"],
             [150, 125, 125, 235, 125, 115, 125, 120], rows,
             "Αναζήτηση ασφαλιστηρίου, αναφοράς ή οικονομικής κίνησης...",
-            async id => await OpenPolicyAsync(id)));
+            async id =>
+            {
+                var payout = _snapshot.Payouts.FirstOrDefault(item => item.Id == id);
+                if (payout is not null) await ShowPayoutAsync(payout);
+                else await OpenPolicyAsync(id);
+            }));
         AddTab("Οικονομικά", panel);
     }
 
@@ -232,9 +242,18 @@ public sealed partial class PartnerCardWindow
         var panel = Panel();
         var rows = _snapshot.Activities.Select(item => new PartnerTableRow([
             item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"), item.Action,
-            item.Description, item.ActorName])).ToArray();
+            item.Description, item.ActorName], item.Id)).ToArray();
         panel.Children.Add(Table(["Ημερομηνία", "Ενέργεια", "Περιγραφή", "Χρήστης"],
-            [190, 200, 540, 150], rows, "Αναζήτηση ενέργειας, περιγραφής ή χρήστη..."));
+            [190, 200, 540, 150], rows, "Αναζήτηση ενέργειας, περιγραφής ή χρήστη...",
+            async id =>
+            {
+                var activity = _snapshot.Activities.FirstOrDefault(item => item.Id == id);
+                if (activity is null) return;
+                await new ContentDialog { XamlRoot = _root.XamlRoot, Title = "Καρτέλα ενέργειας",
+                    Content = $"{activity.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
+                        $"{activity.Action}\n{activity.Description}\nΧρήστης: {activity.ActorName}",
+                    CloseButtonText = "Κλείσιμο" }.ShowAsync();
+            }));
         AddTab("Ιστορικό ενεργειών", panel);
     }
 
@@ -246,19 +265,22 @@ public sealed partial class PartnerCardWindow
     {
         var host = new Grid { ColumnSpacing = 4 };
         host.ColumnDefinitions.Add(new ColumnDefinition());
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < 4; i++)
             host.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         _bankChoice = new ComboBox { PlaceholderText = "Επιλέξτε τράπεζα",
             Height = 32, MinHeight = 32, HorizontalAlignment = HorizontalAlignment.Stretch };
         host.Children.Add(_bankChoice);
-        var add = BankIconButton("Προσθήκη τράπεζας", "\uE710", Color.FromArgb(255, 22, 128, 61));
+        var lookup = CatalogSearchButton.Create(_bankChoice, "τράπεζας / IBAN");
+        lookup.IsEnabled = _editing;
+        Grid.SetColumn(lookup, 1); host.Children.Add(lookup);
+        var add = BankIconButton("Προσθήκη τράπεζας", "\uE710", StatusPalette.Positive);
         add.IsEnabled = _editing;
         add.Click += async (_, _) => await EditBankAsync(null);
-        Grid.SetColumn(add, 1); host.Children.Add(add);
-        var edit = BankIconButton("Επεξεργασία τράπεζας", "\uE70F", Color.FromArgb(255, 29, 100, 179));
+        Grid.SetColumn(add, 2); host.Children.Add(add);
+        var edit = BankIconButton("Επεξεργασία τράπεζας", "\uE70F", StatusPalette.Informational);
         edit.IsEnabled = _editing;
         edit.Click += async (_, _) => await EditBankAsync(_bankChoice.SelectedIndex);
-        Grid.SetColumn(edit, 2); host.Children.Add(edit);
+        Grid.SetColumn(edit, 3); host.Children.Add(edit);
         var delete = BankIconButton("Διαγραφή τράπεζας", "\uE74D", StatusPalette.Negative);
         delete.IsEnabled = _editing;
         delete.Click += async (_, _) =>
@@ -268,7 +290,7 @@ public sealed partial class PartnerCardWindow
             _bankAccounts.RemoveAt(_bankChoice.SelectedIndex);
             RefreshBankList();
         };
-        Grid.SetColumn(delete, 3); host.Children.Add(delete);
+        Grid.SetColumn(delete, 4); host.Children.Add(delete);
         panel.Children.Add(CardFieldLayout.CreateRow("Τράπεζες / IBAN", host));
         RefreshBankList();
     }
@@ -385,6 +407,17 @@ public sealed partial class PartnerCardWindow
                         BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
                         BorderThickness = i == entry.Cells.Length - 1 ? new Thickness(0, 0, 0, 1) :
                             new Thickness(0, 0, 1, 1), Padding = new Thickness(10, 6, 10, 6) };
+                    if (captions[i] is "Προμήθεια συνεργάτη" or "Προμήθεια" &&
+                        entry.Cells[i] is not ("—" or "0,00 €"))
+                        border.Background = new SolidColorBrush(IsDarkTheme()
+                            ? Color.FromArgb(255, 48, 76, 64) : Color.FromArgb(255, 207, 231, 215));
+                    if ((captions[i] == "Υπόλοιπο" ||
+                         captions[i] == "Υπόλοιπο" && captions.Contains("Πελάτης")) &&
+                        decimal.TryParse(entry.Cells[i].Replace("€", "").Trim(),
+                            System.Globalization.NumberStyles.Number,
+                            System.Globalization.CultureInfo.GetCultureInfo("el-GR"), out var balance) && balance > 0)
+                        border.Background = new SolidColorBrush(IsDarkTheme()
+                            ? Color.FromArgb(255, 99, 53, 53) : Color.FromArgb(255, 241, 213, 213));
                     Grid.SetColumn(border, i); grid.Children.Add(border);
                 }
                 list.Items.Add(new ListViewItem { Content = grid, Tag = entry.RecordId,
@@ -433,9 +466,15 @@ public sealed partial class PartnerCardWindow
             SelectedItem = _profile.PaymentMethod ?? _paymentMethods.FirstOrDefault() };
         var reference = new TextBox { Header = "Αριθμός αναφοράς" };
         var description = new TextBox { Header = "Αιτιολογία" };
+        var policy = new SearchablePicker<PartnerProductionItem>("Σύνδεση με ασφαλιστήριο",
+            _snapshot.Production, item => $"{item.Number} · {item.CustomerName}");
+        var month = new ComboBox { Header = "Μήνας που αφορά", HorizontalAlignment = HorizontalAlignment.Stretch,
+            ItemsSource = Enumerable.Range(0, 24).Select(offset =>
+                DateTime.Today.AddMonths(-offset).ToString("MMMM yyyy",
+                    new System.Globalization.CultureInfo("el-GR"))).ToArray() };
         var form = new StackPanel { Spacing = 9, Width = 400 };
         form.Children.Add(amount); form.Children.Add(method); form.Children.Add(reference);
-        form.Children.Add(description);
+        form.Children.Add(policy); form.Children.Add(month); form.Children.Add(description);
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
             Title = kind == "receipt" ? "Γενική είσπραξη από συνεργάτη" : "Γενική πληρωμή σε συνεργάτη", Content = form,
             PrimaryButtonText = "Καταχώριση", CloseButtonText = "Ακύρωση" };
@@ -446,8 +485,15 @@ public sealed partial class PartnerCardWindow
             if (value is null or <= 0) throw new ArgumentException("Συμπληρώστε θετικό ποσό.");
             if (method.SelectedItem is not string selectedMethod)
                 throw new ArgumentException("Επιλέξτε τρόπο πληρωμής.");
+            var linked = policy.SelectedItem;
+            var paymentReference = string.IsNullOrWhiteSpace(reference.Text)
+                ? linked?.Number : reference.Text;
+            var reason = string.Join(" · ", new[] { description.Text.Trim(),
+                linked is null ? null : $"Ασφαλιστήριο {linked.Number}",
+                month.SelectedItem is string selectedMonth ? $"Μήνας {selectedMonth}" : null }
+                .Where(item => !string.IsNullOrWhiteSpace(item)));
             await _partners.AddMovementAsync(_record.Id, kind, value.Value, selectedMethod,
-                reference.Text, description.Text);
+                paymentReference, reason, linked?.PolicyId);
             _profile = ReadProfile();
             _record.Status = Selected("status") ?? _record.Status;
             _snapshot = await _partners.GetSnapshotAsync(_record.Id);
@@ -456,5 +502,18 @@ public sealed partial class PartnerCardWindow
             _status.Text = kind == "receipt" ? "Η είσπραξη καταχωρίστηκε." : "Η πληρωμή καταχωρίστηκε.";
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
+    }
+
+    private async Task ShowPayoutAsync(PartnerPayout payout)
+    {
+        await new ContentDialog { XamlRoot = _root.XamlRoot,
+            Title = payout.Kind == "receipt" ? "Καρτέλα είσπραξης" : "Καρτέλα πληρωμής",
+            Content = $"Ημερομηνία: {payout.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
+                $"Ποσό: {payout.Amount:N2} {payout.Currency}\n" +
+                $"Τρόπος: {payout.PaymentMethod}\n" +
+                $"Αναφορά: {payout.Reference ?? "—"}\n" +
+                $"Ασφαλιστήριο: {(_snapshot.Production.FirstOrDefault(item => item.PolicyId == payout.PolicyId)?.Number ?? "—")}\n" +
+                $"Αιτιολογία: {payout.Description ?? "—"}",
+            CloseButtonText = "Κλείσιμο" }.ShowAsync();
     }
 }

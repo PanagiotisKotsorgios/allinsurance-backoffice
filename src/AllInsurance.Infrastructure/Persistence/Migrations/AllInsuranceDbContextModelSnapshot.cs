@@ -793,6 +793,9 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PolicyId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Reference")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
