@@ -199,7 +199,7 @@ public sealed partial class PartnerCardWindow
         panel.Children.Add(Info($"Προμήθειες που δικαιούται ο συνεργάτης: {_snapshot.Earned:N2} €   ·   " +
             $"Πληρώθηκαν στον συνεργάτη: {paid:N2} €   ·   Εισπράχθηκαν από τον συνεργάτη: {received:N2} €"));
         var entries = _snapshot.Production.Select(item => new PartnerLedgerEntry(
-            item.RecordedAtUtc, "Προμήθεια", item.Number,
+            item.IssueDate ?? item.RecordedAtUtc, "Προμήθεια", item.Number,
             $"{item.CustomerName} · Ασφαλιστήριο {item.Number}", item.Commission, 0, 0,
             item.PolicyId)).Concat(_snapshot.Payouts.Select(item => new PartnerLedgerEntry(
             item.OccurredAtUtc, item.Kind == "receipt" ? "Είσπραξη" : "Πληρωμή",
@@ -217,7 +217,7 @@ public sealed partial class PartnerCardWindow
                 item.Earned == 0 ? "—" : $"{item.Earned:N2} €",
                 item.Payment == 0 ? "—" : $"{item.Payment:N2} €",
                 item.Receipt == 0 ? "—" : $"{item.Receipt:N2} €",
-                $"{balance:N2} €"], item.PolicyId);
+                $"{balance:N2} €"], item.PolicyId, item.OccurredAtUtc, item.Type);
         }).ToArray();
         panel.Children.Add(Table(["Ημερομηνία", "Κίνηση", "Αναφορά", "Περιγραφή",
                 "Προμήθεια", "Πληρώθηκαν", "Εισπράχθηκαν", "Υπόλοιπο"],
@@ -228,7 +228,7 @@ public sealed partial class PartnerCardWindow
                 var payout = _snapshot.Payouts.FirstOrDefault(item => item.Id == id);
                 if (payout is not null) await ShowPayoutAsync(payout);
                 else await OpenPolicyAsync(id);
-            }));
+            }, financeFilters: true));
         AddTab("Οικονομικά", panel);
     }
 
@@ -357,17 +357,42 @@ public sealed partial class PartnerCardWindow
         else _bankAccounts[index!.Value] = account;
         RefreshBankList();
     }
-    private sealed record PartnerTableRow(string[] Cells, Guid? RecordId = null);
+    private sealed record PartnerTableRow(string[] Cells, Guid? RecordId = null,
+        DateTime? FilterDate = null, string? MovementType = null);
     private sealed record PartnerLedgerEntry(DateTime OccurredAtUtc, string Type, string Reference,
         string Description, decimal Earned, decimal Payment, decimal Receipt, Guid? PolicyId);
 
     private StackPanel Table(string[] captions, int[] widths, PartnerTableRow[] data,
-        string hint, Func<Guid, Task>? open = null)
+        string hint, Func<Guid, Task>? open = null, bool financeFilters = false)
     {
         var panel = new StackPanel { Spacing = 0 };
         var search = new TextBox { PlaceholderText = hint, Height = 40, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 8) };
-        panel.Children.Add(SearchFieldVisual.Wrap(search));
+        ComboBox? movementFilter = null;
+        ComboBox? monthFilter = null;
+        if (financeFilters)
+        {
+            var filters = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 0, 0, 8),
+                ColumnDefinitions = { new ColumnDefinition(),
+                    new ColumnDefinition { Width = new GridLength(155) },
+                    new ColumnDefinition { Width = new GridLength(175) } } };
+            search.Margin = new Thickness(0);
+            var searchHost = SearchFieldVisual.Wrap(search);
+            searchHost.VerticalAlignment = VerticalAlignment.Bottom;
+            filters.Children.Add(searchHost);
+            movementFilter = new ComboBox { Header = "Κίνηση", MinHeight = 40,
+                ItemsSource = new[] { "Όλες", "Προμήθεια", "Πληρωμή", "Είσπραξη" }, SelectedIndex = 0 };
+            Grid.SetColumn(movementFilter, 1); filters.Children.Add(movementFilter);
+            monthFilter = new ComboBox { Header = "Μήνας έκδοσης / κίνησης", MinHeight = 40 };
+            monthFilter.Items.Add("Όλοι οι μήνες");
+            foreach (var month in data.Where(item => item.FilterDate.HasValue)
+                .Select(item => item.FilterDate!.Value.ToString("yyyy-MM"))
+                .Distinct().OrderByDescending(value => value)) monthFilter.Items.Add(month);
+            monthFilter.SelectedIndex = 0;
+            Grid.SetColumn(monthFilter, 2); filters.Children.Add(monthFilter);
+            panel.Children.Add(filters);
+        }
+        else panel.Children.Add(SearchFieldVisual.Wrap(search));
         var total = widths.Sum();
         var header = new Grid { Width = total,
             Background = new SolidColorBrush(IsDarkTheme() ? Color.FromArgb(255, 55, 65, 77)
@@ -403,8 +428,15 @@ public sealed partial class PartnerCardWindow
         {
             list.Items.Clear();
             var term = search.Text.Trim();
-            var matching = data.Where(row => term.Length == 0 || row.Cells.Any(cell =>
-                cell.Contains(term, StringComparison.CurrentCultureIgnoreCase))).ToArray();
+            var selectedMovement = movementFilter?.SelectedIndex > 0
+                ? movementFilter.SelectedItem?.ToString() : null;
+            var selectedMonth = monthFilter?.SelectedIndex > 0
+                ? monthFilter.SelectedItem?.ToString() : null;
+            var matching = data.Where(row =>
+                (term.Length == 0 || row.Cells.Any(cell => cell.Contains(term,
+                    StringComparison.CurrentCultureIgnoreCase))) &&
+                (selectedMovement is null || row.MovementType == selectedMovement) &&
+                (selectedMonth is null || row.FilterDate?.ToString("yyyy-MM") == selectedMonth)).ToArray();
             var pages = Math.Max(1, (int)Math.Ceiling(matching.Length / 25.0));
             page = Math.Clamp(page, 1, pages);
             foreach (var entry in matching.Skip((page - 1) * 25).Take(25))
@@ -441,6 +473,10 @@ public sealed partial class PartnerCardWindow
             applyColumns();
         }
         search.TextChanged += (_, _) => { page = 1; Refresh(); };
+        if (movementFilter is not null)
+            movementFilter.SelectionChanged += (_, _) => { page = 1; Refresh(); };
+        if (monthFilter is not null)
+            monthFilter.SelectionChanged += (_, _) => { page = 1; Refresh(); };
         previous.Click += (_, _) => { page--; Refresh(); };
         next.Click += (_, _) => { page++; Refresh(); };
         if (open is not null)

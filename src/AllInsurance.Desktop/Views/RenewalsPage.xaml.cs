@@ -4,6 +4,7 @@ using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -70,6 +71,12 @@ public sealed partial class RenewalsPage : Page
     }
 
     private void Search_Changed(object sender, TextChangedEventArgs args) => ApplyFilters();
+    private void RenewalRow_SizeChanged(object sender, SizeChangedEventArgs args)
+    {
+        if (args.NewSize.Width > 0 && (!double.IsFinite(RenewalsHeaderGrid.Width) ||
+            Math.Abs(RenewalsHeaderGrid.Width - args.NewSize.Width) > 0.5))
+            RenewalsHeaderGrid.Width = args.NewSize.Width;
+    }
     private void Company_Changed(object sender, SelectionChangedEventArgs args) => ApplyFilters();
     private void Date_Changed(object? sender, EventArgs args) => ApplyFilters();
     private void Days30_Click(object sender, RoutedEventArgs args) => SetDays(30);
@@ -88,8 +95,16 @@ public sealed partial class RenewalsPage : Page
     }
 
     private RenewalRow? Selected => RenewalsList.SelectedItem as RenewalRow;
-    private void Open_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs args) =>
+    private void Open_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs args)
+    {
+        var current = args.OriginalSource as DependencyObject;
+        while (current is not null && current is not ListViewItem)
+            current = VisualTreeHelper.GetParent(current);
+        if (current is not ListViewItem { Content: RenewalRow row }) return;
+        RenewalsList.SelectedItem = row;
         OpenSelected(false);
+        args.Handled = true;
+    }
     private void Open_Click(object sender, RoutedEventArgs args) => OpenSelected(false);
     private void Create_Click(object sender, RoutedEventArgs args) => OpenSelected(true);
 

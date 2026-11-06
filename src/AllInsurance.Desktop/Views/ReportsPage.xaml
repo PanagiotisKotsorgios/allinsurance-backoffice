@@ -5,7 +5,7 @@
       Background="{ThemeResource PageBackgroundBrush}">
     <Grid Margin="16,12" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
         <StackPanel Spacing="3">
-            <TextBlock Text="Αναφορές" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Αναφορές και πίνακες παραγωγής" FontSize="28" FontWeight="SemiBold" />
             <TextBlock Text="Παραγωγή, οικονομικά, πελάτες, συνεργάτες, ζημιές και οχήματα"
                        Foreground="{ThemeResource SecondaryTextBrush}" />
         </StackPanel>
@@ -20,7 +20,16 @@
                         <ComboBoxItem Content="Πελάτες / υπόλοιπα" /><ComboBoxItem Content="Ζημιές" />
                         <ComboBoxItem Content="Οχήματα" /><ComboBoxItem Content="Κινήσεις πελατών" />
                         <ComboBoxItem Content="Εισπράξεις" />
+                        <ComboBoxItem Content="Πίνακας παραγωγής · συνεργάτης και εταιρεία" />
+                        <ComboBoxItem Content="Πίνακας παραγωγής · ανά συνεργάτη" />
+                        <ComboBoxItem Content="Πίνακας παραγωγής · ανά εταιρεία" />
                     </ComboBox>
+                    <ComboBox x:Name="DateBasis" Header="Ημερομηνία παραγωγής" Width="195"
+                              SelectedIndex="0" SelectionChanged="FiltersChanged">
+                        <ComboBoxItem Content="Έκδοση" /><ComboBoxItem Content="Έναρξη" />
+                    </ComboBox>
+                    <ComboBox x:Name="MonthFilter" Header="Μήνας" Width="195"
+                              SelectionChanged="Month_Changed" />
                     <ComboBox x:Name="CompanyFilter" Header="Εταιρεία" Width="195" SelectionChanged="FiltersChanged" />
                     <ComboBox x:Name="BranchFilter" Header="Κλάδος" Width="195" SelectionChanged="FiltersChanged" />
                     <ComboBox x:Name="PartnerFilter" Header="Συνεργάτης" Width="195" SelectionChanged="FiltersChanged" />

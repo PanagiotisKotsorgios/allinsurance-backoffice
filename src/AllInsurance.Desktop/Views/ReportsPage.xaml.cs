@@ -42,6 +42,10 @@ public sealed partial class ReportsPage : Page
             }
         }), true);
         ReportType.SelectedIndex = 0;
+        MonthFilter.Items.Add("Όλοι οι μήνες");
+        for (var month = 0; month < 36; month++)
+            MonthFilter.Items.Add(DateTime.Today.AddMonths(-month).ToString("MM/yyyy"));
+        MonthFilter.SelectedIndex = 0;
         Loaded += async (_, _) => await LoadAsync();
     }
 
@@ -95,6 +99,19 @@ public sealed partial class ReportsPage : Page
     }
 
     private void FiltersChanged(object sender, object args) => Refresh();
+    private void Month_Changed(object sender, SelectionChangedEventArgs args)
+    {
+        if (MonthFilter?.SelectedIndex > 0 &&
+            DateTime.TryParseExact(MonthFilter.SelectedItem?.ToString(), "MM/yyyy",
+                CultureInfo.InvariantCulture, DateTimeStyles.None, out var month))
+        {
+            FromDate.Date = new DateTimeOffset(month);
+            UntilDate.Date = new DateTimeOffset(month.AddMonths(1).AddDays(-1));
+        }
+        else if (MonthFilter?.SelectedIndex == 0)
+        { FromDate.Date = null; UntilDate.Date = null; }
+        Refresh();
+    }
     private string? Selected(ComboBox box) => box.SelectedIndex > 0 ? box.SelectedItem?.ToString() : null;
     private bool InPeriod(DateTime date) =>
         (FromDate.Date is null || date.Date >= FromDate.Date.Value.Date) &&
@@ -106,7 +123,9 @@ public sealed partial class ReportsPage : Page
         _records.Where(item => item.SectionKey == "policies" &&
             (item.DocumentType is null or "Ασφαλιστήριο"))
             .Select(item => (Record: item, Data: BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson)))
-            .Where(item => InPeriod(item.Data.IssueDate ?? item.Data.StartDate ?? item.Record.CreatedAtUtc) &&
+            .Where(item => InPeriod(DateBasis.SelectedIndex == 1
+                    ? item.Data.StartDate ?? item.Data.IssueDate ?? item.Record.CreatedAtUtc
+                    : item.Data.IssueDate ?? item.Data.StartDate ?? item.Record.CreatedAtUtc) &&
                 (Selected(CompanyFilter) is not string company || item.Data.Insurer == company) &&
                 (Selected(BranchFilter) is not string branch || item.Data.Branch == branch) &&
                 (Selected(PartnerFilter) is not string partner ||
@@ -129,6 +148,8 @@ public sealed partial class ReportsPage : Page
         _headings = kind switch
         {
             8 => ["Ημερομηνία", "Πελάτης", "Ασφαλιστήριο", "Ποσό", "Τρόπος πληρωμής", "Αναφορά"],
+            9 or 10 or 11 => ["Ομαδοποίηση", "Ασφαλιστήρια", "Καθαρά", "Μικτά",
+                "Προμήθεια έδρας € / %", "Προμήθεια συνεργάτη € / %"],
             1 => ["Ασφαλιστήριο", "Πελάτης", "Εταιρεία", "Καθαρά", "Μικτά", "Λήξη"],
             2 => ["Ασφαλιστική", "Πλήθος", "Μικτά", "Προμήθεια γραφείου", "Προς απόδοση*", "Κλάδοι"],
             3 => ["Συνεργάτης", "Ασφαλιστήρια", "Προμήθειες", "Αποδόθηκαν", "Υπόλοιπο", "Κατηγορία"],
@@ -142,7 +163,8 @@ public sealed partial class ReportsPage : Page
         {
             1 => PolicyRows(policies), 2 => InsurerRows(policies), 3 => PartnerRows(policies),
             4 => CustomerRows(), 5 => ClaimRows(), 6 => VehicleRows(),
-            7 => CustomerMovementRows(), 8 => ReceiptRows(), _ => SummaryRows(policies)
+            7 => CustomerMovementRows(), 8 => ReceiptRows(),
+            9 or 10 or 11 => ProductionGroupRows(policies, kind), _ => SummaryRows(policies)
         };
         _shown = rows.Where(row => Matches(row.Values)).ToArray();
         var heads = new[] { HeadA, HeadB, HeadC, HeadD, HeadE, HeadF };
@@ -152,9 +174,17 @@ public sealed partial class ReportsPage : Page
         _pager.Capture();
         SummaryText.Text = receiptsOnly
             ? $"{_shown.Length} εισπράξεις · Σύνολο: {_shown.Sum(row => row.ReceiptAmount ?? 0):N2} €"
+            : kind is 9 or 10 or 11
+            ? $"{_shown.Length} ομάδες · {_shown.Sum(row => row.PolicyCount)} ασφαλιστήρια · " +
+                $"Καθαρά {Money(_shown.Sum(row => row.NetAmount))} · " +
+                $"Μικτά {Money(_shown.Sum(row => row.GrossAmount))}"
             : $"{_shown.Length} γραμμές στην αναφορά";
         DetailText.Text = receiptsOnly
             ? "Διπλό κλικ σε μία είσπραξη για πλήρη καρτέλα και εξαγωγή απόδειξης PDF."
+            : kind is 9 or 10 or 11
+            ? $"Προμήθεια έδρας: {Money(_shown.Sum(row => row.OfficeAmount))} · " +
+                $"Προμήθεια συνεργατών: {Money(_shown.Sum(row => row.PartnerAmount))}. " +
+                "Τα ποσοστά είναι σταθμισμένα στα καθαρά ασφάλιστρα."
             : kind == 2
             ? "* Η προς απόδοση αξία εκτιμάται από τα μικτά ασφάλιστρα μείον την προμήθεια γραφείου επί των καθαρών. Οι καταβολές προς εταιρείες δεν καταχωρίζονται ακόμη."
             : "Τα στοιχεία υπολογίζονται από τις αποθηκευμένες εγγραφές και τα επιλεγμένα φίλτρα.";
@@ -166,6 +196,43 @@ public sealed partial class ReportsPage : Page
                 item.Record.Customer is { } customer ? $"{customer.LastName} {customer.FirstName}" : "—",
                 item.Data.Insurer ?? "—", Money(item.Data.NetPremium ?? 0), Money(item.Data.GrossPremium ?? 0),
                 item.Data.EndDate?.ToString("dd/MM/yyyy") ?? "—")).ToArray();
+
+    private ReportEntry[] ProductionGroupRows(
+        (BusinessRecord Record, PolicyCardData Data)[] policies, int mode)
+    {
+        var partnerNames = _records.Where(item => item.SectionKey == "partners")
+            .ToDictionary(item => item.Id, item => item.Title);
+        var partnerRates = _records.Where(item => item.SectionKey == "partners")
+            .ToDictionary(item => item.Id,
+                item => PartnerProfileData.Read(item.DetailsJson).DefaultCommissionPercent ?? 0m);
+        string PartnerName((BusinessRecord Record, PolicyCardData Data) item) =>
+            item.Data.PartnerId is Guid id && partnerNames.TryGetValue(id, out var name)
+                ? name : item.Record.Customer?.PartnerName ?? "Χωρίς συνεργάτη";
+        var groups = policies.GroupBy(item => mode switch
+        {
+            9 => PartnerName(item) + " · " + (item.Data.Insurer ?? "Χωρίς εταιρεία"),
+            10 => PartnerName(item),
+            _ => item.Data.Insurer ?? "Χωρίς εταιρεία"
+        }, StringComparer.CurrentCultureIgnoreCase);
+        return groups.OrderBy(group => group.Key).Select(group =>
+        {
+            var net = group.Sum(item => item.Data.NetPremium ?? 0m);
+            var gross = group.Sum(item => item.Data.GrossPremium ?? 0m);
+            var office = group.Sum(item => decimal.Round((item.Data.NetPremium ?? 0m) *
+                (item.Data.OfficeCommissionPercent ?? 0m) / 100m, 2,
+                MidpointRounding.AwayFromZero));
+            var partner = group.Sum(item => decimal.Round((item.Data.NetPremium ?? 0m) *
+                (item.Data.PartnerCommissionPercent ??
+                    (item.Data.PartnerId is Guid partnerId && partnerRates.TryGetValue(partnerId, out var rate)
+                        ? rate : 0m)) / 100m, 2,
+                MidpointRounding.AwayFromZero));
+            return new ReportEntry(group.Key, group.Count().ToString(), Money(net), Money(gross),
+                $"{Money(office)} · {(net == 0 ? 0 : office / net * 100):N2}%",
+                $"{Money(partner)} · {(net == 0 ? 0 : partner / net * 100):N2}%")
+            { PolicyCount = group.Count(), NetAmount = net, GrossAmount = gross,
+                OfficeAmount = office, PartnerAmount = partner };
+        }).ToArray();
+    }
 
     private ReportEntry[] InsurerRows((BusinessRecord Record, PolicyCardData Data)[] policies) =>
         policies.GroupBy(item => item.Data.Insurer ?? "Χωρίς εταιρεία")
@@ -346,5 +413,10 @@ public sealed partial class ReportsPage : Page
         public string[] Values => [A, B, C, D, E, F];
         public Guid? TransactionId { get; init; }
         public decimal? ReceiptAmount { get; init; }
+        public int PolicyCount { get; init; }
+        public decimal NetAmount { get; init; }
+        public decimal GrossAmount { get; init; }
+        public decimal OfficeAmount { get; init; }
+        public decimal PartnerAmount { get; init; }
     }
 }

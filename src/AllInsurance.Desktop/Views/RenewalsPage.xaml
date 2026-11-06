@@ -44,10 +44,14 @@
             </StackPanel>
         </Border>
         <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,10">
-            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
-                <Border Background="{ThemeResource TableHeaderBackgroundBrush}"
-                        BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1" CornerRadius="6">
-                    <Grid ColumnDefinitions="2*,1.2*,1.7*,2*,2*,2*" Height="40">
+            <Grid RowDefinitions="*,Auto" RowSpacing="8">
+                <ListView x:Name="RenewalsList" SelectionMode="Single" Padding="0"
+                          DoubleTapped="Open_DoubleTapped" BorderBrush="{ThemeResource TableBorderBrush}"
+                          BorderThickness="1">
+                    <ListView.Header>
+                    <Border Background="{ThemeResource TableHeaderBackgroundBrush}"
+                            BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1">
+                    <Grid x:Name="RenewalsHeaderGrid" ColumnDefinitions="2*,1.2*,1.7*,2*,2*,2*" Height="40">
                         <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,0"><TextBlock Text="Αριθμός συμβολαίου" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                         <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,0"><TextBlock Text="Λήξη" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                         <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,0"><TextBlock Text="Ημέρες για τη λήξη" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
@@ -55,10 +59,8 @@
                         <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,0"><TextBlock Text="Συνεργάτης" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                         <Border Grid.Column="5" Padding="10,0"><TextBlock Text="Πελάτης" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                     </Grid>
-                </Border>
-                <ListView x:Name="RenewalsList" Grid.Row="1" SelectionMode="Single"
-                          DoubleTapped="Open_DoubleTapped" BorderBrush="{ThemeResource TableBorderBrush}"
-                          BorderThickness="1,0,1,1">
+                    </Border>
+                    </ListView.Header>
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -69,7 +71,8 @@
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="2*,1.2*,1.7*,2*,2*,2*" Height="40">
+                            <Grid ColumnDefinitions="2*,1.2*,1.7*,2*,2*,2*" Height="40"
+                                  SizeChanged="RenewalRow_SizeChanged">
                                 <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,0">
                                     <TextBlock Text="{Binding Number}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                 </Border>
@@ -93,7 +96,7 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-                <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                     <TextBlock x:Name="StatusText" VerticalAlignment="Center"
                                Foreground="{ThemeResource SecondaryTextBrush}" />
                     <controls:ActionButton Grid.Column="1" Kind="Open" Label="Άνοιγμα ασφαλιστηρίου"

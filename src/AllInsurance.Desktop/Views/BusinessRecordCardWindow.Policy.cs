@@ -68,7 +68,12 @@ public sealed partial class BusinessRecordCardWindow
         _policyPartnerChoice.SelectedItem = values.FirstOrDefault(item => item.Id == data.PartnerId) ?? values[0];
         panel.Children.Add(_policyPartnerChoice);
         var search = SearchChoice(values, _policyPartnerChoice, "Αναζήτηση συνεργάτη");
-        panel.Children.Add(CardFieldLayout.CreateRow("Συνεργάτης", search));
+        var host = new Grid { ColumnSpacing = 4, ColumnDefinitions =
+        { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
+        host.Children.Add(search);
+        var open = PartnerLinkButton();
+        Grid.SetColumn(open, 1); host.Children.Add(open);
+        panel.Children.Add(CardFieldLayout.CreateRow("Συνεργάτης", host));
     }
 
     private AutoSuggestBox SearchChoice(Choice[] choices, ComboBox selected, string hint) =>
@@ -151,8 +156,12 @@ public sealed partial class BusinessRecordCardWindow
             DisplayMemberPath = nameof(Choice.Name), Visibility = Visibility.Collapsed };
         _customerChoice.SelectedItem = values.FirstOrDefault(item => item.Id == _record.CustomerId);
         panel.Children.Add(_customerChoice);
-        panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *",
-            SearchChoice(values, _customerChoice, "Αναζήτηση πελάτη ή κωδικού")));
+        var host = new Grid { ColumnSpacing = 4, ColumnDefinitions =
+        { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
+        host.Children.Add(SearchChoice(values, _customerChoice, "Αναζήτηση πελάτη ή κωδικού"));
+        var open = CustomerLinkButton();
+        Grid.SetColumn(open, 1); host.Children.Add(open);
+        panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *", host));
     }
 
     private void AddPolicyDurationChoice(StackPanel panel, PolicyCardData data)

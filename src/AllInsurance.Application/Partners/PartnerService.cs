@@ -7,7 +7,7 @@ namespace AllInsurance.Application.Partners;
 
 public sealed record PartnerProductionItem(Guid PolicyId, string Number, string CustomerName,
     DateTime? StartDate, DateTime RecordedAtUtc, decimal NetPremium, decimal GrossPremium,
-    decimal CommissionPercent, decimal Commission);
+    decimal CommissionPercent, decimal Commission, DateTime? IssueDate = null);
 
 public sealed record PartnerSnapshot(IReadOnlyList<PartnerProductionItem> Production,
     IReadOnlyList<PartnerPayout> Payouts, decimal Earned, decimal Paid,
@@ -100,7 +100,8 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
                         $"{item.Record.Customer.LastName} {item.Record.Customer.FirstName}".Trim(),
                     item.Details.StartDate ?? item.Record.EventDate,
                     item.Record.CreatedAtUtc, premium, item.Details.GrossPremium ?? 0m, rate,
-                    decimal.Round(premium * rate / 100m, 2, MidpointRounding.AwayFromZero));
+                    decimal.Round(premium * rate / 100m, 2, MidpointRounding.AwayFromZero),
+                    item.Details.IssueDate);
             }).OrderByDescending(item => item.StartDate).ToArray();
         var payouts = await db.PartnerPayouts.AsNoTracking().Where(item => item.PartnerId == partnerId)
             .OrderByDescending(item => item.OccurredAtUtc).ToListAsync(cancellationToken);

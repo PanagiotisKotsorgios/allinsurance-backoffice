@@ -10,6 +10,8 @@ using System.Text.Json;
 using System.Net;
 using System.Text;
 using Microsoft.UI.Text;
+using Microsoft.UI.Xaml.Media;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -22,6 +24,13 @@ public sealed partial class CommunicationsPage : Page
     private readonly HashSet<Guid> _selected = [];
     private bool _syncingSelection;
     private BusinessRecordCardWindow? _policyCard;
+    private readonly List<MessageTemplate> _templates = [];
+    private readonly Dictionary<string, DateTime> _sent = [];
+    private static readonly string CommunicationFolder = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "AllInsurance", "Communications");
+    private static readonly string TemplatesFile = Path.Combine(CommunicationFolder, "templates.json");
+    private static readonly string SentFile = Path.Combine(CommunicationFolder, "sent.json");
 
     public CommunicationsPage()
     {
@@ -35,6 +44,8 @@ public sealed partial class CommunicationsPage : Page
         EmailBody.Document.SetText(TextSetOptions.None,
             "Αγαπητέ/ή {όνομα},\n\nΤο ασφαλιστήριό σας {αριθμός} λήγει στις {λήξη}. Επικοινωνήστε μαζί μας για την ανανέωσή του.\n\nAllInsurance Backoffice");
         SubjectInput.Text = "Υπενθύμιση ανανέωσης ασφαλιστηρίου";
+        ReadLocalData();
+        RefreshTemplates();
         Loaded += async (_, _) => await LoadAsync();
     }
 
@@ -69,6 +80,7 @@ public sealed partial class CommunicationsPage : Page
         EmailBody.Visibility = email ? Visibility.Visible : Visibility.Collapsed;
         SmsBody.Visibility = email ? Visibility.Collapsed : Visibility.Visible;
         _selected.Clear();
+        RefreshTemplates();
         ApplyFilters();
     }
 
@@ -87,7 +99,8 @@ public sealed partial class CommunicationsPage : Page
                 DocumentFilter.SelectedIndex == 2 && item.Type == "Αίτηση" ||
                 DocumentFilter.SelectedIndex == 3 && item.Type == "Ειδοποιητήριο")
             .Where(item => company is null || item.Company == company)
-            .Where(item => term.Length == 0 || new[] { item.CustomerName, item.Number, item.Company, item.Branch }
+            .Where(item => term.Length == 0 || new[] { item.CustomerName, item.Number, item.Company,
+                item.Branch, item.Email, item.Phone }
                 .Any(value => value.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
             .OrderBy(item => item.DueDate).ToArray();
         RecipientsList.Items.Clear();
@@ -104,24 +117,34 @@ public sealed partial class CommunicationsPage : Page
         {
             new ColumnDefinition { Width = new GridLength(42) },
             new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) },
-            new ColumnDefinition { Width = new GridLength(150) },
-            new ColumnDefinition { Width = new GridLength(165) },
-            new ColumnDefinition { Width = new GridLength(120) },
-            new ColumnDefinition { Width = new GridLength(130) },
-            new ColumnDefinition { Width = new GridLength(110) }
+            new ColumnDefinition { Width = new GridLength(1.6, GridUnitType.Star) },
+            new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) },
+            new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) },
+            new ColumnDefinition { Width = new GridLength(1.5, GridUnitType.Star) },
+            new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) },
+            new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }
         } };
-        var box = new CheckBox { Tag = candidate.Record.Id, IsChecked = _selected.Contains(candidate.Record.Id),
+        var box = new AllInsurance.Desktop.Controls.VisibleSelectionCheckBox
+        { Tag = candidate.Record.Id, IsChecked = _selected.Contains(candidate.Record.Id),
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         box.Checked += RecipientCheckChanged;
         box.Unchecked += RecipientCheckChanged;
-        grid.Children.Add(box);
-        var values = new[] { candidate.CustomerName, ChannelChoice.SelectedIndex == 1 ? candidate.Email : candidate.Phone,
-            candidate.Number, candidate.Company, candidate.DueDate.ToString("dd/MM/yyyy"), candidate.Type };
+        var selectionCell = new Border { Child = box,
+            BorderBrush = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TableBorderBrush"],
+            BorderThickness = new Thickness(0, 0, 1, 1) };
+        grid.Children.Add(selectionCell);
+        var sentKey = $"{candidate.Record.Id}:{(ChannelChoice.SelectedIndex == 1 ? "email" : "sms")}";
+        var values = new[] { candidate.CustomerName, candidate.Email, candidate.Phone,
+            _sent.TryGetValue(sentKey, out var sentAt) ? sentAt.ToLocalTime().ToString("dd/MM/yyyy") : "—",
+            candidate.Number, candidate.DueDate.ToString("dd/MM/yyyy"), candidate.Type };
         for (var index = 0; index < values.Length; index++)
         {
-            var label = new TextBlock { Text = values[index], Margin = new Thickness(8, 0, 8, 0),
-                VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-            Grid.SetColumn(label, index + 1); grid.Children.Add(label);
+            var cell = new Border { BorderBrush = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TableBorderBrush"],
+                BorderThickness = new Thickness(0, 0, index == values.Length - 1 ? 0 : 1, 1),
+                Padding = new Thickness(8, 0, 8, 0),
+                Child = new TextBlock { Text = values[index], VerticalAlignment = VerticalAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis } };
+            Grid.SetColumn(cell, index + 1); grid.Children.Add(cell);
         }
         return new ListViewItem { Content = grid, Tag = candidate, Padding = new Thickness(0),
             HorizontalContentAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0) };
@@ -129,7 +152,8 @@ public sealed partial class CommunicationsPage : Page
 
     private void RecipientCheckChanged(object sender, RoutedEventArgs e)
     {
-        if (_syncingSelection || sender is not CheckBox { Tag: Guid id } box) return;
+        if (_syncingSelection || sender is not AllInsurance.Desktop.Controls.VisibleSelectionCheckBox
+            { Tag: Guid id } box) return;
         if (box.IsChecked == true) _selected.Add(id); else _selected.Remove(id);
         _syncingSelection = true;
         SelectAll.IsChecked = _shown.Length > 0 && _shown.All(item => _selected.Contains(item.Record.Id));
@@ -180,27 +204,156 @@ public sealed partial class CommunicationsPage : Page
         new ContentDialog { XamlRoot = XamlRoot, Title = "SMS credits",
             Content = "Η προβολή και αγορά credits θα ενεργοποιηθεί όταν προστεθεί η υπηρεσία λογαριασμού Bulker. Η ρύθμιση αποστολής SMS είναι ήδη διαθέσιμη στις Ρυθμίσεις αποστολής.", CloseButtonText = "Κλείσιμο" });
 
+    private sealed record MessageTemplate(string Name, string Channel, string Subject,
+        string Body, string RichBody);
+
+    private void ReadLocalData()
+    {
+        try
+        {
+            if (File.Exists(TemplatesFile))
+                _templates.AddRange(JsonSerializer.Deserialize<List<MessageTemplate>>(
+                    File.ReadAllText(TemplatesFile)) ?? []);
+            if (File.Exists(SentFile))
+                foreach (var pair in JsonSerializer.Deserialize<Dictionary<string, DateTime>>(
+                    File.ReadAllText(SentFile)) ?? []) _sent[pair.Key] = pair.Value;
+        }
+        catch (Exception exception) when (exception is IOException or JsonException)
+        { ComposeStatus.Text = "Δεν διαβάστηκαν τα τοπικά πρότυπα/ιστορικό: " + exception.Message; }
+    }
+
+    private void RefreshTemplates()
+    {
+        if (TemplateChoice is null || ChannelChoice is null) return;
+        var channel = ChannelChoice.SelectedIndex == 1 ? "email" : "sms";
+        TemplateChoice.ItemsSource = new[] { "Χωρίς πρότυπο" }
+            .Concat(_templates.Where(item => item.Channel == channel)
+                .OrderBy(item => item.Name).Select(item => item.Name)).ToArray();
+        TemplateChoice.SelectedIndex = 0;
+    }
+
+    private void Template_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (TemplateChoice is null || TemplateChoice.SelectedIndex <= 0 || SmsBody is null) return;
+        var channel = ChannelChoice.SelectedIndex == 1 ? "email" : "sms";
+        var template = _templates.FirstOrDefault(item => item.Channel == channel &&
+            item.Name == TemplateChoice.SelectedItem?.ToString());
+        if (template is null) return;
+        SubjectInput.Text = template.Subject;
+        if (channel == "sms") SmsBody.Text = template.Body;
+        else EmailBody.Document.SetText(TextSetOptions.FormatRtf,
+            string.IsNullOrWhiteSpace(template.RichBody) ? template.Body : template.RichBody);
+    }
+
+    private async void SaveTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        var name = new TextBox { Header = "Όνομα προτύπου *", MaxLength = 80 };
+        var result = await DialogButtonStyles.ShowAsync(new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = "Αποθήκευση προτύπου",
+            Content = name, PrimaryButtonText = "Αποθήκευση", CloseButtonText = "Ακύρωση"
+        });
+        if (result != ContentDialogResult.Primary) return;
+        var title = name.Text.Trim();
+        if (title.Length == 0) { await UiAlerts.ShowErrorAsync(XamlRoot, "Δώστε όνομα προτύπου."); return; }
+        var channel = ChannelChoice.SelectedIndex == 1 ? "email" : "sms";
+        EmailBody.Document.GetText(TextGetOptions.FormatRtf, out var rtf);
+        _templates.RemoveAll(item => item.Channel == channel &&
+            string.Equals(item.Name, title, StringComparison.CurrentCultureIgnoreCase));
+        _templates.Add(new MessageTemplate(title, channel, SubjectInput.Text, BodyText(), rtf));
+        try
+        {
+            Directory.CreateDirectory(CommunicationFolder);
+            await File.WriteAllTextAsync(TemplatesFile, JsonSerializer.Serialize(_templates));
+            RefreshTemplates();
+            TemplateChoice.SelectedItem = title;
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+    }
+
+    private async void DeleteTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        if (TemplateChoice.SelectedIndex <= 0) return;
+        var channel = ChannelChoice.SelectedIndex == 1 ? "email" : "sms";
+        var title = TemplateChoice.SelectedItem?.ToString();
+        _templates.RemoveAll(item => item.Channel == channel && item.Name == title);
+        try
+        {
+            Directory.CreateDirectory(CommunicationFolder);
+            await File.WriteAllTextAsync(TemplatesFile, JsonSerializer.Serialize(_templates));
+            RefreshTemplates();
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
+    }
+
+    private async void Recipient_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        var current = e.OriginalSource as DependencyObject;
+        while (current is not null && current is not ListViewItem)
+            current = VisualTreeHelper.GetParent(current);
+        if (current is not ListViewItem { Tag: Candidate recipient }) return;
+        var panel = new StackPanel { Width = 390, Spacing = 7 };
+        foreach (var (label, value) in new[]
+        {
+            ("Πελάτης", recipient.CustomerName), ("Email", recipient.Email),
+            ("Τηλέφωνο", recipient.Phone), ("Ασφαλιστήριο", recipient.Number),
+            ("Ασφαλιστική", recipient.Company), ("Λήξη", recipient.DueDate.ToString("dd/MM/yyyy")),
+            ("Είδος", recipient.Type)
+        })
+        {
+            var row = new Grid { ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto } }, ColumnSpacing = 5 };
+            row.Children.Add(new TextBox { Header = label, Text = value, IsReadOnly = true });
+            var copy = new Button { Content = "Αντιγραφή", VerticalAlignment = VerticalAlignment.Bottom };
+            copy.Click += (_, _) => { var data = new DataPackage(); data.SetText(value);
+                Clipboard.SetContent(data); };
+            Grid.SetColumn(copy, 1); row.Children.Add(copy);
+            panel.Children.Add(row);
+        }
+        await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = XamlRoot,
+            Title = "Στοιχεία παραλήπτη", Content = panel, CloseButtonText = "Κλείσιμο" });
+        e.Handled = true;
+    }
+
     private async void Settings_Click(object sender, RoutedEventArgs e)
     {
         var session = App.Services.GetRequiredService<ISessionService>();
         if (session.Current?.Permissions.Contains(Permission.ManageUsers) != true)
         { await UiAlerts.ShowErrorAsync(XamlRoot, "Μόνο διαχειριστής μπορεί να αλλάξει τις ρυθμίσεις αποστολής."); return; }
+        var channel = await DialogButtonStyles.ShowAsync(new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = "Ρυθμίσεις αποστολής",
+            Content = "Επιλέξτε ξεχωριστά τις ρυθμίσεις για το κανάλι αποστολής.",
+            PrimaryButtonText = "Email · Brevo", SecondaryButtonText = "SMS · Bulker",
+            CloseButtonText = "Κλείσιμο"
+        });
+        if (channel == ContentDialogResult.None) return;
+        var emailChannel = channel == ContentDialogResult.Primary;
         var settings = _gateway.ReadSettings();
         var email = new TextBox { Header = "Email αποστολέα Brevo", Text = settings.EmailSender };
         var name = new TextBox { Header = "Όνομα αποστολέα", Text = settings.EmailSenderName };
         var sms = new TextBox { Header = "Αποστολέας Bulker SMS", Text = settings.SmsSender };
         var brevo = new PasswordBox { Header = "Νέο API key Brevo", PlaceholderText = "Κενό = διατήρηση υπάρχοντος" };
         var bulker = new PasswordBox { Header = "Νέο auth key Bulker", PlaceholderText = "Κενό = διατήρηση υπάρχοντος" };
-        var content = new StackPanel { Spacing = 8, Children = { email, name, sms, brevo, bulker,
-            new TextBlock { Text = "Τα κλειδιά φυλάσσονται στον Windows Credential Manager για τον τρέχοντα χρήστη.", TextWrapping = TextWrapping.Wrap } } };
+        var content = new StackPanel { Spacing = 8 };
+        if (emailChannel)
+        { content.Children.Add(email); content.Children.Add(name); content.Children.Add(brevo); }
+        else { content.Children.Add(sms); content.Children.Add(bulker); }
+        content.Children.Add(new TextBlock { Text = "Τα κλειδιά φυλάσσονται στον Windows Credential Manager για τον τρέχοντα χρήστη.",
+            TextWrapping = TextWrapping.Wrap });
         var result = await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = XamlRoot,
-            Title = "Ρυθμίσεις αποστολής", Content = content, PrimaryButtonText = "Αποθήκευση",
+            Title = emailChannel ? "Ρυθμίσεις email · Brevo" : "Ρυθμίσεις SMS · Bulker",
+            Content = content, PrimaryButtonText = "Αποθήκευση",
             CloseButtonText = "Άκυρο" });
         if (result != ContentDialogResult.Primary) return;
         try
         {
-            _gateway.SaveSettings(new CommunicationGateway.Settings { EmailSender = email.Text.Trim(),
-                EmailSenderName = name.Text.Trim(), SmsSender = sms.Text.Trim() }, brevo.Password, bulker.Password);
+            _gateway.SaveSettings(new CommunicationGateway.Settings
+            {
+                EmailSender = emailChannel ? email.Text.Trim() : settings.EmailSender,
+                EmailSenderName = emailChannel ? name.Text.Trim() : settings.EmailSenderName,
+                SmsSender = emailChannel ? settings.SmsSender : sms.Text.Trim()
+            }, emailChannel ? brevo.Password : "", emailChannel ? "" : bulker.Password);
             ComposeStatus.Text = "Οι ρυθμίσεις αποστολής αποθηκεύτηκαν.";
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
@@ -265,11 +418,27 @@ public sealed partial class CommunicationsPage : Page
     {
         var selected = _shown.FirstOrDefault(item => _selected.Contains(item.Record.Id)) ?? _shown.FirstOrDefault();
         if (selected is null) { await UiAlerts.ShowErrorAsync(XamlRoot, "Δεν υπάρχουν παραλήπτες για προεπισκόπηση."); return; }
+        UIElement preview;
+        if (ChannelChoice.SelectedIndex == 1)
+        {
+            EmailBody.Document.GetText(TextGetOptions.FormatRtf, out var rtf);
+            var rich = new RichEditBox { IsReadOnly = true, MinHeight = 280, Width = 470 };
+            rich.Document.SetText(TextSetOptions.FormatRtf, rtf);
+            preview = new StackPanel { Spacing = 8, Children =
+            {
+                new TextBlock { Text = $"Προς: {selected.CustomerName} <{selected.Email}>" },
+                new TextBlock { Text = "Θέμα: " + Personalize(SubjectInput.Text, selected),
+                    FontWeight = FontWeights.SemiBold },
+                rich,
+                new TextBlock { Text = "Οι μεταβλητές {όνομα}, {αριθμός}, {λήξη} συμπληρώνονται κατά την αποστολή.",
+                    TextWrapping = TextWrapping.Wrap }
+            } };
+        }
+        else preview = new TextBlock { Text = Personalize(SmsBody.Text, selected),
+            TextWrapping = TextWrapping.Wrap, Width = 420 };
         await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = XamlRoot,
             Title = $"Προεπισκόπηση για {selected.CustomerName}",
-            Content = new ScrollViewer { Content = new TextBlock { Text =
-                (ChannelChoice.SelectedIndex == 1 ? $"Θέμα: {SubjectInput.Text}\n\n" : "") +
-                Personalize(BodyText(), selected), TextWrapping = TextWrapping.Wrap }, MaxHeight = 450 },
+            Content = new ScrollViewer { Content = preview, MaxHeight = 450 },
             CloseButtonText = "Κλείσιμο" });
     }
 
@@ -322,13 +491,24 @@ public sealed partial class CommunicationsPage : Page
                             Personalize(SubjectInput.Text, recipient), html);
                     }
                     else await _gateway.SendSmsAsync(recipient.Phone, body);
+                    _sent[$"{recipient.Record.Id}:{(email ? "email" : "sms")}"] = DateTime.UtcNow;
                     success++;
                 }
                 catch (Exception exception) { errors.Add($"{recipient.CustomerName}: {exception.Message}"); }
                 ComposeStatus.Text = $"Αποστολή: {success + errors.Count}/{recipients.Length}";
             }
         }
-        finally { SendButton.IsEnabled = true; }
+        finally
+        {
+            SendButton.IsEnabled = true;
+            try
+            {
+                Directory.CreateDirectory(CommunicationFolder);
+                await File.WriteAllTextAsync(SentFile, JsonSerializer.Serialize(_sent));
+            }
+            catch (Exception exception) { errors.Add("Ιστορικό αποστολών: " + exception.Message); }
+            ApplyFilters();
+        }
         await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "Αποτέλεσμα αποστολής",
             Content = $"Επιτυχείς αιτήσεις: {success}\nΑποτυχίες: {errors.Count}" +
                 (errors.Count > 0 ? "\n\n" + string.Join("\n", errors.Take(5)) : ""), CloseButtonText = "Κλείσιμο" });

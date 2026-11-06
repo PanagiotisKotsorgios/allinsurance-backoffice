@@ -35,28 +35,46 @@
             </StackPanel>
         </Border>
         <Border Grid.Row="2" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="12">
-            <Grid RowDefinitions="Auto,Auto,*">
+            <Grid RowDefinitions="Auto,*">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                    <CheckBox x:Name="SelectAll" Content="Επιλογή όλων" Checked="SelectAll_Changed"
-                              Unchecked="SelectAll_Changed" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <controls:VisibleSelectionCheckBox x:Name="SelectAll" Checked="SelectAll_Changed"
+                              Unchecked="SelectAll_Changed" />
+                        <TextBlock Text="Επιλογή όλων" VerticalAlignment="Center" />
+                    </StackPanel>
                     <TextBlock x:Name="RecipientsText" Grid.Column="1" VerticalAlignment="Center" />
                     <controls:ActionButton Grid.Column="2" Kind="Open" Label="Καρτέλα ασφαλιστηρίου"
                                            Click="OpenPolicy_Click" />
                 </Grid>
-                <Grid Grid.Row="1" ColumnDefinitions="42,2*,150,165,120,130,110" Background="{ThemeResource TableHeaderBackgroundBrush}">
-                    <TextBlock Grid.Column="1" Text="Πελάτης" Margin="8,9" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="2" Text="Παραλήπτης" Margin="8,9" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="3" Text="Ασφαλιστήριο" Margin="8,9" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="4" Text="Εταιρεία" Margin="8,9" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="5" Text="Λήξη" Margin="8,9" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="6" Text="Είδος" Margin="8,9" FontWeight="SemiBold" />
-                </Grid>
-                <ListView x:Name="RecipientsList" Grid.Row="2" SelectionMode="Single" />
+                <ListView x:Name="RecipientsList" Grid.Row="1" SelectionMode="Single" Padding="0"
+                          BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
+                          DoubleTapped="Recipient_DoubleTapped">
+                    <ListView.Header>
+                        <Grid ColumnDefinitions="42,2*,1.6*,1.3*,1*,1.5*,1.1*,1*"
+                              Background="{ThemeResource TableHeaderBackgroundBrush}" Height="40">
+                            <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" />
+                            <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Πελάτης" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
+                            <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Email" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
+                            <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Τηλέφωνο" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
+                            <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Αποστολή" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
+                            <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Ασφαλιστήριο" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
+                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Λήξη" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
+                            <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="8,0"><TextBlock Text="Είδος" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
+                        </Grid>
+                    </ListView.Header>
+                </ListView>
             </Grid>
         </Border>
         <TextBlock Grid.Row="3" Text="Σύνταξη μηνύματος" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
         <Border Grid.Row="4" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="14">
             <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                <StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ComboBox x:Name="TemplateChoice" Header="Πρότυπο μηνύματος" Width="250"
+                              SelectionChanged="Template_Changed" />
+                    <controls:ActionButton Kind="Add" Label="Αποθήκευση προτύπου" Click="SaveTemplate_Click" />
+                    <controls:ActionButton Kind="Delete" Label="Διαγραφή προτύπου" Click="DeleteTemplate_Click" />
+                </StackPanel>
                 <StackPanel x:Name="EmailHeader" Spacing="8" Visibility="Collapsed">
                     <TextBox x:Name="SubjectInput" Header="Θέμα email" PlaceholderText="π.χ. Υπενθύμιση ανανέωσης ασφαλιστηρίου" />
                     <StackPanel Orientation="Horizontal" Spacing="6">
@@ -64,6 +82,7 @@
                         <Button Content="Πλάγια" Click="Italic_Click" />
                         <Button Content="Υπογράμμιση" Click="Underline_Click" />
                     </StackPanel>
+                </StackPanel>
                 </StackPanel>
                 <TextBox x:Name="SmsBody" Grid.Row="1" AcceptsReturn="True" TextWrapping="Wrap"
                          PlaceholderText="Γράψτε το σύντομο SMS..." TextChanged="SmsBody_Changed" />
