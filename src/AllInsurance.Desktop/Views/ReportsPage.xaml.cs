@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System.Globalization;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -20,7 +21,11 @@ public sealed partial class ReportsPage : Page
     private PartnerPayout[] _payouts = [];
     private ReportEntry[] _shown = [];
     private string[] _headings = [];
-    private readonly bool[] _visibleColumns = [true, true, true, true, true, true];
+    private const string ColumnLayoutKey = "reports_production";
+    private readonly int[] _columnOrder = SectionColumnOrder.Load(ColumnLayoutKey);
+    private readonly double[] _columnWidths = SectionColumnOrder.LoadWidths(ColumnLayoutKey);
+    private readonly bool[] _visibleColumns = SectionColumnOrder.LoadVisibility(ColumnLayoutKey);
+    private double _lastViewportWidth;
     private readonly Dictionary<Guid, string> _partnerNames = [];
     private readonly Dictionary<Guid, decimal> _partnerRates = [];
     private readonly TablePagination _pager;
@@ -31,8 +36,10 @@ public sealed partial class ReportsPage : Page
         TableRowStriping.Attach(ReportList);
         _pager = new TablePagination(ReportList);
         _pager.ConfigureExport(ExportData);
-        Grid.SetRow(_pager.Bar, 2);
+        Grid.SetRow(_pager.Bar, 1);
         ReportTableGrid.Children.Add(_pager.Bar);
+        InitializeColumnInteractions();
+        ReportHeaderGrid.SizeChanged += (_, _) => UpdateReportListHeight();
         ReportList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler((_, args) =>
         {
             var row = FindReportRow(args.OriginalSource) ?? ReportList.SelectedItem as ListViewItem;
@@ -150,11 +157,8 @@ public sealed partial class ReportsPage : Page
         _records.Where(item => item.SectionKey == "policies" &&
             (item.DocumentType is null or "Ασφαλιστήριο"))
             .Select(item => (Record: item, Data: BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson)))
-            .Where(item => InPeriod(DateBasis.SelectedIndex == 1
-                    ? item.Data.StartDate ?? item.Data.IssueDate ?? item.Record.CreatedAtUtc
-                    : item.Data.IssueDate ?? item.Data.StartDate ?? item.Record.CreatedAtUtc) &&
-                (ReportType.SelectedIndex == 9 ?
-                    ProductionCompanies.SelectedValues.Contains(item.Data.Insurer ?? "Χωρίς εταιρεία") &&
+            .Where(item => ReportType.SelectedIndex == 9
+                ? ProductionCompanies.SelectedValues.Contains(item.Data.Insurer ?? "Χωρίς εταιρεία") &&
                     ProductionBranches.SelectedValues.Contains(item.Data.Branch ?? "Χωρίς κλάδο") &&
                     ProductionPackages.SelectedValues.Contains(item.Data.Product ?? "Χωρίς πακέτο") &&
                     ProductionPartners.SelectedValues.Contains(PartnerName(item)) &&
@@ -162,14 +166,15 @@ public sealed partial class ReportsPage : Page
                     (item.Data.Coverages is { Count: > 0 }
                         ? item.Data.Coverages.Any(coverage =>
                             ProductionCoverages.SelectedValues.Contains(coverage.Name))
-                        : ProductionCoverages.SelectedValues.Contains("Χωρίς κάλυψη")) &&
-                    Matches(item.Record.Title, item.Record.Reference, item.Data.Insurer,
-                        item.Data.Branch, item.Data.Product, PartnerName(item), CustomerName(item))
-                    : (Selected(CompanyFilter) is not string company || item.Data.Insurer == company) &&
+                        : ProductionCoverages.SelectedValues.Contains("Χωρίς κάλυψη"))
+                : InPeriod(DateBasis.SelectedIndex == 1
+                    ? item.Data.StartDate ?? item.Data.IssueDate ?? item.Record.CreatedAtUtc
+                    : item.Data.IssueDate ?? item.Data.StartDate ?? item.Record.CreatedAtUtc) &&
+                    (Selected(CompanyFilter) is not string company || item.Data.Insurer == company) &&
                       (Selected(BranchFilter) is not string branch || item.Data.Branch == branch) &&
                       (Selected(PartnerFilter) is not string partner ||
                           item.Record.Customer?.PartnerName == partner ||
-                          _partnerNames.GetValueOrDefault(item.Data.PartnerId ?? Guid.Empty) == partner)));
+                          _partnerNames.GetValueOrDefault(item.Data.PartnerId ?? Guid.Empty) == partner));
 
     private void Refresh()
     {
@@ -179,9 +184,13 @@ public sealed partial class ReportsPage : Page
         var kind = ReportType.SelectedIndex;
         var receiptsOnly = kind == 8;
         var production = kind == 9;
+        ReportType.Header = production ? null : "Προβολή";
+        ReportSubtitle.Visibility = production ? Visibility.Collapsed : Visibility.Visible;
+        PageLayout.RowSpacing = production ? 8 : 12;
         CompanyFilter.Visibility = receiptsOnly || production ? Visibility.Collapsed : Visibility.Visible;
         BranchFilter.Visibility = receiptsOnly || production ? Visibility.Collapsed : Visibility.Visible;
         PartnerFilter.Visibility = receiptsOnly || production ? Visibility.Collapsed : Visibility.Visible;
+        GeneralFilters.Visibility = production ? Visibility.Collapsed : Visibility.Visible;
         ProductionFilters.Visibility = production ? Visibility.Visible : Visibility.Collapsed;
         ReportColumnsButton.Visibility = production ? Visibility.Visible : Visibility.Collapsed;
         ReceiptCustomerFilter.Visibility = receiptsOnly ? Visibility.Visible : Visibility.Collapsed;
@@ -211,10 +220,10 @@ public sealed partial class ReportsPage : Page
         _shown = production ? rows : rows.Where(row => Matches(row.Values)).ToArray();
         var heads = new[] { HeadA, HeadB, HeadC, HeadD, HeadE, HeadF };
         for (var index = 0; index < heads.Length; index++) heads[index].Text = _headings[index];
-        ApplyVisibleColumns();
         ReportList.Items.Clear();
         foreach (var row in _shown) ReportList.Items.Add(BuildRow(row));
         _pager.Capture();
+        ApplyColumnLayout(true);
         SummaryText.Text = receiptsOnly
             ? $"{_shown.Length} εισπράξεις · Σύνολο: {_shown.Sum(row => row.ReceiptAmount ?? 0):N2} €"
             : production
@@ -243,7 +252,7 @@ public sealed partial class ReportsPage : Page
 
     private TableExportData ExportData()
     {
-        var indices = Enumerable.Range(0, _headings.Length)
+        var indices = _columnOrder
             .Where(index => ReportType.SelectedIndex != 9 || _visibleColumns[index]).ToArray();
         return new TableExportData("Αναφορές - " +
             (ReportType.SelectedItem is ComboBoxItem option ? option.Content?.ToString() : ReportType.SelectedItem?.ToString()),
@@ -252,33 +261,178 @@ public sealed partial class ReportsPage : Page
         { RowStyles = ReportType.SelectedIndex == 9 ? _shown.Select(row => row.Kind.ToString()).ToArray() : null };
     }
 
-    private void ApplyVisibleColumns()
+    private void ReportTableViewport_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (ReportHeaderGrid is null) return;
-        var weights = new[] { 2d, 1.3d, 1.3d, 1.2d, 1.2d, 1.2d };
+        UpdateReportListHeight();
+        if (Math.Abs(_lastViewportWidth - e.NewSize.Width) < 1) return;
+        _lastViewportWidth = e.NewSize.Width;
+        ApplyColumnLayout(true);
+    }
+
+    private void UpdateReportListHeight()
+    {
+        if (ReportTableViewport is null || ReportHeaderGrid is null || ReportList is null) return;
+        ReportList.Height = Math.Max(120,
+            ReportTableViewport.ActualHeight - ReportHeaderGrid.ActualHeight - 16);
+    }
+
+    private void ApplyColumnLayout(bool allRows = false)
+    {
+        if (ReportHeaderGrid is null || ReportTableViewport is null || _pager is null) return;
+        var visible = _columnOrder.Where(index => ReportType.SelectedIndex != 9 || _visibleColumns[index]).ToArray();
+        var baseWidth = visible.Sum(index => _columnWidths[index]);
+        var width = Math.Max(baseWidth, Math.Max(0, ReportTableViewport.ActualWidth - 2));
+        var extra = Math.Max(0, width - baseWidth);
+        ReportTableStack.Width = width;
+        ReportList.Width = width;
+        void Apply(Grid grid)
+        {
+            grid.Width = width;
+            for (var position = 0; position < 6; position++)
+            {
+                var original = _columnOrder[position];
+                var shown = ReportType.SelectedIndex != 9 || _visibleColumns[original];
+                grid.ColumnDefinitions[position].Width = new GridLength(shown
+                    ? _columnWidths[original] + (original == visible[^1] ? extra : 0) : 0);
+                var cell = (Border)grid.Children[original];
+                Grid.SetColumn(cell, position);
+                cell.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+                cell.BorderThickness = new Thickness(0, 0,
+                    shown && original != visible[^1] ? 1 : 0, 1);
+            }
+        }
+        Apply(ReportHeaderGrid);
+        var items = allRows ? _pager.CapturedItems : ReportList.Items.Cast<object>();
+        foreach (var item in items.OfType<ListViewItem>())
+            if (item.Content is Grid grid)
+            { Apply(grid); item.Width = width; }
+    }
+
+    private void InitializeColumnInteractions()
+    {
         for (var index = 0; index < 6; index++)
         {
-            var visible = ReportType.SelectedIndex != 9 || _visibleColumns[index];
-            ReportHeaderGrid.ColumnDefinitions[index].Width = visible
-                ? new GridLength(weights[index], GridUnitType.Star) : new GridLength(0);
-            ((UIElement)ReportHeaderGrid.Children[index]).Visibility = visible
-                ? Visibility.Visible : Visibility.Collapsed;
+            var original = index;
+            var cell = (Border)ReportHeaderGrid.Children[index];
+            cell.CanDrag = index != 0;
+            cell.AllowDrop = index != 0;
+            cell.DragStarting += (_, args) => args.Data.SetText($"report-column:{original}");
+            cell.DragOver += (_, args) =>
+            {
+                if (args.DataView.Contains(StandardDataFormats.Text))
+                    args.AcceptedOperation = DataPackageOperation.Move;
+            };
+            cell.Drop += async (_, args) =>
+            {
+                var data = await args.DataView.GetTextAsync();
+                if (!data.StartsWith("report-column:", StringComparison.Ordinal) ||
+                    !int.TryParse(data["report-column:".Length..], out var source)) return;
+                MoveColumn(source, original);
+            };
+            var menu = new MenuFlyout();
+            var left = new MenuFlyoutItem { Text = "Μεταφορά αριστερά", IsEnabled = index != 0 };
+            left.Click += (_, _) => MoveColumnBy(original, -1);
+            var right = new MenuFlyoutItem { Text = "Μεταφορά δεξιά", IsEnabled = index != 0 };
+            right.Click += (_, _) => MoveColumnBy(original, 1);
+            var fit = new MenuFlyoutItem { Text = "Αυτόματο πλάτος" };
+            fit.Click += (_, _) =>
+            {
+                var length = Math.Max(_headings.ElementAtOrDefault(original)?.Length ?? 0,
+                    _shown.Select(row => row.Values[original].Length).DefaultIfEmpty(0).Max());
+                _columnWidths[original] = Math.Clamp(length * 7 + 36, 90, 520);
+                SectionColumnOrder.SaveWidths(ColumnLayoutKey, _columnWidths);
+                ApplyColumnLayout(true);
+            };
+            var widen = new MenuFlyoutItem { Text = "Επέκταση στήλης" };
+            widen.Click += (_, _) =>
+            {
+                _columnWidths[original] = 520;
+                SectionColumnOrder.SaveWidths(ColumnLayoutKey, _columnWidths);
+                ApplyColumnLayout(true);
+            };
+            var narrow = new MenuFlyoutItem { Text = "Σύμπτυξη στήλης" };
+            narrow.Click += (_, _) =>
+            {
+                _columnWidths[original] = original == 0 ? 180 : 90;
+                SectionColumnOrder.SaveWidths(ColumnLayoutKey, _columnWidths);
+                ApplyColumnLayout(true);
+            };
+            var hide = new MenuFlyoutItem { Text = "Απόκρυψη στήλης", IsEnabled = index != 0 };
+            hide.Click += (_, _) =>
+            {
+                _visibleColumns[original] = false;
+                SectionColumnOrder.SaveVisibility(ColumnLayoutKey, _visibleColumns);
+                ApplyColumnLayout(true);
+            };
+            var reset = new MenuFlyoutItem { Text = "Επαναφορά διάταξης" };
+            reset.Click += (_, _) => ResetColumnLayout();
+            menu.Items.Add(left); menu.Items.Add(right); menu.Items.Add(fit);
+            menu.Items.Add(widen); menu.Items.Add(narrow);
+            menu.Items.Add(new MenuFlyoutSeparator()); menu.Items.Add(hide);
+            menu.Items.Add(reset);
+            menu.Opening += (_, _) => hide.IsEnabled = original != 0 && ReportType.SelectedIndex == 9;
+            cell.ContextFlyout = menu;
         }
+        TableColumnResizer.Attach(ReportHeaderGrid, (original, width) =>
+        {
+            _columnWidths[original] = Math.Clamp(width, 70, 520);
+            ApplyColumnLayout();
+        }, () =>
+        {
+            SectionColumnOrder.SaveWidths(ColumnLayoutKey, _columnWidths);
+            ApplyColumnLayout(true);
+        });
+    }
+
+    private void MoveColumnBy(int original, int offset)
+    {
+        var position = Array.IndexOf(_columnOrder, original);
+        var target = position + offset;
+        if (target < 0 || target >= _columnOrder.Length) return;
+        MoveColumn(original, _columnOrder[target]);
+    }
+
+    private void ResetColumnLayout()
+    {
+        double[] defaults = [260, 230, 130, 130, 185, 185];
+        for (var index = 0; index < 6; index++)
+        {
+            _columnOrder[index] = index;
+            _columnWidths[index] = defaults[index];
+            _visibleColumns[index] = true;
+        }
+        SectionColumnOrder.Save(ColumnLayoutKey, _columnOrder);
+        SectionColumnOrder.SaveWidths(ColumnLayoutKey, _columnWidths);
+        SectionColumnOrder.SaveVisibility(ColumnLayoutKey, _visibleColumns);
+        ApplyColumnLayout(true);
+    }
+
+    private void MoveColumn(int original, int target)
+    {
+        if (original == 0 || target == 0 || original == target ||
+            !_columnOrder.Contains(original) || !_columnOrder.Contains(target)) return;
+        var sourcePosition = Array.IndexOf(_columnOrder, original);
+        var targetPosition = Array.IndexOf(_columnOrder, target);
+        var order = _columnOrder.ToList();
+        order.Remove(original);
+        order.Insert(order.IndexOf(target) + (sourcePosition < targetPosition ? 1 : 0), original);
+        order.CopyTo(_columnOrder);
+        SectionColumnOrder.Save(ColumnLayoutKey, _columnOrder);
+        ApplyColumnLayout(true);
     }
 
     private async void Columns_Click(object sender, RoutedEventArgs e)
     {
-        var fields = _headings.Select((header, index) => new CheckBox
-        { Content = header, IsChecked = _visibleColumns[index] }).ToArray();
+        var fields = _columnOrder.Select(index => (Index: index, Box: new CheckBox
+        { Content = _headings[index], IsChecked = _visibleColumns[index], IsEnabled = index != 0 })).ToArray();
         var panel = new StackPanel { Spacing = 5, Width = 340 };
-        foreach (var field in fields) panel.Children.Add(field);
+        foreach (var field in fields) panel.Children.Add(field.Box);
         var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Στήλες λίστας παραγωγής",
             Content = panel, PrimaryButtonText = "Εφαρμογή", CloseButtonText = "Ακύρωση" };
         if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
-        if (!fields.Any(field => field.IsChecked == true))
-        { await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε τουλάχιστον μία στήλη."); return; }
-        for (var index = 0; index < 6; index++) _visibleColumns[index] = fields[index].IsChecked == true;
-        Refresh();
+        foreach (var field in fields) _visibleColumns[field.Index] = field.Box.IsChecked == true;
+        SectionColumnOrder.SaveVisibility(ColumnLayoutKey, _visibleColumns);
+        ApplyColumnLayout(true);
     }
 
     private ReportEntry[] ProductionRows((BusinessRecord Record, PolicyCardData Data)[] policies)
@@ -360,7 +514,7 @@ public sealed partial class ReportsPage : Page
             var totalNet = policies.Sum(item => item.Data.NetPremium ?? 0m);
             var totalOffice = policies.Sum(Office);
             var totalPartner = policies.Sum(Partner);
-            rows.Add(new ReportEntry("", "ΓΕΝΙΚΟ ΣΥΝΟΛΟ", Money(totalNet),
+            rows.Add(new ReportEntry("ΓΕΝΙΚΟ ΣΥΝΟΛΟ", "", Money(totalNet),
                 Money(policies.Sum(item => item.Data.GrossPremium ?? 0m)),
                 Commission(totalOffice, totalNet), Commission(totalPartner, totalNet))
             { Kind = ProductionRowKind.GrandTotal });

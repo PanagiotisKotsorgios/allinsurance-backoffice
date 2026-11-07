@@ -48,6 +48,7 @@ internal static class SectionColumnOrder
     {
         var defaults = sectionKey switch
         {
+            "reports_production" => new double[] { 260, 230, 130, 130, 185, 185 },
             "partners" => new double[] { 240, 140, 165, 175, 150, 160, 130 },
             "vehicles" => [180, 135, 145, 210, 140, 165, 125, 125],
             "policies" => [205, 145, 165, 145, 120, 115, 115, 155],
@@ -58,7 +59,8 @@ internal static class SectionColumnOrder
             if (!File.Exists(WidthsPath)) return defaults;
             var saved = JsonSerializer.Deserialize<Dictionary<string, double[]>>(File.ReadAllText(WidthsPath));
             if (saved?.TryGetValue(sectionKey, out var widths) == true && widths.Length == defaults.Length &&
-                widths.All(value => double.IsFinite(value) && value is >= 70 and <= 520)) return widths;
+                widths.All(value => double.IsFinite(value) && value >= 70 &&
+                    value <= (sectionKey == "reports_production" ? 720 : 520))) return widths;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException) { }
         return defaults;
@@ -102,7 +104,12 @@ internal static class SectionColumnOrder
         ? JsonSerializer.Deserialize<Dictionary<string, int[]>>(File.ReadAllText(PathOnDisk)) ?? []
         : [];
 
-    private static int ColumnCount(string sectionKey) => sectionKey is "vehicles" or "policies" ? 8 : 7;
+    private static int ColumnCount(string sectionKey) => sectionKey switch
+    {
+        "vehicles" or "policies" => 8,
+        "reports_production" => 6,
+        _ => 7
+    };
 
     private static bool Valid(int[]? order, string sectionKey) =>
         order is not null && order.Length == ColumnCount(sectionKey) &&

@@ -16,6 +16,7 @@ internal sealed class TablePagination
     private const int Size = 25;
 
     public int PageOffset => (_page - 1) * Size;
+    public IReadOnlyList<object> CapturedItems => _items;
     public StackPanel Bar { get; } = new() { Orientation = Orientation.Horizontal, Spacing = 10,
         Margin = new Thickness(0, 8, 0, 4) };
 
