@@ -66,7 +66,6 @@
                 <TextBlock x:Name="SummaryText" FontWeight="SemiBold" FontSize="16" />
                 <TextBlock x:Name="DetailText" Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
-            <controls:ActionButton Grid.Column="1" Kind="File" Label="Εξαγωγή CSV" Click="Export_Click" VerticalAlignment="Center" />
         </Grid>
         <Border Grid.Row="3" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="12">
             <Grid x:Name="ReportTableGrid" RowDefinitions="Auto,*,Auto">

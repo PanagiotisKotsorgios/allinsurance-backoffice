@@ -17,6 +17,10 @@ public sealed partial class AuditLogPage : Page
     public AuditLogPage()
     {
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Αρχείο ελέγχου",
+            ["Ημερομηνία / ώρα", "Χρήστης", "Ενέργεια", "Οντότητα", "Αποτέλεσμα", "Λεπτομέρειες"],
+            (EventsList.ItemsSource as IEnumerable<AuditRow> ?? [])
+                .Select(row => new[] { row.When, row.User, row.Action, row.Entity, row.Outcome, row.Details }).ToArray()));
         TableRowStriping.Attach(EventsList);
         var session = App.Services.GetRequiredService<ISessionService>();
         if (session.Current?.Permissions.Contains(Permission.ReadSecurityEvents) != true)

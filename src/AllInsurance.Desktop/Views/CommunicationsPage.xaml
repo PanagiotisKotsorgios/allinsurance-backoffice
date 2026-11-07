@@ -35,7 +35,7 @@
             </StackPanel>
         </Border>
         <Border Grid.Row="2" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="12">
-            <Grid RowDefinitions="Auto,*">
+            <Grid RowDefinitions="Auto,*,Auto">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                         <controls:VisibleSelectionCheckBox x:Name="SelectAll" Checked="SelectAll_Changed"
@@ -63,6 +63,7 @@
                         </Grid>
                     </ListView.Header>
                 </ListView>
+                <StackPanel x:Name="ExportHost" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0" />
             </Grid>
         </Border>
         <TextBlock Grid.Row="3" Text="Σύνταξη μηνύματος" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />

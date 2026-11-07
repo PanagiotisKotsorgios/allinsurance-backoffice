@@ -17,6 +17,11 @@ public sealed partial class RenewalsPage : Page
     public RenewalsPage()
     {
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Ανανεώσεις",
+            ["Αριθμός συμβολαίου", "Λήξη", "Ημέρες για τη λήξη", "Ασφαλιστική", "Συνεργάτης", "Πελάτης"],
+            (RenewalsList.ItemsSource as IEnumerable<RenewalRow> ?? [])
+                .Select(item => new[] { item.Number, item.Expiry, item.DaysLeft,
+                    item.Insurer, item.Partner, item.Customer }).ToArray()));
         TableRowStriping.Attach(RenewalsList);
         Loaded += async (_, _) =>
         {

@@ -96,12 +96,13 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                     <TextBlock x:Name="StatusText" VerticalAlignment="Center"
                                Foreground="{ThemeResource SecondaryTextBrush}" />
-                    <controls:ActionButton Grid.Column="1" Kind="Open" Label="Άνοιγμα ασφαλιστηρίου"
+                    <StackPanel x:Name="ExportHost" Grid.Column="1" Orientation="Horizontal" />
+                    <controls:ActionButton Grid.Column="2" Kind="Open" Label="Άνοιγμα ασφαλιστηρίου"
                                            Click="Open_Click" />
-                    <controls:ActionButton Grid.Column="2" Kind="Add" Label="Νέο ανανεωτήριο"
+                    <controls:ActionButton Grid.Column="3" Kind="Add" Label="Νέο ανανεωτήριο"
                                            Click="Create_Click" />
                 </Grid>
             </Grid>

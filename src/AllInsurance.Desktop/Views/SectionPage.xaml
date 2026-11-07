@@ -142,7 +142,7 @@
                     </ScrollViewer>
                     <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,8,0,0">
                         <TextBlock x:Name="PageText" VerticalAlignment="Center" />
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <StackPanel x:Name="PaginationActions" Grid.Column="1" Orientation="Horizontal" Spacing="8">
                             <controls:ActionButton Kind="Previous" Label="Προηγούμενη" Click="Previous_Click" />
                             <controls:ActionButton Kind="Next" Label="Επόμενη" Click="Next_Click" />
                         </StackPanel>

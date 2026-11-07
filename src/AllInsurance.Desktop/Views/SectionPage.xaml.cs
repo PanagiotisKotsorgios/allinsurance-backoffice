@@ -72,6 +72,7 @@ public sealed partial class SectionPage : Page
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         _partners = App.Services.GetRequiredService<IPartnerService>();
         InitializeComponent();
+        TableExportActions.Attach(PaginationActions, this, ExportData);
         TableRowStriping.Attach(RecordsList);
         RecordsList.AddHandler(UIElement.PointerPressedEvent,
             new PointerEventHandler((_, args) =>
@@ -793,6 +794,22 @@ public sealed partial class SectionPage : Page
     }
 
     private double TableWidth => 40 + _columnWidths.Where((_, index) => _columnVisible[index]).Sum();
+
+    private TableExportData ExportData()
+    {
+        var names = new[] { TitleHeader.Text, CodeHeader.Text, PartyHeader.Text,
+            StatusHeader.Text, EventHeader.Text, CustomerHeader.Text, CreatedHeader.Text,
+            ExtraHeader.Text };
+        var active = _columnOrder.Where(index => index < names.Length && _columnVisible[index])
+            .ToArray();
+        var rows = _filtered.Select(item =>
+        {
+            var values = new[] { item.Title, item.Reference, item.RelatedParty, item.Status,
+                item.EventDateDisplay, item.CustomerName, item.CreatedDisplay, item.ExtraDisplay };
+            return active.Select(index => values[index] ?? "").ToArray();
+        }).ToArray();
+        return new TableExportData(_section.Title, active.Select(index => names[index]).ToArray(), rows);
+    }
     private double DisplayTableWidth => Math.Max(TableWidth, TableViewport.ActualWidth - 2);
 
     private double DisplayColumnWidth(int original)

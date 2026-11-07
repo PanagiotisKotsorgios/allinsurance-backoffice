@@ -19,6 +19,11 @@ public sealed partial class ErrorLogPage : Page
         if (session.Current?.Permissions.Contains(Permission.ManageUsers) != true)
             throw new UnauthorizedAccessException("Απαιτούνται δικαιώματα διαχειριστή.");
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Ημερολόγιο σφαλμάτων",
+            ["Ημερομηνία / ώρα", "Ενότητα", "Μήνυμα", "Τεχνικές λεπτομέρειες"],
+            (ErrorsList.ItemsSource as IEnumerable<ErrorRow> ?? [])
+                .Select(row => new[] { row.When, row.Category, row.Message,
+                    row.Entry.Exception ?? "" }).ToArray()));
         TableRowStriping.Attach(ErrorsList);
         Loaded += (_, _) => Load();
     }

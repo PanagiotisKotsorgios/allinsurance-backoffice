@@ -39,6 +39,11 @@ public sealed partial class CustomersPage : Page
         _customers = App.Services.GetRequiredService<ICustomerService>();
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         InitializeComponent();
+        TableExportActions.Attach(PaginationActions, this, () => new TableExportData("Πελάτες",
+            ["Κωδικός", "Είδος", "Επώνυμο", "Όνομα", "Επωνυμία", "ΑΦΜ", "Email", "Πόλη", "Υπόλοιπο"],
+            _filtered.Select(item => new[] { item.Code, item.CustomerKind, item.LastName,
+                item.FirstName, item.CompanyName ?? "", item.TaxNumber ?? "",
+                item.PrimaryEmail ?? "", item.City ?? "", item.BalanceDisplay }).ToArray()));
         TableRowStriping.Attach(CustomersList);
         CustomersList.AddHandler(UIElement.PointerPressedEvent,
             new PointerEventHandler((_, args) =>

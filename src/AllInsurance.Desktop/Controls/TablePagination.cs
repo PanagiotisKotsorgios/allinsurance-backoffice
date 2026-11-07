@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace AllInsurance.Desktop.Controls;
 
@@ -10,6 +11,7 @@ internal sealed class TablePagination
     private readonly Button _previous = new() { Content = "‹ Προηγούμενη" };
     private readonly Button _next = new() { Content = "Επόμενη ›" };
     private object[] _items = [];
+    private Func<TableExportData>? _exportProvider;
     private int _page = 1;
     private const int Size = 25;
 
@@ -25,6 +27,44 @@ internal sealed class TablePagination
         Bar.Children.Add(_previous);
         Bar.Children.Add(_status);
         Bar.Children.Add(_next);
+        TableExportActions.Attach(Bar, _list, () => _exportProvider?.Invoke() ?? DefaultExport());
+    }
+
+    public void ConfigureExport(Func<TableExportData> provider) => _exportProvider = provider;
+
+    private TableExportData DefaultExport()
+    {
+        var rows = _items.Select(item =>
+        {
+            var content = item is ListViewItem row ? row.Content : item;
+            if (content is Grid grid)
+                return grid.Children.OfType<FrameworkElement>().OrderBy(element => Grid.GetColumn(element)).Select(CellText).ToArray();
+            return new[] { content?.ToString() ?? "" };
+        }).ToArray();
+        var count = rows.Length == 0 ? 0 : rows.Max(row => row.Length);
+        var headers = Enumerable.Range(1, count).Select(index => $"Στήλη {index}").ToArray();
+        if (_list.Parent is Panel parent)
+        {
+            var position = parent.Children.IndexOf(_list);
+            if (position > 0 && parent.Children[position - 1] is Border { Child: Grid header })
+            {
+                var visibleHeaders = header.Children.OfType<FrameworkElement>().OrderBy(element => Grid.GetColumn(element)).Select(CellText).ToArray();
+                if (visibleHeaders.Length == count) headers = visibleHeaders;
+            }
+        }
+        return new TableExportData("Δεδομένα πίνακα", headers, rows);
+    }
+
+    private static string CellText(UIElement element)
+    {
+        if (element is TextBlock text) return text.Text;
+        if (element is HyperlinkButton link) return link.Content?.ToString() ?? "";
+        if (element is ContentControl { Content: string value }) return value;
+        if (element is Border border && border.Child is UIElement child) return CellText(child);
+        if (element is Panel panel)
+            return string.Join(" ", panel.Children.OfType<UIElement>().Select(CellText)
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+        return "";
     }
 
     public void Capture()

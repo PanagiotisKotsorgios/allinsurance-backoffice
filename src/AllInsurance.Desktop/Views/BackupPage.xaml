@@ -32,7 +32,7 @@
             </StackPanel>
         </Border>
         <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,10">
-            <Grid RowDefinitions="Auto,*">
+            <Grid RowDefinitions="Auto,*,Auto">
                 <Grid ColumnDefinitions="2*,170,130,150" Background="{ThemeResource TableHeaderBackgroundBrush}"
                       BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1">
                     <TextBlock Text="Όνομα αρχείου" Margin="9" FontWeight="SemiBold" />
@@ -61,6 +61,7 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+                <StackPanel x:Name="ExportHost" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0" />
             </Grid>
         </Border>
     </Grid>

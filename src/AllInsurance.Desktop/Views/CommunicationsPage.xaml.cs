@@ -2,6 +2,7 @@ using AllInsurance.Application.Business;
 using AllInsurance.Application.Abstractions;
 using AllInsurance.Application.Authorization;
 using AllInsurance.Domain.Entities;
+using AllInsurance.Desktop.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -36,6 +37,15 @@ public sealed partial class CommunicationsPage : Page
     public CommunicationsPage()
     {
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Ενημέρωση πελατών",
+            ["Πελάτης", "Email", "Τηλέφωνο", "Απεστάλη", "Ασφαλιστήριο", "Λήξη", "Είδος"],
+            _shown.Select(item =>
+            {
+                var key = $"{item.Record.Id}:{(ChannelChoice.SelectedIndex == 1 ? "email" : "sms")}";
+                return new[] { item.CustomerName, item.Email, item.Phone,
+                    _sent.TryGetValue(key, out var date) ? date.ToLocalTime().ToString("dd/MM/yyyy") : "—",
+                    item.Number, item.DueDate.ToString("dd/MM/yyyy"), item.Type };
+            }).ToArray()));
         AllInsurance.Desktop.Controls.TableRowStriping.Attach(RecipientsList);
         ChannelChoice.SelectedIndex = 0;
         DocumentFilter.SelectedIndex = 0;

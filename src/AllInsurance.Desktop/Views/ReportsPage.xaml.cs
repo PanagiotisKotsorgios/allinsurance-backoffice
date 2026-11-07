@@ -8,10 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 using System.Globalization;
-using System.Text;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -32,6 +29,9 @@ public sealed partial class ReportsPage : Page
         InitializeComponent();
         TableRowStriping.Attach(ReportList);
         _pager = new TablePagination(ReportList);
+        _pager.ConfigureExport(() => new TableExportData(
+            "Αναφορές - " + (ReportType.SelectedItem is ComboBoxItem option ? option.Content?.ToString() : ReportType.SelectedItem?.ToString()),
+            _headings, _shown.Select(row => row.Values).ToArray()));
         Grid.SetRow(_pager.Bar, 2);
         ReportTableGrid.Children.Add(_pager.Bar);
         ReportList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler((_, args) =>
@@ -489,24 +489,6 @@ public sealed partial class ReportsPage : Page
             item.ContextFlyout = menu;
         }
         return item;
-    }
-
-    private async void Export_Click(object sender, RoutedEventArgs e)
-    {
-        if (_shown.Length == 0) { await UiAlerts.ShowErrorAsync(XamlRoot, "Δεν υπάρχουν γραμμές για εξαγωγή."); return; }
-        try
-        {
-            var picker = new FileSavePicker { SuggestedFileName = "AllInsurance-Αναφορά" };
-            picker.FileTypeChoices.Add("CSV", [".csv"]);
-            InitializeWithWindow.Initialize(picker, App.MainWindowHandle());
-            var file = await picker.PickSaveFileAsync();
-            if (file is null) return;
-            static string Cell(string value) => "\"" + value.Replace("\"", "\"\"") + "\"";
-            var csv = string.Join(";", _headings.Select(Cell)) + Environment.NewLine +
-                string.Join(Environment.NewLine, _shown.Select(row => string.Join(";", row.Values.Select(Cell))));
-            await File.WriteAllTextAsync(file.Path, csv, new UTF8Encoding(true));
-        }
-        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, "Αποτυχία εξαγωγής: " + exception.Message); }
     }
 
     private sealed record ReportEntry(string A, string B, string C, string D, string E, string F)

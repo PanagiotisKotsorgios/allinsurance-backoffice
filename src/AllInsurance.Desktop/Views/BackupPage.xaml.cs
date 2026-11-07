@@ -21,6 +21,10 @@ public sealed partial class BackupPage : Page
         if (session.Current?.Permissions.Contains(Permission.ManageUsers) != true)
             throw new UnauthorizedAccessException("Απαιτούνται δικαιώματα διαχειριστή.");
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Αντίγραφα ασφαλείας",
+            ["Όνομα αρχείου", "Δημιουργία", "Μέγεθος"],
+            (BackupsList.ItemsSource as IEnumerable<BackupRow> ?? [])
+                .Select(row => new[] { row.FileName, row.Created, row.Size }).ToArray()));
         TableRowStriping.Attach(BackupsList);
         Loaded += async (_, _) => await RefreshAsync();
     }
