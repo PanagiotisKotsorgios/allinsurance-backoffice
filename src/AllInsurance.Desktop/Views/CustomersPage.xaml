@@ -50,6 +50,15 @@
                                                Width="180" Height="36" Click="Add_Click" />
                         <controls:ActionButton x:Name="DeleteButton" Kind="Delete" Label="Διαγραφή πελάτη"
                                                Width="175" Height="36" Click="Delete_Click" />
+                        <controls:ActionButton x:Name="BatchButton" Kind="Choice" Label="Μαζικές κινήσεις"
+                                               Width="175" Height="36">
+                            <controls:ActionButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Μαζική είσπραξη" Click="BulkReceipt_Click" />
+                                    <MenuFlyoutItem Text="Μαζική πληρωμή" Click="BulkPayment_Click" />
+                                </MenuFlyout>
+                            </controls:ActionButton.Flyout>
+                        </controls:ActionButton>
                     </StackPanel>
                 </StackPanel>
             </Border>

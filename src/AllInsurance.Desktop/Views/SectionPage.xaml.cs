@@ -72,6 +72,8 @@ public sealed partial class SectionPage : Page
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         _partners = App.Services.GetRequiredService<IPartnerService>();
         InitializeComponent();
+        BatchButton.Visibility = section.Key is "partners" or "companies" or "agencies"
+            ? Visibility.Visible : Visibility.Collapsed;
         TableExportActions.Attach(PaginationActions, this, ExportData);
         TableRowStriping.Attach(RecordsList);
         RecordsList.AddHandler(UIElement.PointerPressedEvent,
@@ -216,7 +218,8 @@ public sealed partial class SectionPage : Page
     private void UpdateResponsiveLayout(double width)
     {
         if (FilterBar is null || _visibleFilterCount == 0 || width <= 0) return;
-        var requiredWidth = _visibleFilterCount * 188 + 180 + 230 + 160 + 56;
+        var requiredWidth = _visibleFilterCount * 188 + 180 + 230 + 160 +
+            (BatchButton.Visibility == Visibility.Visible ? 175 : 0) + 56;
         var popup = width < requiredWidth;
         if (popup != _filtersInPopup)
         {
@@ -237,11 +240,13 @@ public sealed partial class SectionPage : Page
         foreach (var filter in FilterBar.Children.OfType<FrameworkElement>())
             filter.Width = popup ? 240 : 180;
         ShowFiltersButton.Visibility = popup ? Visibility.Visible : Visibility.Collapsed;
-        var narrow = width < 760;
+        var narrow = width < (BatchButton.Visibility == Visibility.Visible ? 950 : 760);
         AddButton.IconOnly = narrow;
         DeleteButton.IconOnly = narrow;
+        BatchButton.IconOnly = narrow;
         AddButton.Width = narrow ? 44 : 230;
         DeleteButton.Width = narrow ? 44 : 160;
+        BatchButton.Width = narrow ? 44 : 175;
         var veryNarrow = width < 480;
         ClearFiltersButton.IconOnly = veryNarrow;
         ClearFiltersButton.Width = veryNarrow ? 44 : 180;
@@ -969,6 +974,43 @@ public sealed partial class SectionPage : Page
             await RefreshAsync();
             await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
         }
+    }
+
+    private async void BulkReceipt_Click(object sender, RoutedEventArgs e)
+        => await PostBulkAsync("receipt");
+
+    private async void BulkPayment_Click(object sender, RoutedEventArgs e)
+        => await PostBulkAsync("payment");
+
+    private async Task PostBulkAsync(string direction)
+    {
+        if (_section.Key is not ("partners" or "companies" or "agencies")) return;
+        try
+        {
+            var selectedIds = _checkedRecordIds.ToHashSet();
+            if (selectedIds.Count == 0)
+            {
+                await UiAlerts.ShowErrorAsync(XamlRoot,
+                    "Επιλέξτε πρώτα καρτέλες με τα τετράγωνα επιλογής.");
+                return;
+            }
+            var records = await _records.SearchAsync(_section.Key);
+            var targets = records.Where(item => selectedIds.Contains(item.Id))
+                .Select(item => new BulkFinancialTarget(item.Id, item.Title)).ToArray();
+            if (targets.Length != selectedIds.Count)
+            {
+                await UiAlerts.ShowErrorAsync(XamlRoot,
+                    "Κάποια επιλεγμένη καρτέλα δεν υπάρχει πλέον. Ανανεώστε τη λίστα.");
+                return;
+            }
+            if (await BulkFinancialMovementDialog.ShowAsync(XamlRoot, _section.Key,
+                direction, targets))
+            {
+                _checkedRecordIds.Clear();
+                await RefreshAsync();
+            }
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
 
     private async Task DeleteRecordAsync(BusinessRecordRow row)

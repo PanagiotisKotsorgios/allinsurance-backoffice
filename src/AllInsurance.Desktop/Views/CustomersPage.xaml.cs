@@ -156,11 +156,13 @@ public sealed partial class CustomersPage : Page
         foreach (var filter in new[] { BalanceFilter, KindFilter, CityFilter, PartnerFilter })
             filter.Width = popup ? 240 : 170;
         ShowFiltersButton.Visibility = popup ? Visibility.Visible : Visibility.Collapsed;
-        var narrow = width < 700;
+        var narrow = width < 1000;
         AddButton.IconOnly = narrow;
         DeleteButton.IconOnly = narrow;
+        BatchButton.IconOnly = narrow;
         AddButton.Width = narrow ? 44 : 180;
         DeleteButton.Width = narrow ? 44 : 175;
+        BatchButton.Width = narrow ? 44 : 175;
         var veryNarrow = width < 480;
         ClearFiltersButton.IconOnly = veryNarrow;
         ClearFiltersButton.Width = veryNarrow ? 44 : 185;
@@ -596,6 +598,23 @@ public sealed partial class CustomersPage : Page
         {
             await RefreshAsync();
             await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message);
+        }
+    }
+
+    private async void BulkReceipt_Click(object sender, RoutedEventArgs e)
+        => await PostBulkAsync("receipt");
+
+    private async void BulkPayment_Click(object sender, RoutedEventArgs e)
+        => await PostBulkAsync("payment");
+
+    private async Task PostBulkAsync(string direction)
+    {
+        var selected = SelectedCustomers();
+        if (await BulkFinancialMovementDialog.ShowAsync(XamlRoot, "customers", direction,
+            selected.Select(item => new BulkFinancialTarget(item.Id, item.FullName)).ToArray()))
+        {
+            _checkedCustomerIds.Clear();
+            await RefreshAsync();
         }
     }
 

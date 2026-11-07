@@ -235,10 +235,11 @@ public sealed partial class WorkspaceRecordCardWindow
         var exportHost = new StackPanel { Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right };
         TableExportActions.Attach(exportHost, _root, () => new TableExportData("Αποδόσεις εταιρείας",
-            ["Ημερομηνία", "Ποσό", "Αιτιολογία"],
+            ["Ημερομηνία", "Ποσό", "Τρόπος", "Αναφορά", "Αιτιολογία"],
             (list.ItemsSource as IEnumerable<SettlementRow> ?? [])
                 .Select(row => new[] { row.Item.Date.ToString("dd/MM/yyyy"),
-                    row.Item.Amount.ToString("N2"), row.Item.Note }).ToArray()));
+                     row.Item.Amount.ToString("N2"), row.Item.PaymentMethod ?? "—",
+                     row.Item.Reference ?? "—", row.Item.Note }).ToArray()));
         panel.Children.Add(exportHost);
         void Render()
         {
@@ -338,7 +339,9 @@ public sealed partial class WorkspaceRecordCardWindow
         try { selected = date.GetValidatedDate("Ημερομηνία"); }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); return null; }
         return new OrganizationSettlement { Id = existing?.Id ?? Guid.NewGuid(),
-            Date = selected ?? DateTime.Today, Amount = value, Note = note.Text.Trim() };
+            Date = selected ?? DateTime.Today, Amount = value, Note = note.Text.Trim(),
+            PaymentMethod = existing?.PaymentMethod, Reference = existing?.Reference,
+            Currency = existing?.Currency ?? "EUR" };
     }
 
     private sealed record ContactRow(OrganizationContact Contact)
@@ -348,6 +351,6 @@ public sealed partial class WorkspaceRecordCardWindow
 
     private sealed record SettlementRow(OrganizationSettlement Item)
     {
-        public override string ToString() => $"{Item.Date:dd/MM/yyyy}  ·  {Item.Amount:N2} €  ·  {Item.Note}";
+        public override string ToString() => $"{Item.Date:dd/MM/yyyy}  ·  {Item.Amount:N2} €  ·  {Item.PaymentMethod ?? "—"}  ·  {Item.Note}";
     }
 }

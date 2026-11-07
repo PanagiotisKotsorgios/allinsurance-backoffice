@@ -59,9 +59,11 @@ public sealed class FinancialMovementService(IApplicationDbContextFactory factor
         {
             var data = WorkspaceCardData.Read(organization.DetailsJson);
             foreach (var settlement in data.Settlements)
-                result.Add(new FinancialMovement(settlement.Id, "payment", settlement.Date,
+                result.Add(new FinancialMovement(settlement.Id,
+                    settlement.Amount < 0 ? "receipt" : "payment", settlement.Date,
                     organization.SectionKey == "companies" ? "Ασφαλιστική" : "Πρακτορείο",
-                    organization.Title, null, settlement.Amount, "EUR", "—", null,
+                    organization.Title, null, Math.Abs(settlement.Amount), settlement.Currency ?? "EUR",
+                    settlement.PaymentMethod ?? "—", settlement.Reference,
                     settlement.Note, "Αποδόσεις", organization.Id));
         }
         return result.OrderByDescending(item => item.OccurredOn).ToArray();

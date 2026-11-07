@@ -48,4 +48,7 @@ public sealed class OrganizationSettlement
     public DateTime Date { get; set; } = DateTime.Today;
     public decimal Amount { get; set; }
     public string Note { get; set; } = "";
+    public string? PaymentMethod { get; set; }
+    public string? Reference { get; set; }
+    public string Currency { get; set; } = "EUR";
 }
