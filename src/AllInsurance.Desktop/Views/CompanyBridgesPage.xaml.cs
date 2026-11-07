@@ -44,9 +44,17 @@ public sealed partial class CompanyBridgesPage : Page
             {
                 var button = new Button { HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 56, Tag = (name, kind) };
+                var folderIcon = new Image { Width = 32, Height = 32,
+                    Source = new SvgImageSource(new Uri("ms-appx:///Assets/Icons/bridge-folder-light.svg")) };
+                void UpdateFolderIcon() => folderIcon.Source = new SvgImageSource(new Uri(
+                    folderIcon.ActualTheme == ElementTheme.Dark
+                        ? "ms-appx:///Assets/Icons/bridge-folder-dark.svg"
+                        : "ms-appx:///Assets/Icons/bridge-folder-light.svg"));
+                folderIcon.Loaded += (_, _) => UpdateFolderIcon();
+                folderIcon.ActualThemeChanged += (_, _) => UpdateFolderIcon();
                 button.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children =
                 {
-                    new Image { Source = new SvgImageSource(new Uri("ms-appx:///Assets/Icons/action-folder-open.svg")), Width = 32, Height = 32 },
+                    folderIcon,
                     new TextBlock { Text = name, FontSize = 17, VerticalAlignment = VerticalAlignment.Center },
                     new TextBlock { Text = "· " + kind, Opacity = .65, VerticalAlignment = VerticalAlignment.Center }
                 } };
