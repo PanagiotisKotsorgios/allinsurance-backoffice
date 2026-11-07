@@ -8,6 +8,46 @@ namespace AllInsurance.Tests;
 public sealed class FilterOptionFlowTests
 {
     [Fact]
+    public async Task ScopedCatalogValuesFollowCompanyAndBranchWithoutHidingGlobalDefaults()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var filters = new FilterOptionService(environment.ContextFactory, environment.Session);
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var companyA = new BusinessRecord { SectionKey = "companies", Title = "Εταιρεία Α" };
+        await records.SaveAsync(companyA);
+        await records.SaveAsync(new BusinessRecord { SectionKey = "companies", Title = "Εταιρεία Β" });
+        await filters.SaveAsync(null, "Κλάδοι", "Δοκιμαστικός κλάδος");
+
+        await filters.SaveScopedAsync(null, "Πακέτα ασφαλίσεων", "Κοινό", null, null);
+        await filters.SaveScopedAsync(null, "Πακέτα ασφαλίσεων", "Ειδικό", "Εταιρεία Α", null);
+        await filters.SaveScopedAsync(null, "Πακέτα ασφαλίσεων", "Κλάδου", null, "Δοκιμαστικός κλάδος");
+        await filters.SaveScopedAsync(null, "Πακέτα ασφαλίσεων", "Συνδυασμός", "Εταιρεία Α", "Δοκιμαστικός κλάδος");
+
+        Assert.Contains("Κοινό", await filters.ChoicesAsync("Πακέτα ασφαλίσεων"));
+        Assert.DoesNotContain("Ειδικό", await filters.ChoicesAsync("Πακέτα ασφαλίσεων"));
+        var relevant = await filters.ScopedChoicesAsync("Πακέτα ασφαλίσεων", "Εταιρεία Α", "Δοκιμαστικός κλάδος");
+        Assert.Contains("Κοινό", relevant);
+        Assert.Contains("Ειδικό", relevant);
+        Assert.Contains("Κλάδου", relevant);
+        Assert.Contains("Συνδυασμός", relevant);
+        var other = await filters.ScopedChoicesAsync("Πακέτα ασφαλίσεων", "Εταιρεία Β", "Δοκιμαστικός κλάδος");
+        Assert.Contains("Κλάδου", other);
+        Assert.DoesNotContain("Ειδικό", other);
+        Assert.DoesNotContain("Συνδυασμός", other);
+        await filters.SaveScopedAsync(null, "Πακέτα ασφαλίσεων", "Κοινό", "Εταιρεία Α", null);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            filters.SaveScopedAsync(null, "Πακέτα ασφαλίσεων", "Κοινό", "Εταιρεία Α", null));
+        companyA.Title = "Εταιρεία Α Νέα";
+        await records.SaveAsync(companyA);
+        Assert.Contains("Ειδικό", await filters.ScopedChoicesAsync("Πακέτα ασφαλίσεων",
+            "Εταιρεία Α Νέα", "Δοκιμαστικός κλάδος"));
+        Assert.DoesNotContain("Ειδικό", await filters.ScopedChoicesAsync("Πακέτα ασφαλίσεων",
+            "Εταιρεία Α", "Δοκιμαστικός κλάδος"));
+    }
+
+    [Fact]
     public async Task LargeCityImportSurvivesReopen()
     {
         await using var environment = new TestEnvironment();

@@ -113,7 +113,7 @@ public sealed partial class BackupPage : Page
                 ["BusinessRecords"] = "Εγγραφές οχημάτων, συμβολαίων και λοιπών ενοτήτων",
                 ["CustomerTransactions"] = "Οικονομικές κινήσεις πελατών",
                 ["PartnerPayouts"] = "Αποδόσεις συνεργατών", ["SecurityEvents"] = "Συμβάντα ελέγχου",
-                ["Users"] = "Χρήστες", ["Roles"] = "Ρόλοι", ["FilterOptions"] = "Παραμετρικά φίλτρα" };
+                ["Users"] = "Χρήστες", ["Roles"] = "Ρόλοι", ["FilterOptions"] = "Δεδομένα συστήματος" };
             foreach (var section in WorkspaceSections.All)
                 labels["BusinessRecords:" + section.Key] = section.Title;
             var details = string.Join("\n", contents.Counts.Select(item =>

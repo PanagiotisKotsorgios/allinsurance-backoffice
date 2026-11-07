@@ -233,9 +233,11 @@ public sealed partial class BusinessRecordCardWindow : Window
             if (_section == "policies") _policyCurrency = await _policySettings.GetCurrencyAsync();
             if (_section == "policies")
             {
-                _policyBranchOptions = (await _policyFilters.ChoicesAsync("Κλάδοι")).ToArray();
-                _policyPackageOptions = (await _policyFilters.ChoicesAsync("Πακέτα ασφαλίσεων")).ToArray();
+                _policyBranchOptions = (await _policyFilters.ListAsync("Κλάδοι")).ToArray();
+                _policyPackageOptions = (await _policyFilters.ListAsync("Πακέτα ασφαλίσεων")).ToArray();
             }
+            if (_section == "vehicles")
+                _vehicleUseOptions = (await _policyFilters.ChoicesAsync("Χρήσεις οχημάτων")).ToArray();
             _vehicleCustomers = customers;
             _vehiclePolicies = policies;
             _vehicleClaims = claims;
@@ -632,9 +634,12 @@ public sealed partial class BusinessRecordCardWindow : Window
         left.Children.Add(CardFieldLayout.CreateRow("Πρακτορείο", agencyHost));
         AddPolicyPartnerChoice(left, data);
         left.Children.Add(CardFieldLayout.CreateRow("Αντικείμενο ασφάλισης / κλάδος",
-            SearchValue(left, "branch", "κλάδου", data.Branch, _policyBranchOptions)));
+            SearchValue(left, "branch", "κλάδου", data.Branch, () =>
+                CatalogChoices(_policyBranchOptions, _insurerSuggest.Text))));
         left.Children.Add(CardFieldLayout.CreateRow("Προϊόν / πακέτο",
-            SearchValue(left, "product", "πακέτου", data.Product, _policyPackageOptions)));
+            SearchValue(left, "product", "πακέτου", data.Product, () =>
+                CatalogChoices(_policyPackageOptions, _insurerSuggest.Text,
+                    _text.GetValueOrDefault("branch")?.Text))));
         PolicyCustomerChoice(right, customers);
         AddPolicyHolderChoice(right, customers, data);
         Choice[] VehicleItems(Guid? customerId) =>
@@ -813,7 +818,8 @@ public sealed partial class BusinessRecordCardWindow : Window
         VehicleCheck(extraLeft, "sunroof", "Ηλιοροφή", data.HasSunroof);
         VehicleCheck(extraLeft, "heavy", "Βάρος άνω των 3,5 τόνων", data.OverThreeAndHalfTons);
         VehicleCheck(extraLeft, "dual", "Διπλοί πίσω τροχοί", data.HasRearDualWheels);
-        Text(right, "use", "Χρήση", data.Use);
+        right.Children.Add(CardFieldLayout.CreateRow("Χρήση",
+            SearchValue(right, "use", "χρήσης οχήματος", data.Use, _vehicleUseOptions)));
         Text(right, "fuel", "Καύσιμο", data.Fuel);
         Text(right, "hp", "Ισχύς (HP)", data.HorsePower?.ToString("N2"));
         Text(right, "kw", "Ισχύς (kW)", data.PowerKw?.ToString("N2"));
@@ -926,6 +932,20 @@ public sealed partial class BusinessRecordCardWindow : Window
                     GreenCards = _policyData.GreenCards,
                     Installments = _policyData.Installments
                 };
+                var insurerChanged = !string.Equals(data.Insurer, _policyData.Insurer,
+                    StringComparison.CurrentCultureIgnoreCase);
+                var branchChanged = !string.Equals(data.Branch, _policyData.Branch,
+                    StringComparison.CurrentCultureIgnoreCase);
+                if (!string.IsNullOrWhiteSpace(data.Branch) && (insurerChanged || branchChanged) &&
+                    !CatalogChoices(_policyBranchOptions, data.Insurer).Contains(data.Branch,
+                        StringComparer.CurrentCultureIgnoreCase))
+                    throw new ArgumentException("Επιλέξτε κλάδο που ισχύει για την ασφαλιστική εταιρεία.");
+                if (!string.IsNullOrWhiteSpace(data.Product) &&
+                    (insurerChanged || branchChanged || !string.Equals(data.Product, _policyData.Product,
+                        StringComparison.CurrentCultureIgnoreCase)) &&
+                    !CatalogChoices(_policyPackageOptions, data.Insurer, data.Branch).Contains(data.Product,
+                        StringComparer.CurrentCultureIgnoreCase))
+                    throw new ArgumentException("Επιλέξτε πακέτο που ισχύει για την εταιρεία και τον κλάδο.");
                 if (data.StartDate > data.EndDate)
                     throw new ArgumentException("Η λήξη κάλυψης πρέπει να είναι μετά την έναρξη.");
                 if (!string.IsNullOrWhiteSpace(_durationValue?.Text) &&
@@ -965,6 +985,12 @@ public sealed partial class BusinessRecordCardWindow : Window
                     throw new ArgumentException("Προσοχή, δεν επιτρέπονται αγγλικοί χαρακτήρες στην πινακίδα του οχήματος.");
                 EnsurePrimaryOwner(customerId);
                 ValidateVehiclePeople();
+                var selectedUse = Value("use");
+                var originalUse = BusinessRecordDetails.Read<VehicleCardData>(_record.DetailsJson).Use;
+                if (!string.IsNullOrWhiteSpace(selectedUse) &&
+                    !string.Equals(selectedUse, originalUse, StringComparison.CurrentCultureIgnoreCase) &&
+                    !_vehicleUseOptions.Contains(selectedUse, StringComparer.CurrentCultureIgnoreCase))
+                    throw new ArgumentException("Επιλέξτε καταχωρημένη χρήση οχήματος από τα δεδομένα συστήματος.");
                 var data = new VehicleCardData
                 {
                     Registration = plate, Make = Value("make"), Model = Value("model"),

@@ -20,8 +20,9 @@ public sealed partial class BusinessRecordCardWindow
     private CustomerTransaction[] _policyTransactions = [];
     private ComboBox? _policyPartnerChoice;
     private readonly List<AutoSuggestBox> _policySearchFields = [];
-    private string[] _policyBranchOptions = [];
-    private string[] _policyPackageOptions = [];
+    private FilterOption[] _policyBranchOptions = [];
+    private FilterOption[] _policyPackageOptions = [];
+    private string[] _vehicleUseOptions = [];
     private ComboBox? _policyHolderChoice;
     private ComboBox? _policyDurationChoice;
     private TextBox? _durationValue;
@@ -108,18 +109,16 @@ public sealed partial class BusinessRecordCardWindow
     }
 
     private AutoSuggestBox SearchValue(StackPanel panel, string key, string label,
-        string? initial, IEnumerable<string> choices)
+        string? initial, Func<string[]> choices)
     {
         var backing = new TextBox { Text = initial ?? "", Visibility = Visibility.Collapsed };
         _text[key] = backing;
         panel.Children.Add(backing);
-        var options = choices.Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var search = new AutoSuggestBox { Text = initial ?? "", PlaceholderText = "Αναζήτηση " + label,
             MinHeight = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
         void UpdateSuggestions(bool showAll = false)
         {
-            search.ItemsSource = SearchSuggestions.FirstHundred(options, showAll ? "" : search.Text);
+            search.ItemsSource = SearchSuggestions.FirstHundred(choices(), showAll ? "" : search.Text);
             search.IsSuggestionListOpen = search.ItemsSource is string[] { Length: > 0 };
         }
         search.GotFocus += (_, _) => UpdateSuggestions(showAll: true);
@@ -133,6 +132,19 @@ public sealed partial class BusinessRecordCardWindow
         _policySearchFields.Add(search);
         return search;
     }
+
+    private AutoSuggestBox SearchValue(StackPanel panel, string key, string label,
+        string? initial, IEnumerable<string> choices) =>
+        SearchValue(panel, key, label, initial, () => choices.ToArray());
+
+    private static string[] CatalogChoices(IEnumerable<FilterOption> options,
+        string? company, string? branch = null) => options
+        .Where(item => (item.CompanyScope.Length == 0 ||
+                item.CompanyScope.Equals(company?.Trim(), StringComparison.CurrentCultureIgnoreCase)) &&
+            (item.BranchScope.Length == 0 ||
+                item.BranchScope.Equals(branch?.Trim(), StringComparison.CurrentCultureIgnoreCase)))
+        .Select(item => item.Value).Distinct(StringComparer.CurrentCultureIgnoreCase)
+        .OrderBy(value => value).ToArray();
 
     private void AddPolicyHolderChoice(StackPanel panel, IReadOnlyList<CustomerListItem> customers,
         PolicyCardData data)

@@ -364,7 +364,10 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.HasKey(option => option.Id);
             entity.Property(option => option.Category).IsRequired().HasMaxLength(80);
             entity.Property(option => option.Value).IsRequired().HasMaxLength(160);
-            entity.HasIndex(option => new { option.Category, option.Value }).IsUnique();
+            entity.Property(option => option.CompanyScope).IsRequired().HasMaxLength(160).HasDefaultValue("");
+            entity.Property(option => option.BranchScope).IsRequired().HasMaxLength(160).HasDefaultValue("");
+            entity.HasIndex(option => new { option.Category, option.Value,
+                option.CompanyScope, option.BranchScope }).IsUnique();
         });
     }
 }

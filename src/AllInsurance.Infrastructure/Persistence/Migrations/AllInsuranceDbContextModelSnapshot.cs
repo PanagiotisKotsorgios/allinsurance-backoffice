@@ -617,10 +617,24 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("BranchScope")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("CompanyScope")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");
@@ -632,7 +646,7 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Category", "Value")
+                    b.HasIndex("Category", "Value", "CompanyScope", "BranchScope")
                         .IsUnique();
 
                     b.ToTable("FilterOptions", (string)null);

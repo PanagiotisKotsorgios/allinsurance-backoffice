@@ -162,7 +162,8 @@ public sealed partial class BusinessRecordCardWindow
 
     private async Task<PolicyCoverage?> EditCoverageAsync(PolicyCoverage? existing)
     {
-        var configured = (await _policyFilters.ChoicesAsync("Καλύψεις"))
+        var configured = (await _policyFilters.ScopedChoicesAsync("Καλύψεις",
+                _insurerSuggest?.Text, _text.GetValueOrDefault("branch")?.Text))
             .Concat(existing is null ? [] : [existing.Name])
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var name = new AutoSuggestBox { Header = RequiredHeader.Create("Κάλυψη"),

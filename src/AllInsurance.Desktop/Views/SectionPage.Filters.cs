@@ -117,7 +117,8 @@ public sealed partial class SectionPage
                     PartnerProfileData.Read(item.DetailsJson).PersonType ?? "Χωρίς τύπο"));
                 break;
             case "vehicles":
-                CustomerFilter.SetOptions(records.Select(item => Vehicle(item).Use ?? "Χωρίς χρήση"));
+                CustomerFilter.SetOptions(_catalogVehicleUses.Concat(records.Select(item =>
+                    Vehicle(item).Use ?? "Χωρίς χρήση")));
                 PersonTypeFilter.SetOptions(records.Select(item => Vehicle(item).Make ?? "Χωρίς μάρκα"));
                 break;
             case "companies":
@@ -129,7 +130,8 @@ public sealed partial class SectionPage
                 CityFilter.SetOptions(records.Select(item => Workspace(item, "origin", "Χωρίς προέλευση")));
                 break;
             case "policies":
-                CustomerFilter.SetOptions(records.Select(item => Policy(item).Branch ?? "Χωρίς κλάδο"));
+                CustomerFilter.SetOptions(_catalogBranches.Concat(records.Select(item =>
+                    Policy(item).Branch ?? "Χωρίς κλάδο")));
                 CityFilter.SetOptions(records.Select(item => Policy(item).Insurer ?? "Χωρίς εταιρεία"));
                 PersonTypeFilter.SetOptions(records.Select(item => Policy(item).Agency ?? "Χωρίς πρακτορείο"));
                 PolicyCustomerFilter.SetOptions(records.Select(item => item.Customer is null

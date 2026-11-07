@@ -7,9 +7,11 @@
         <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,8">
             <StackPanel Spacing="8">
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <TextBlock Text="Παραμετροποίηση φίλτρων" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="Παραμετροποίηση δεδομένων συστήματος" FontSize="18" FontWeight="SemiBold" />
                     <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="{ThemeResource SecondaryTextBrush}" />
                 </StackPanel>
+                <TextBlock Text="Για κλάδους, χρήσεις, καλύψεις και πακέτα: κενή εταιρεία ή κενός κλάδος σημαίνει ότι η τιμή ισχύει για όλους."
+                           Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
                 <Border Height="46" CornerRadius="9" BorderBrush="#7C91A7" BorderThickness="1.5" Padding="1">
                     <Grid>
                         <TextBox x:Name="SearchInput" PlaceholderText="Αναζήτηση τιμής στην επιλεγμένη κατηγορία"
@@ -25,6 +27,12 @@
                     <TextBox x:Name="CustomCategory" Width="175" Header="Νέα κατηγορία"
                              PlaceholderText="Όνομα κατηγορίας" MaxLength="80" TextChanged="CustomCategory_Changed" />
                     <TextBox x:Name="ValueInput" Width="220" Header="Τιμή *" PlaceholderText="Νέα ή επιλεγμένη τιμή" MaxLength="160" />
+                    <AutoSuggestBox x:Name="CompanyScopeInput" Width="210" Header="Εταιρεία / πρακτορείο"
+                                    PlaceholderText="Κενό = όλες" TextChanged="CompanyScope_Changed"
+                                    SuggestionChosen="CompanyScope_Chosen" GotFocus="CompanyScope_Focused" />
+                    <AutoSuggestBox x:Name="BranchScopeInput" Width="190" Header="Κλάδος"
+                                    PlaceholderText="Κενό = όλοι" TextChanged="BranchScope_Changed"
+                                    SuggestionChosen="BranchScope_Chosen" GotFocus="BranchScope_Focused" />
                     <controls:ActionButton Kind="Add" Label="Προσθήκη" VerticalAlignment="Bottom" Click="Add_Click" />
                     <controls:ActionButton Kind="Edit" Label="Επεξεργασία" VerticalAlignment="Bottom" Click="Edit_Click" />
                     <controls:ActionButton Kind="Delete" Label="Διαγραφή" VerticalAlignment="Bottom" Click="Delete_Click" />
@@ -45,19 +53,23 @@
         </Border>
         <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,10">
             <Grid RowDefinitions="Auto,*">
-                <Grid ColumnDefinitions="220,*" Background="{ThemeResource TableHeaderBackgroundBrush}"
+                <Grid ColumnDefinitions="170,*,220,180" Background="{ThemeResource TableHeaderBackgroundBrush}"
                       BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1">
                     <TextBlock Text="Κατηγορία" Margin="9" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" Text="Τιμή φίλτρου" Margin="9" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="1" Text="Τιμή" Margin="9" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="2" Text="Εταιρεία / πρακτορείο" Margin="9" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="3" Text="Κλάδος" Margin="9" FontWeight="SemiBold" />
                 </Grid>
                 <ListView x:Name="OptionsList" Grid.Row="1" SelectionMode="Single" SelectionChanged="Options_SelectionChanged"
                           DoubleTapped="Options_DoubleTapped" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1,0,1,1">
                     <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style></ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="220,*" Height="40">
+                            <Grid ColumnDefinitions="170,*,220,180" Height="40">
                                 <TextBlock Text="{Binding Category}" Margin="9,0" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1" Text="{Binding Value}" Margin="9,0" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding Company}" Margin="9,0" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="3" Text="{Binding Branch}" Margin="9,0" VerticalAlignment="Center" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>

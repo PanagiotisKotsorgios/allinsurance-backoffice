@@ -126,14 +126,17 @@ public sealed class CommissionSettingsPage : Page
             SetFilter(_companyFilter, "Εταιρεία / πρακτορείο",
                 _organizationNames.Concat(_rules.Select(rule => rule.Insurer)));
             SetFilter(_branchFilter, "Κλάδος",
-                (await _filters.ChoicesAsync("Κλάδοι")).Concat(_rules.Select(rule => rule.Branch))!);
+                (await _filters.ListAsync("Κλάδοι")).Select(item => item.Value)
+                    .Concat(_rules.Select(rule => rule.Branch))!);
             SetFilter(_useFilter, "Χρήση",
-                (await _filters.ChoicesAsync("Χρήσεις οχημάτων")).Concat(_rules.Select(rule => rule.VehicleUse))!);
+                (await _filters.ListAsync("Χρήσεις οχημάτων")).Select(item => item.Value)
+                    .Concat(_rules.Select(rule => rule.VehicleUse))!);
             SetFilter(_coverageFilter, "Κάλυψη",
-                (await _filters.ChoicesAsync("Καλύψεις")).Concat(_rules.SelectMany(rule =>
+                (await _filters.ListAsync("Καλύψεις")).Select(item => item.Value).Concat(_rules.SelectMany(rule =>
                     CommissionCoverageSelection.Read(rule.Coverage))));
             SetFilter(_packageFilter, "Πακέτο",
-                (await _filters.ChoicesAsync("Πακέτα ασφαλίσεων")).Concat(_rules.Select(rule => rule.Package))!);
+                (await _filters.ListAsync("Πακέτα ασφαλίσεων")).Select(item => item.Value)
+                    .Concat(_rules.Select(rule => rule.Package))!);
             SetFilter(_statusFilter, "Κατάσταση", ["Ενεργός", "Ανενεργός"]);
             ApplyFilters();
         }
@@ -285,29 +288,53 @@ public sealed class CommissionSettingsPage : Page
         try
         {
             var companies = await OrganizationNamesAsync();
-            var branches = (await _filters.ChoicesAsync("Κλάδοι")).ToArray();
-            var uses = (await _filters.ChoicesAsync("Χρήσεις οχημάτων")).ToArray();
+            var branchOptions = await _filters.ListAsync("Κλάδοι");
+            var useOptions = await _filters.ListAsync("Χρήσεις οχημάτων");
+            var coverageOptions = await _filters.ListAsync("Καλύψεις");
+            var packageOptions = await _filters.ListAsync("Πακέτα ασφαλίσεων");
             var selectedCoverages = CommissionCoverageSelection.Read(existing?.Coverage ?? candidate?.Coverage);
-            var coverages = (await _filters.ChoicesAsync("Καλύψεις"))
-                .Concat(selectedCoverages).Distinct(StringComparer.CurrentCultureIgnoreCase)
-                .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase).ToArray();
-            var packages = (await _filters.ChoicesAsync("Πακέτα ασφαλίσεων")).ToArray();
             var insurer = Suggest("Εταιρεία ή πρακτορείο *", existing?.Insurer ?? candidate?.Organization, companies);
-            var branch = Suggest("Κλάδος (κενό = όλοι)", existing?.Branch ?? candidate?.Branch, branches);
-            var use = Suggest("Χρήση οχήματος (κενό = όλες)", existing?.VehicleUse ?? candidate?.Use, uses);
+            var branch = Suggest("Κλάδος (κενό = όλοι)", existing?.Branch ?? candidate?.Branch,
+                () => CatalogChoices(branchOptions, insurer.Text));
+            var use = Suggest("Χρήση οχήματος (κενό = όλες)", existing?.VehicleUse ?? candidate?.Use,
+                () => CatalogChoices(useOptions, insurer.Text, branch.Text));
             var coveragePanel = new StackPanel { Spacing = 6 };
             coveragePanel.Children.Add(new TextBlock { Text = "Καλύψεις (χωρίς επιλογή = όλες)",
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
             var coverageSearch = new TextBox { PlaceholderText = "Αναζήτηση κάλυψης…",
                 Height = 36, VerticalContentAlignment = VerticalAlignment.Center };
             coveragePanel.Children.Add(coverageSearch);
-            var coverageChecks = coverages.Select(value => new CheckBox
-            {
-                Content = value, IsChecked = selectedCoverages.Contains(value,
-                    StringComparer.CurrentCultureIgnoreCase)
-            }).ToArray();
+            var coverageChecks = new List<CheckBox>();
             var coverageItems = new StackPanel { Spacing = 2 };
-            foreach (var check in coverageChecks) coverageItems.Children.Add(check);
+            var initialCoverages = selectedCoverages.ToHashSet(StringComparer.CurrentCultureIgnoreCase);
+            var coverageRendered = false;
+            void RefreshCoverages()
+            {
+                if (coverageRendered)
+                    foreach (var check in coverageChecks)
+                    {
+                        var name = check.Content?.ToString() ?? "";
+                        if (check.IsChecked == true) initialCoverages.Add(name);
+                        else initialCoverages.Remove(name);
+                    }
+                coverageChecks.Clear();
+                coverageItems.Children.Clear();
+                foreach (var value in CatalogChoices(coverageOptions, insurer.Text, branch.Text)
+                    .Concat(selectedCoverages).Distinct(StringComparer.CurrentCultureIgnoreCase))
+                {
+                    var check = new CheckBox { Content = value,
+                        IsChecked = initialCoverages.Contains(value),
+                        Visibility = value.Contains(coverageSearch.Text,
+                            StringComparison.CurrentCultureIgnoreCase)
+                            ? Visibility.Visible : Visibility.Collapsed };
+                    coverageChecks.Add(check);
+                    coverageItems.Children.Add(check);
+                }
+                coverageRendered = true;
+            }
+            RefreshCoverages();
+            insurer.TextChanged += (_, _) => RefreshCoverages();
+            branch.TextChanged += (_, _) => RefreshCoverages();
             coveragePanel.Children.Add(new ScrollViewer { Content = coverageItems,
                 MaxHeight = 150, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
             coverageSearch.TextChanged += (_, _) =>
@@ -325,7 +352,8 @@ public sealed class CommissionSettingsPage : Page
             coverageActions.Children.Add(selectAll);
             coverageActions.Children.Add(clearAll);
             coveragePanel.Children.Add(coverageActions);
-            var package = Suggest("Πακέτο (κενό = όλα)", existing?.Package ?? candidate?.Package, packages);
+            var package = Suggest("Πακέτο (κενό = όλα)", existing?.Package ?? candidate?.Package,
+                () => CatalogChoices(packageOptions, insurer.Text, branch.Text));
             var office = new TextBox { Header = "Εισερχόμενη προμήθεια έδρας επί καθαρών (%) *",
                 Text = existing?.OfficePercent.ToString("N2") ?? "0" };
             var partner = new TextBox { Header = "Εξερχόμενη προμήθεια προς συνεργάτη επί καθαρών (%) *",
@@ -343,12 +371,27 @@ public sealed class CommissionSettingsPage : Page
             if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
             if (!companies.Contains(insurer.Text.Trim(), StringComparer.CurrentCultureIgnoreCase))
                 throw new ArgumentException("Επιλέξτε καταχωρημένη εταιρεία ή πρακτορείο από τα αποτελέσματα.");
-            foreach (var (box, values, label) in new[]
-                { (branch, branches, "κλάδο"), (use, uses, "χρήση"),
-                  (package, packages, "πακέτο") })
+            var branches = CatalogChoices(branchOptions, insurer.Text);
+            var uses = CatalogChoices(useOptions, insurer.Text, branch.Text);
+            var packages = CatalogChoices(packageOptions, insurer.Text, branch.Text);
+            var sameCompany = existing is not null && string.Equals(existing.Insurer, insurer.Text.Trim(),
+                StringComparison.CurrentCultureIgnoreCase);
+            var sameBranch = sameCompany && string.Equals(existing!.Branch, branch.Text.Trim(),
+                StringComparison.CurrentCultureIgnoreCase);
+            foreach (var (box, values, label, unchanged) in new[]
+                { (branch, branches, "κλάδο", sameCompany && existing!.Branch == branch.Text.Trim()),
+                  (use, uses, "χρήση", sameBranch && existing!.VehicleUse == use.Text.Trim()),
+                  (package, packages, "πακέτο", sameBranch && existing!.Package == package.Text.Trim()) })
                 if (!string.IsNullOrWhiteSpace(box.Text) &&
-                    !values.Contains(box.Text.Trim(), StringComparer.CurrentCultureIgnoreCase))
+                    !values.Contains(box.Text.Trim(), StringComparer.CurrentCultureIgnoreCase) && !unchanged)
                     throw new ArgumentException($"Επιλέξτε καταχωρημένο {label} από τα αποτελέσματα.");
+            var allowedCoverages = CatalogChoices(coverageOptions, insurer.Text, branch.Text);
+            if (coverageChecks.Where(check => check.IsChecked == true).Any(check =>
+                !allowedCoverages.Contains(check.Content?.ToString() ?? "",
+                    StringComparer.CurrentCultureIgnoreCase) &&
+                !(sameBranch && selectedCoverages.Contains(check.Content?.ToString() ?? "",
+                    StringComparer.CurrentCultureIgnoreCase))))
+                throw new ArgumentException("Οι επιλεγμένες καλύψεις δεν ισχύουν για αυτή την εταιρεία και τον κλάδο.");
             var rule = new CommissionRule
             {
                 Id = existing?.Id ?? Guid.Empty, Insurer = insurer.Text,
@@ -366,12 +409,15 @@ public sealed class CommissionSettingsPage : Page
     }
 
     private static AutoSuggestBox Suggest(string label, string? value, string[] options)
+        => Suggest(label, value, () => options);
+
+    private static AutoSuggestBox Suggest(string label, string? value, Func<string[]> options)
     {
         var box = new AutoSuggestBox { Header = label, Text = value ?? "",
             HorizontalAlignment = HorizontalAlignment.Stretch };
         void UpdateSuggestions(bool showAll = false)
         {
-            box.ItemsSource = SearchSuggestions.FirstHundred(options, showAll ? "" : box.Text);
+            box.ItemsSource = SearchSuggestions.FirstHundred(options(), showAll ? "" : box.Text);
             box.IsSuggestionListOpen = box.ItemsSource is string[] { Length: > 0 };
         }
         box.GotFocus += (_, _) => UpdateSuggestions(showAll: true);
@@ -383,6 +429,15 @@ public sealed class CommissionSettingsPage : Page
         box.SuggestionChosen += (_, args) => box.Text = args.SelectedItem as string ?? box.Text;
         return box;
     }
+
+    private static string[] CatalogChoices(IEnumerable<FilterOption> options,
+        string? company, string? branch = null) => options
+        .Where(item => (item.CompanyScope.Length == 0 ||
+                item.CompanyScope.Equals(company?.Trim(), StringComparison.CurrentCultureIgnoreCase)) &&
+            (item.BranchScope.Length == 0 ||
+                item.BranchScope.Equals(branch?.Trim(), StringComparison.CurrentCultureIgnoreCase)))
+        .Select(item => item.Value).Distinct(StringComparer.CurrentCultureIgnoreCase)
+        .OrderBy(value => value).ToArray();
 
     private static decimal Percentage(string text)
     {

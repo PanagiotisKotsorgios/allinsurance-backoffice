@@ -37,7 +37,7 @@
                             <MenuFlyoutItem Text="Ρυθμίσεις συστήματος" Click="Settings_Click" />
                             <MenuFlyoutItem Text="Ρυθμίσεις προφίλ πρακτορείου" Click="AgencyProfile_Click" />
                             <MenuFlyoutItem Text="Διαχείριση συντομεύσεων" Click="Shortcuts_Click" />
-                            <MenuFlyoutItem Text="Παραμετροποίηση φίλτρων εφαρμογής" Click="FilterOptions_Click" />
+                            <MenuFlyoutItem Text="Παραμετροποίηση δεδομένων συστήματος" Click="FilterOptions_Click" />
                             <MenuFlyoutItem x:Name="CommissionMenuItem" Text="Παραμετροποίηση συστήματος / προμηθειών" Click="Commissions_Click" />
                         </MenuBarItem>
                         <MenuBarItem Title="Βοήθεια">

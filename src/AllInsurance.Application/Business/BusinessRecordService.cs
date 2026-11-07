@@ -365,6 +365,9 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             }
             if (record.SectionKey is "companies" or "agencies" && existing.Title != record.Title)
             {
+                var scopedOptions = await db.FilterOptions.Where(item =>
+                    item.CompanyScope == existing.Title).ToListAsync(cancellationToken);
+                foreach (var option in scopedOptions) option.CompanyScope = record.Title;
                 var linkedPolicies = await db.BusinessRecords.Where(item => item.SectionKey == "policies" &&
                     item.DetailsJson != null).ToListAsync(cancellationToken);
                 foreach (var policy in linkedPolicies)
@@ -386,12 +389,9 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                         policy.DetailsJson = BusinessRecordDetails.Write(details);
                     }
                 }
-                if (record.SectionKey == "companies")
-                {
-                    var rules = await db.CommissionRules.Where(item => item.Insurer == existing.Title)
-                        .ToListAsync(cancellationToken);
-                    foreach (var rule in rules) rule.Insurer = record.Title;
-                }
+                var rules = await db.CommissionRules.Where(item => item.Insurer == existing.Title)
+                    .ToListAsync(cancellationToken);
+                foreach (var rule in rules) rule.Insurer = record.Title;
             }
             var changes = new List<string>();
             if (existing.Title != record.Title) changes.Add($"Αριθμός: {existing.Title} → {record.Title}");
@@ -491,6 +491,9 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                 policy.Agency == record.Title;
         }))
             throw new InvalidOperationException("Η εταιρεία ή το πρακτορείο συνδέεται με ασφαλιστήριο. Ορίστε την εγγραφή ανενεργή.");
+        if (record.SectionKey is "companies" or "agencies" &&
+            await db.FilterOptions.AnyAsync(item => item.CompanyScope == record.Title, cancellationToken))
+            throw new InvalidOperationException("Η εταιρεία ή το πρακτορείο έχει συνδεδεμένα δεδομένα συστήματος. Αφαιρέστε πρώτα τις συνδέσεις.");
         if (record.SectionKey == "partners")
         {
             if (await db.PartnerPayouts.AnyAsync(item => item.PartnerId == id, cancellationToken) ||

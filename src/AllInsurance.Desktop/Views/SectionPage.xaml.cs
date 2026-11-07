@@ -28,6 +28,8 @@ public sealed partial class SectionPage : Page
     private PartnerCardWindow? _partnerCard;
     private CustomerChoice[] _customerChoices = [];
     private string[] _partnerCategories = [];
+    private string[] _catalogBranches = [];
+    private string[] _catalogVehicleUses = [];
     private HashSet<Guid> _vehiclesWithActivePolicy = [];
     private Dictionary<Guid, string> _vehicleInsuranceStates = [];
     private Dictionary<Guid, string> _policyPartnerNames = [];
@@ -253,6 +255,10 @@ public sealed partial class SectionPage : Page
                 _partnerCategories = [.. await _filters.ChoicesAsync("Κατηγορίες συνεργατών")];
                 return;
             }
+            if (_section.Key == "policies")
+                _catalogBranches = [.. await _filters.ChoicesAsync("Κλάδοι")];
+            if (_section.Key == "vehicles")
+                _catalogVehicleUses = [.. await _filters.ChoicesAsync("Χρήσεις οχημάτων")];
             var customers = await _customers.SearchAsync();
             _customerChoices = [new CustomerChoice(null, "Χωρίς πελάτη"),
                 .. customers.Select(item => new CustomerChoice(item.Id, item.FullName))];
