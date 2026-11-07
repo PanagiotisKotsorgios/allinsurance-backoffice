@@ -66,10 +66,12 @@
                 <TextBlock x:Name="SummaryText" FontWeight="SemiBold" FontSize="16" />
                 <TextBlock x:Name="DetailText" Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
+            <controls:ActionButton x:Name="ReportColumnsButton" Grid.Column="1" Kind="Columns"
+                                   Label="Διαχείριση στηλών" Click="Columns_Click" Visibility="Collapsed" />
         </Grid>
         <Border Grid.Row="3" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="12">
             <Grid x:Name="ReportTableGrid" RowDefinitions="Auto,*,Auto">
-                <Grid ColumnDefinitions="2*,1.3*,1.3*,1.2*,1.2*,1.2*" Background="{ThemeResource TableHeaderBackgroundBrush}">
+                <Grid x:Name="ReportHeaderGrid" ColumnDefinitions="2*,1.3*,1.3*,1.2*,1.2*,1.2*" Background="{ThemeResource TableHeaderBackgroundBrush}">
                     <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadA" FontWeight="SemiBold" /></Border>
                     <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadB" FontWeight="SemiBold" /></Border>
                     <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadC" FontWeight="SemiBold" /></Border>

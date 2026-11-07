@@ -20,6 +20,7 @@ public sealed partial class ReportsPage : Page
     private PartnerPayout[] _payouts = [];
     private ReportEntry[] _shown = [];
     private string[] _headings = [];
+    private readonly bool[] _visibleColumns = [true, true, true, true, true, true];
     private readonly Dictionary<Guid, string> _partnerNames = [];
     private readonly Dictionary<Guid, decimal> _partnerRates = [];
     private readonly TablePagination _pager;
@@ -29,9 +30,7 @@ public sealed partial class ReportsPage : Page
         InitializeComponent();
         TableRowStriping.Attach(ReportList);
         _pager = new TablePagination(ReportList);
-        _pager.ConfigureExport(() => new TableExportData(
-            "Αναφορές - " + (ReportType.SelectedItem is ComboBoxItem option ? option.Content?.ToString() : ReportType.SelectedItem?.ToString()),
-            _headings, _shown.Select(row => row.Values).ToArray()));
+        _pager.ConfigureExport(ExportData);
         Grid.SetRow(_pager.Bar, 2);
         ReportTableGrid.Children.Add(_pager.Bar);
         ReportList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler((_, args) =>
@@ -184,6 +183,7 @@ public sealed partial class ReportsPage : Page
         BranchFilter.Visibility = receiptsOnly || production ? Visibility.Collapsed : Visibility.Visible;
         PartnerFilter.Visibility = receiptsOnly || production ? Visibility.Collapsed : Visibility.Visible;
         ProductionFilters.Visibility = production ? Visibility.Visible : Visibility.Collapsed;
+        ReportColumnsButton.Visibility = production ? Visibility.Visible : Visibility.Collapsed;
         ReceiptCustomerFilter.Visibility = receiptsOnly ? Visibility.Visible : Visibility.Collapsed;
         ReceiptMethodFilter.Visibility = receiptsOnly ? Visibility.Visible : Visibility.Collapsed;
         ReportList.SelectionMode = receiptsOnly ? ListViewSelectionMode.Single : ListViewSelectionMode.None;
@@ -211,6 +211,7 @@ public sealed partial class ReportsPage : Page
         _shown = production ? rows : rows.Where(row => Matches(row.Values)).ToArray();
         var heads = new[] { HeadA, HeadB, HeadC, HeadD, HeadE, HeadF };
         for (var index = 0; index < heads.Length; index++) heads[index].Text = _headings[index];
+        ApplyVisibleColumns();
         ReportList.Items.Clear();
         foreach (var row in _shown) ReportList.Items.Add(BuildRow(row));
         _pager.Capture();
@@ -240,6 +241,46 @@ public sealed partial class ReportsPage : Page
                 item.Data.Insurer ?? "—", Money(item.Data.NetPremium ?? 0), Money(item.Data.GrossPremium ?? 0),
                 item.Data.EndDate?.ToString("dd/MM/yyyy") ?? "—")).ToArray();
 
+    private TableExportData ExportData()
+    {
+        var indices = Enumerable.Range(0, _headings.Length)
+            .Where(index => ReportType.SelectedIndex != 9 || _visibleColumns[index]).ToArray();
+        return new TableExportData("Αναφορές - " +
+            (ReportType.SelectedItem is ComboBoxItem option ? option.Content?.ToString() : ReportType.SelectedItem?.ToString()),
+            indices.Select(index => _headings[index]).ToArray(),
+            _shown.Select(row => indices.Select(index => row.Values[index]).ToArray()).ToArray())
+        { RowStyles = ReportType.SelectedIndex == 9 ? _shown.Select(row => row.Kind.ToString()).ToArray() : null };
+    }
+
+    private void ApplyVisibleColumns()
+    {
+        if (ReportHeaderGrid is null) return;
+        var weights = new[] { 2d, 1.3d, 1.3d, 1.2d, 1.2d, 1.2d };
+        for (var index = 0; index < 6; index++)
+        {
+            var visible = ReportType.SelectedIndex != 9 || _visibleColumns[index];
+            ReportHeaderGrid.ColumnDefinitions[index].Width = visible
+                ? new GridLength(weights[index], GridUnitType.Star) : new GridLength(0);
+            ((UIElement)ReportHeaderGrid.Children[index]).Visibility = visible
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private async void Columns_Click(object sender, RoutedEventArgs e)
+    {
+        var fields = _headings.Select((header, index) => new CheckBox
+        { Content = header, IsChecked = _visibleColumns[index] }).ToArray();
+        var panel = new StackPanel { Spacing = 5, Width = 340 };
+        foreach (var field in fields) panel.Children.Add(field);
+        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Στήλες λίστας παραγωγής",
+            Content = panel, PrimaryButtonText = "Εφαρμογή", CloseButtonText = "Ακύρωση" };
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
+        if (!fields.Any(field => field.IsChecked == true))
+        { await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε τουλάχιστον μία στήλη."); return; }
+        for (var index = 0; index < 6; index++) _visibleColumns[index] = fields[index].IsChecked == true;
+        Refresh();
+    }
+
     private ReportEntry[] ProductionRows((BusinessRecord Record, PolicyCardData Data)[] policies)
     {
         var mode = GroupingMode.SelectedIndex;
@@ -264,10 +305,32 @@ public sealed partial class ReportsPage : Page
         static string Commission(decimal value, decimal net) =>
             $"{Money(value)} · {(net == 0 ? 0 : value / net * 100):N2}%";
         var rows = new List<ReportEntry>();
+        string? currentPartner = null;
+        void AddPartnerTotal(string partnerName)
+        {
+            var partnerPolicies = policies.Where(item => PartnerName(item) == partnerName).ToArray();
+            var net = partnerPolicies.Sum(item => item.Data.NetPremium ?? 0m);
+            rows.Add(new ReportEntry("", $"ΣΥΝΟΛΟ ΣΥΝΕΡΓΑΤΗ: {partnerName}", Money(net),
+                Money(partnerPolicies.Sum(item => item.Data.GrossPremium ?? 0m)),
+                Commission(partnerPolicies.Sum(Office), net), Commission(partnerPolicies.Sum(Partner), net))
+            { Kind = ProductionRowKind.PartnerTotal });
+        }
         foreach (var group in policies.GroupBy(GroupKey, StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(group => group.Key, StringComparer.CurrentCultureIgnoreCase))
         {
-            rows.Add(new ReportEntry($"{group.Key}  ·  {group.Count()} ασφαλιστήρια",
+            if (mode == 0)
+            {
+                var partnerName = PartnerName(group.First());
+                if (currentPartner != partnerName)
+                {
+                    if (currentPartner is not null) AddPartnerTotal(currentPartner);
+                    currentPartner = partnerName;
+                    rows.Add(new ReportEntry($"ΣΥΝΕΡΓΑΤΗΣ: {partnerName}", "", "", "", "", "")
+                    { Kind = ProductionRowKind.PartnerHeader });
+                }
+            }
+            var groupLabel = mode == 0 ? group.First().Data.Insurer ?? "Χωρίς εταιρεία" : group.Key;
+            rows.Add(new ReportEntry($"{(mode == 0 ? "ΕΤΑΙΡΕΙΑ: " : "")}{groupLabel}  ·  {group.Count()} ασφαλιστήρια",
                 "", "", "", "", "") { Kind = ProductionRowKind.Group });
             foreach (var item in group.OrderBy(item => item.Data.IssueDate ?? item.Data.StartDate)
                 .ThenBy(item => item.Record.Title))
@@ -286,10 +349,12 @@ public sealed partial class ReportsPage : Page
             var groupGross = group.Sum(item => item.Data.GrossPremium ?? 0m);
             var groupOffice = group.Sum(Office);
             var groupPartner = group.Sum(Partner);
-            rows.Add(new ReportEntry("", "Σύνολο ομάδας", Money(groupNet), Money(groupGross),
+            rows.Add(new ReportEntry("", mode == 0 ? $"Σύνολο εταιρείας: {groupLabel}" : "Σύνολο ομάδας", Money(groupNet), Money(groupGross),
                 Commission(groupOffice, groupNet), Commission(groupPartner, groupNet))
             { Kind = ProductionRowKind.Subtotal });
+            rows.Add(new ReportEntry("", "", "", "", "", "") { Kind = ProductionRowKind.Spacer });
         }
+        if (mode == 0 && currentPartner is not null) AddPartnerTotal(currentPartner);
         if (policies.Length > 0)
         {
             var totalNet = policies.Sum(item => item.Data.NetPremium ?? 0m);
@@ -425,9 +490,9 @@ public sealed partial class ReportsPage : Page
 
     private static string Money(decimal value) => value.ToString("N2", CultureInfo.GetCultureInfo("el-GR")) + " €";
 
-    private static ListViewItem BuildRow(ReportEntry row)
+    private ListViewItem BuildRow(ReportEntry row)
     {
-        var grid = new Grid { Height = 42, ColumnDefinitions =
+        var grid = new Grid { Height = row.Kind == ProductionRowKind.Spacer ? 13 : 42, ColumnDefinitions =
         {
             new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) },
             new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) },
@@ -437,22 +502,29 @@ public sealed partial class ReportsPage : Page
             new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) }
         } };
         var cells = new List<Border>();
+        var widths = new[] { 2d, 1.3d, 1.3d, 1.2d, 1.2d, 1.2d };
         for (var index = 0; index < 6; index++)
         {
+            var visible = ReportType.SelectedIndex != 9 || _visibleColumns[index];
+            grid.ColumnDefinitions[index].Width = visible
+                ? new GridLength(widths[index], GridUnitType.Star) : new GridLength(0);
             var border = new Border { BorderBrush = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TableBorderBrush"],
                 BorderThickness = new Thickness(0, 0, index == 5 ? 0 : 1, 1),
                 Child = new TextBlock { Text = row.Values[index], Margin = new Thickness(9, 0, 9, 0),
                     VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
-                    FontWeight = row.Kind is ProductionRowKind.Group or ProductionRowKind.Subtotal or
+                    FontWeight = row.Kind is ProductionRowKind.Group or ProductionRowKind.PartnerHeader or
+                        ProductionRowKind.PartnerTotal or ProductionRowKind.Subtotal or
                         ProductionRowKind.GrandTotal ? Microsoft.UI.Text.FontWeights.SemiBold :
-                        Microsoft.UI.Text.FontWeights.Normal } };
+                        Microsoft.UI.Text.FontWeights.Normal },
+                Visibility = visible ? Visibility.Visible : Visibility.Collapsed };
             Grid.SetColumn(border, index);
             grid.Children.Add(border);
             cells.Add(border);
         }
         var item = new ListViewItem { Content = grid, Tag = row,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Padding = new Thickness(0), Margin = new Thickness(0) };
+            Height = row.Kind == ProductionRowKind.Spacer ? 13 : 42,
+            MinHeight = 0, Padding = new Thickness(0), Margin = new Thickness(0) };
         item.Loaded += (_, _) =>
         {
             var dark = item.ActualTheme == ElementTheme.Dark;
@@ -460,11 +532,20 @@ public sealed partial class ReportsPage : Page
             {
                 var color = row.Kind switch
                 {
+                    ProductionRowKind.PartnerHeader => dark
+                        ? Windows.UI.Color.FromArgb(255, 38, 69, 93)
+                        : Windows.UI.Color.FromArgb(255, 203, 221, 236),
                     ProductionRowKind.Group => dark
                         ? Windows.UI.Color.FromArgb(255, 55, 65, 77)
                         : Windows.UI.Color.FromArgb(255, 224, 233, 241),
+                    ProductionRowKind.PartnerTotal => dark
+                        ? Windows.UI.Color.FromArgb(255, 43, 83, 66)
+                        : Windows.UI.Color.FromArgb(255, 191, 226, 202),
                     ProductionRowKind.Subtotal => dark
                         ? Windows.UI.Color.FromArgb(255, 48, 76, 64)
+                        : Windows.UI.Color.FromArgb(255, 207, 231, 215),
+                    ProductionRowKind.Spacer => dark
+                        ? Windows.UI.Color.FromArgb(255, 43, 83, 66)
                         : Windows.UI.Color.FromArgb(255, 207, 231, 215),
                     ProductionRowKind.GrandTotal => dark
                         ? Windows.UI.Color.FromArgb(255, 35, 94, 59)
@@ -503,5 +584,5 @@ public sealed partial class ReportsPage : Page
         public decimal PartnerAmount { get; init; }
         public ProductionRowKind Kind { get; init; }
     }
-    private enum ProductionRowKind { None, Group, Detail, Subtotal, GrandTotal }
+    private enum ProductionRowKind { None, PartnerHeader, Group, Detail, Subtotal, PartnerTotal, Spacer, GrandTotal }
 }
