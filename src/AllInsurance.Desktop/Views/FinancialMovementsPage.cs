@@ -17,9 +17,9 @@ public sealed class FinancialMovementsPage : Page
     private readonly FinancialMovementService _service = App.Services.GetRequiredService<FinancialMovementService>();
     private readonly TextBox _search = new() { PlaceholderText = "Αναζήτηση προσώπου, ασφαλιστηρίου, αιτιολογίας ή αναφοράς…",
         Height = 42, MinHeight = 42, VerticalContentAlignment = VerticalAlignment.Center };
-    private readonly ComboBox _party = new() { MinWidth = 175, Height = 38 };
-    private readonly ComboBox _method = new() { MinWidth = 180, Height = 38 };
-    private readonly ComboBox _source = new() { MinWidth = 195, Height = 38 };
+    private readonly ComboBox _party = new() { Width = 185, MinHeight = 66 };
+    private readonly ComboBox _method = new() { Width = 185, MinHeight = 66 };
+    private readonly ComboBox _source = new() { Width = 200, MinHeight = 66 };
     private readonly EditableDateInput _from = new() { Width = 155, Height = 38, PlaceholderText = "Από" };
     private readonly EditableDateInput _until = new() { Width = 155, Height = 38, PlaceholderText = "Έως" };
     private readonly ListView _list = new() { SelectionMode = ListViewSelectionMode.Single,
@@ -28,6 +28,7 @@ public sealed class FinancialMovementsPage : Page
     private readonly TextBlock _total = new() { FontSize = 15,
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     private readonly TablePagination _pager;
+    private Action? _applyColumns;
     private IReadOnlyList<FinancialMovement> _all = [];
     private FinancialMovement[] _shown = [];
     private readonly double[] _widths = [130, 145, 220, 205, 135, 175, 165, 300];
@@ -38,6 +39,7 @@ public sealed class FinancialMovementsPage : Page
     {
         _receipts = receipts;
         _pager = new TablePagination(_list);
+        _pager.PageRendered += () => _applyColumns?.Invoke();
         _pager.ConfigureExport(ExportData);
         BuildUi();
         Loaded += async (_, _) => await ReloadAsync();
@@ -54,7 +56,20 @@ public sealed class FinancialMovementsPage : Page
         title.Children.Add(new TextBlock { Text = _receipts ? "Εισπράξεις" : "Πληρωμές",
             FontSize = 22, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         title.Children.Add(_count);
-        root.Children.Add(title);
+        var titleRow = new Grid { ColumnDefinitions =
+            { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
+        titleRow.Children.Add(title);
+        var add = new ActionButton { Kind = "Add",
+            Label = _receipts ? "Νέα είσπραξη" : "Νέα πληρωμή" };
+        add.Click += async (_, _) =>
+        {
+            var created = await FinancialMovementCreateDialog.ShowAsync(XamlRoot, _receipts);
+            if (created is null) return;
+            await ReloadAsync();
+            ShowDetails(created);
+        };
+        Grid.SetColumn(add, 1); titleRow.Children.Add(add);
+        root.Children.Add(titleRow);
 
         var filters = new StackPanel { Spacing = 8 };
         filters.Children.Add(SearchFieldVisual.Wrap(_search));
@@ -96,17 +111,21 @@ public sealed class FinancialMovementsPage : Page
         }
         TableRowStriping.Attach(_list);
         _list.DoubleTapped += (_, _) => ShowSelected();
+        _list.Header = new Border { Child = header, BorderBrush = Brush("TableBorderBrush"),
+            BorderThickness = new Thickness(1) };
         var table = new Grid();
-        table.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         table.RowDefinitions.Add(new RowDefinition());
         table.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        table.Children.Add(header);
-        Grid.SetRow(_list, 1); table.Children.Add(_list);
-        Grid.SetRow(_pager.Bar, 2); table.Children.Add(_pager.Bar);
+        var viewport = new ScrollViewer { Content = _list,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        viewport.SizeChanged += (_, args) => _list.Height = Math.Max(160, args.NewSize.Height - 2);
+        table.Children.Add(viewport);
+        Grid.SetRow(_pager.Bar, 1); table.Children.Add(_pager.Bar);
         var card = new Border { Background = Brush("CardBackgroundBrush"),
             CornerRadius = new CornerRadius(12), Padding = new Thickness(10), Child = table };
         Grid.SetRow(card, 3); root.Children.Add(card);
-        TableInteractions.Attach(header, _list, card, 60);
+        _applyColumns = TableInteractions.Attach(header, _list, viewport, 2);
         _search.TextChanged += (_, _) => Render();
         _party.SelectionChanged += (_, _) => Render();
         _method.SelectionChanged += (_, _) => Render();
@@ -127,6 +146,17 @@ public sealed class FinancialMovementsPage : Page
             "TableHeaderBackgroundBrush" => dark ? (48, 68, 90) : (208, 222, 235),
             _ => dark ? (113, 134, 155) : (132, 153, 174)
         };
+        return new SolidColorBrush(Color.FromArgb(255, (byte)r, (byte)g, (byte)b));
+    }
+
+    private static Brush AmountBrush(bool receipt)
+    {
+        var theme = App.Services.GetRequiredService<WorkspacePreferences>().Theme;
+        var dark = theme == ElementTheme.Dark || theme == ElementTheme.Default &&
+            Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark;
+        var (r, g, b) = receipt
+            ? dark ? (48, 76, 64) : (207, 231, 215)
+            : dark ? (99, 53, 53) : (241, 213, 213);
         return new SolidColorBrush(Color.FromArgb(255, (byte)r, (byte)g, (byte)b));
     }
 
@@ -188,9 +218,12 @@ public sealed class FinancialMovementsPage : Page
             for (var index = 0; index < values.Length; index++)
             {
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_widths[index]) });
-                var cell = Cell(values[index]); Grid.SetColumn(cell, index); row.Children.Add(cell);
+                var cell = Cell(values[index]);
+                if (index == 4) cell.Background = AmountBrush(_receipts);
+                Grid.SetColumn(cell, index); row.Children.Add(cell);
             }
             var listItem = new ListViewItem { Content = row, Tag = item,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0),
                 Padding = new Thickness(0), MinHeight = 40 };
             var menu = new MenuFlyout();
             var details = new MenuFlyoutItem { Text = "Προβολή κίνησης" };
@@ -217,21 +250,9 @@ public sealed class FinancialMovementsPage : Page
         if (_list.SelectedItem is ListViewItem { Tag: FinancialMovement item }) ShowDetails(item);
     }
 
-    private async void ShowDetails(FinancialMovement item)
+    private void ShowDetails(FinancialMovement item)
     {
-        var panel = new StackPanel { Spacing = 9, Width = 420 };
-        foreach (var (label, value) in new[]
-        {
-            ("Ημερομηνία", LocalDate(item).ToString("dd/MM/yyyy HH:mm")),
-            ("Πρόσωπο / φορέας", $"{item.PartyType}: {item.Party}"),
-            ("Ασφαλιστήριο", item.Policy ?? "—"), ("Ποσό", $"{item.Amount:N2} {item.Currency}"),
-            ("Τρόπος", item.Method), ("Αναφορά", item.Reference ?? "—"),
-            ("Πηγή", item.Source), ("Αιτιολογία", item.Description ?? "—")
-        })
-            panel.Children.Add(new TextBlock { Text = $"{label}: {value}", TextWrapping = TextWrapping.Wrap });
-        await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = XamlRoot,
-            Title = _receipts ? "Καρτέλα είσπραξης" : "Καρτέλα πληρωμής",
-            Content = new ScrollViewer { Content = panel, MaxHeight = 480 },
-            CloseButtonText = "Κλείσιμο" });
+        if (item.Source == "Πελάτες") ReceiptCardWindow.Open(item.Id);
+        else FinancialMovementCardWindow.Open(item);
     }
 }

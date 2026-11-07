@@ -708,6 +708,10 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal?>("PartnerCommission")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("PartnerId")
                         .HasColumnType("TEXT");
 

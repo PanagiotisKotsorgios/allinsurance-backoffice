@@ -92,11 +92,11 @@ internal static class BulkFinancialMovementDialog
                     ParseAmount(field.Amount.Text))).ToArray();
             };
             if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return false;
-            var batchCode = await App.Services.GetRequiredService<BulkFinancialMovementService>()
+            var batch = await App.Services.GetRequiredService<BulkFinancialMovementService>()
                 .PostAsync(section, direction, validated, (string)method.SelectedItem,
                     reference.Text, description.Text, currency);
             await UiAlerts.ShowSuccessAsync(root,
-                $"Καταχωρήθηκαν {validated.Length} κινήσεις. Αναφορά: {batchCode}.");
+                $"Καταχωρήθηκαν {validated.Length} κινήσεις. Αναφορά: {batch.Reference}.");
             return true;
 
             void UpdateTotal()

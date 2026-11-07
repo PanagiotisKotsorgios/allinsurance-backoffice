@@ -23,7 +23,12 @@ public interface IPartnerService
     Task<Guid> AddPayoutAsync(Guid partnerId, decimal amount, string method,
         string? reference, string? description, CancellationToken cancellationToken = default);
     Task<Guid> AddMovementAsync(Guid partnerId, string kind, decimal amount, string method,
-        string? reference, string? description, Guid? policyId = null,
+        string? reference, string? description, Guid? policyId = null, DateTime? occurredOn = null,
+        CancellationToken cancellationToken = default);
+    Task UpdateMovementAsync(Guid partnerId, Guid movementId, decimal amount, string method,
+        string? reference, string? description, DateTime? occurredOn = null,
+        CancellationToken cancellationToken = default);
+    Task DeleteMovementAsync(Guid partnerId, Guid movementId,
         CancellationToken cancellationToken = default);
 }
 
@@ -68,8 +73,8 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
         var payouts = await db.PartnerPayouts.AsNoTracking().ToListAsync(cancellationToken);
         foreach (var payout in payouts)
             if (balances.ContainsKey(payout.PartnerId))
-                balances[payout.PartnerId] += payout.Kind == "receipt"
-                    ? payout.Amount : -payout.Amount;
+                balances[payout.PartnerId] += payout.Kind == "payment"
+                    ? -payout.Amount : payout.Amount;
         return balances;
     }
 
@@ -107,8 +112,11 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
             .OrderByDescending(item => item.OccurredAtUtc).ToListAsync(cancellationToken);
         var activities = await db.PartnerActivities.AsNoTracking().Where(item => item.PartnerId == partnerId)
             .OrderByDescending(item => item.OccurredAtUtc).ToListAsync(cancellationToken);
-        return new PartnerSnapshot(production, payouts, production.Sum(item => item.Commission),
-            payouts.Sum(item => item.Kind == "receipt" ? -item.Amount : item.Amount), activities);
+        return new PartnerSnapshot(production, payouts,
+            production.Sum(item => item.Commission) +
+                payouts.Where(item => item.Kind == "commission").Sum(item => item.Amount),
+            payouts.Sum(item => item.Kind == "payment" ? item.Amount :
+                item.Kind == "receipt" ? -item.Amount : 0m), activities);
     }
 
     public async Task<Guid> AddPayoutAsync(Guid partnerId, decimal amount, string method,
@@ -117,16 +125,18 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
             description, cancellationToken: cancellationToken);
 
     public async Task<Guid> AddMovementAsync(Guid partnerId, string kind, decimal amount, string method,
-        string? reference, string? description, Guid? policyId = null,
+        string? reference, string? description, Guid? policyId = null, DateTime? occurredOn = null,
         CancellationToken cancellationToken = default)
     {
         RequireSession();
-        if (kind is not ("payment" or "receipt")) throw new ArgumentException("Μη έγκυρος τύπος κίνησης.");
+        if (kind is not ("payment" or "receipt" or "commission")) throw new ArgumentException("Μη έγκυρος τύπος κίνησης.");
         if (amount <= 0 || amount > 999_999_999m) throw new ArgumentException("Συμπληρώστε θετικό ποσό κίνησης.");
         method = method.Trim();
         if (method.Length is < 1 or > 80) throw new ArgumentException("Επιλέξτε τρόπο πληρωμής.");
         reference = Clean(reference, 100);
         description = Clean(description, 500);
+        if ((kind == "receipt" || kind == "commission") && policyId is null && description is null)
+            throw new ArgumentException("Συνδέστε την είσπραξη με ασφαλιστήριο ή συμπληρώστε αιτιολογία.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         if (!await db.BusinessRecords.AnyAsync(item => item.Id == partnerId &&
             item.SectionKey == "partners", cancellationToken))
@@ -139,15 +149,59 @@ public sealed class PartnerService(IApplicationDbContextFactory factory, ISessio
             Id = Guid.NewGuid(), PartnerId = partnerId, PolicyId = policyId,
             Amount = amount, Kind = kind,
             PaymentMethod = method, Reference = reference, Description = description,
-            OccurredAtUtc = DateTime.UtcNow, CreatedByUserId = session.Current!.UserId
+            OccurredAtUtc = ToUtc(occurredOn), CreatedByUserId = session.Current!.UserId
         };
         db.PartnerPayouts.Add(payout);
-        PartnerActivityLog.Add(db, partnerId, kind == "payment" ? "Γενική πληρωμή" : "Γενική είσπραξη",
-            $"Καταχωρίστηκε {(kind == "payment" ? "πληρωμή" : "είσπραξη")} {amount:N2} € με {method}" +
+        PartnerActivityLog.Add(db, partnerId, kind == "payment" ? "Γενική πληρωμή" :
+            kind == "receipt" ? "Γενική είσπραξη" : "Χειροκίνητη προμήθεια",
+            $"Καταχωρίστηκε {(kind == "payment" ? "πληρωμή" : kind == "receipt" ? "είσπραξη" : "προμήθεια")} {amount:N2} € με {method}" +
             (reference is null ? "." : $" (αναφορά {reference})."), session.Current!.DisplayName);
         await db.SaveChangesAsync(cancellationToken);
         return payout.Id;
     }
+
+    public async Task UpdateMovementAsync(Guid partnerId, Guid movementId, decimal amount,
+        string method, string? reference, string? description, DateTime? occurredOn = null,
+        CancellationToken cancellationToken = default)
+    {
+        RequireSession();
+        if (amount <= 0 || amount > 999_999_999m || method.Trim().Length is < 1 or > 80)
+            throw new ArgumentException("Συμπληρώστε θετικό ποσό και τρόπο πληρωμής.");
+        reference = Clean(reference, 100);
+        description = Clean(description, 500);
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var item = await db.PartnerPayouts.SingleOrDefaultAsync(value => value.Id == movementId &&
+            value.PartnerId == partnerId, cancellationToken)
+            ?? throw new InvalidOperationException("Η οικονομική κίνηση δεν υπάρχει.");
+        if (item.Kind is "receipt" or "commission" && item.PolicyId is null && description is null)
+            throw new ArgumentException("Συμπληρώστε αιτιολογία για την κίνηση.");
+        item.Amount = amount;
+        item.PaymentMethod = method.Trim();
+        item.Reference = reference;
+        item.Description = description;
+        if (occurredOn.HasValue) item.OccurredAtUtc = ToUtc(occurredOn);
+        PartnerActivityLog.Add(db, partnerId, "Επεξεργασία οικονομικής κίνησης",
+            $"Ενημερώθηκε η κίνηση {movementId:N}: {amount:N2} €.", session.Current!.DisplayName);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteMovementAsync(Guid partnerId, Guid movementId,
+        CancellationToken cancellationToken = default)
+    {
+        RequireSession();
+        await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var item = await db.PartnerPayouts.SingleOrDefaultAsync(value => value.Id == movementId &&
+            value.PartnerId == partnerId, cancellationToken)
+            ?? throw new InvalidOperationException("Η οικονομική κίνηση δεν υπάρχει.");
+        db.PartnerPayouts.Remove(item);
+        PartnerActivityLog.Add(db, partnerId, "Διαγραφή οικονομικής κίνησης",
+            $"Διαγράφηκε η κίνηση {movementId:N} ποσού {item.Amount:N2} €.", session.Current!.DisplayName);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static DateTime ToUtc(DateTime? date) => date.HasValue
+        ? DateTime.SpecifyKind(date.Value.Date.Add(DateTime.Now.TimeOfDay), DateTimeKind.Local).ToUniversalTime()
+        : DateTime.UtcNow;
 
     private void RequireSession()
     {

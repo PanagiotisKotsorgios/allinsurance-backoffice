@@ -187,24 +187,31 @@ public sealed partial class PartnerCardWindow
         var due = _snapshot.Due;
         var color = due > 0 ? StatusPalette.Negative :
             due < 0 ? StatusPalette.Positive : StatusPalette.Neutral;
-        panel.Children.Add(new Border { Background = new SolidColorBrush(color),
+        var balanceBadge = new Border { Background = new SolidColorBrush(color),
             CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 9, 14, 9),
             HorizontalAlignment = HorizontalAlignment.Left,
             Child = new TextBlock { Text = due > 0 ? $"Οφειλή γραφείου στον συνεργάτη: {due:N2} €" :
                 due < 0 ? $"Προκαταβολή συνεργάτη: {-due:N2} €" : "Μηδενικό υπόλοιπο: 0,00 €",
                 Foreground = new SolidColorBrush(Colors.White), FontSize = 18,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold } });
-        var paid = _snapshot.Payouts.Where(item => item.Kind != "receipt").Sum(item => item.Amount);
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold } };
+        panel.Children.Add(balanceBadge);
+        var paid = _snapshot.Payouts.Where(item => item.Kind == "payment").Sum(item => item.Amount);
         var received = _snapshot.Payouts.Where(item => item.Kind == "receipt").Sum(item => item.Amount);
-        panel.Children.Add(Info($"Προμήθειες που δικαιούται ο συνεργάτης: {_snapshot.Earned:N2} €   ·   " +
-            $"Πληρώθηκαν στον συνεργάτη: {paid:N2} €   ·   Εισπράχθηκαν από τον συνεργάτη: {received:N2} €"));
+        var totals = Info($"Προμήθειες που δικαιούται ο συνεργάτης: {_snapshot.Earned:N2} €   ·   " +
+            $"Πληρώθηκαν στον συνεργάτη: {paid:N2} €   ·   Εισπράχθηκαν από τον συνεργάτη: {received:N2} €");
+        panel.Children.Add(totals);
+        var addCommission = new ActionButton { Kind = "Add", Label = "Νέα χειροκίνητη προμήθεια" };
+        addCommission.Click += async (_, _) => await AddPayoutAsync("commission");
+        panel.Children.Add(addCommission);
         var entries = _snapshot.Production.Select(item => new PartnerLedgerEntry(
             item.IssueDate ?? item.RecordedAtUtc, "Προμήθεια", item.Number,
             $"{item.CustomerName} · Ασφαλιστήριο {item.Number}", item.Commission, 0, 0,
             item.PolicyId)).Concat(_snapshot.Payouts.Select(item => new PartnerLedgerEntry(
-            item.OccurredAtUtc, item.Kind == "receipt" ? "Είσπραξη" : "Πληρωμή",
-            item.Reference ?? "—", $"{item.PaymentMethod} · {item.Description ?? "—"}", 0,
-            item.Kind == "receipt" ? 0 : item.Amount,
+            item.OccurredAtUtc, item.Kind == "receipt" ? "Είσπραξη" :
+                item.Kind == "commission" ? "Χειροκίνητη προμήθεια" : "Πληρωμή",
+            item.Reference ?? "—", $"{item.PaymentMethod} · {item.Description ?? "—"}",
+            item.Kind == "commission" ? item.Amount : 0,
+            item.Kind == "payment" ? item.Amount : 0,
             item.Kind == "receipt" ? item.Amount : 0, item.Id)))
             .OrderBy(item => item.OccurredAtUtc).ThenBy(item => item.Type).ToArray();
         decimal balance = 0;
@@ -217,7 +224,8 @@ public sealed partial class PartnerCardWindow
                 item.Earned == 0 ? "—" : $"{item.Earned:N2} €",
                 item.Payment == 0 ? "—" : $"{item.Payment:N2} €",
                 item.Receipt == 0 ? "—" : $"{item.Receipt:N2} €",
-                $"{balance:N2} €"], item.PolicyId, item.OccurredAtUtc, item.Type);
+                $"{balance:N2} €"], item.PolicyId, item.OccurredAtUtc, item.Type,
+                item.Earned, item.Payment, item.Receipt);
         }).ToArray();
         panel.Children.Add(Table(["Ημερομηνία", "Κίνηση", "Αναφορά", "Περιγραφή",
                 "Προμήθεια", "Πληρώθηκαν", "Εισπράχθηκαν", "Υπόλοιπο"],
@@ -228,7 +236,21 @@ public sealed partial class PartnerCardWindow
                 var payout = _snapshot.Payouts.FirstOrDefault(item => item.Id == id);
                 if (payout is not null) await ShowPayoutAsync(payout);
                 else await OpenPolicyAsync(id);
-            }, financeFilters: true));
+            }, financeFilters: true, onFiltered: matching =>
+            {
+                var earned = matching.Sum(item => item.Earned);
+                var payments = matching.Sum(item => item.Payment);
+                var receipts = matching.Sum(item => item.Receipt);
+                var remaining = earned - payments + receipts;
+                totals.Text = $"Προμήθειες περιόδου: {earned:N2} €  ·  Πληρώθηκαν: {payments:N2} €  ·  " +
+                    $"Εισπράχθηκαν: {receipts:N2} €  ·  Υπόλοιπο περιόδου: {remaining:N2} €";
+                balanceBadge.Background = StatusPalette.Brush(remaining > 0 ? StatusPalette.Negative :
+                    remaining < 0 ? StatusPalette.Positive : StatusPalette.Neutral);
+                if (balanceBadge.Child is TextBlock label)
+                    label.Text = remaining > 0 ? $"Οφειλή περιόδου: {remaining:N2} €" :
+                        remaining < 0 ? $"Προκαταβολή περιόδου: {-remaining:N2} €" :
+                        "Μηδενικό υπόλοιπο περιόδου: 0,00 €";
+            }));
         AddTab("Οικονομικά", panel);
     }
 
@@ -358,24 +380,28 @@ public sealed partial class PartnerCardWindow
         RefreshBankList();
     }
     private sealed record PartnerTableRow(string[] Cells, Guid? RecordId = null,
-        DateTime? FilterDate = null, string? MovementType = null);
+        DateTime? FilterDate = null, string? MovementType = null,
+        decimal Earned = 0, decimal Payment = 0, decimal Receipt = 0);
     private sealed record PartnerLedgerEntry(DateTime OccurredAtUtc, string Type, string Reference,
         string Description, decimal Earned, decimal Payment, decimal Receipt, Guid? PolicyId);
 
     private StackPanel Table(string[] captions, int[] widths, PartnerTableRow[] data,
-        string hint, Func<Guid, Task>? open = null, bool financeFilters = false)
+        string hint, Func<Guid, Task>? open = null, bool financeFilters = false,
+        Action<PartnerTableRow[]>? onFiltered = null)
     {
         var panel = new StackPanel { Spacing = 0 };
         var search = new TextBox { PlaceholderText = hint, Height = 40, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 8) };
         ComboBox? movementFilter = null;
-        ComboBox? monthFilter = null;
+        EditableDateInput? fromDate = null;
+        EditableDateInput? untilDate = null;
         if (financeFilters)
         {
             var filters = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 0, 0, 8),
                 ColumnDefinitions = { new ColumnDefinition(),
                     new ColumnDefinition { Width = new GridLength(155) },
-                    new ColumnDefinition { Width = new GridLength(175) } } };
+                     new ColumnDefinition { Width = new GridLength(145) },
+                     new ColumnDefinition { Width = new GridLength(145) } } };
             search.Margin = new Thickness(0);
             var searchHost = SearchFieldVisual.Wrap(search);
             searchHost.VerticalAlignment = VerticalAlignment.Bottom;
@@ -383,13 +409,10 @@ public sealed partial class PartnerCardWindow
             movementFilter = new ComboBox { Header = "Κίνηση", MinHeight = 40,
                 ItemsSource = new[] { "Όλες", "Προμήθεια", "Πληρωμή", "Είσπραξη" }, SelectedIndex = 0 };
             Grid.SetColumn(movementFilter, 1); filters.Children.Add(movementFilter);
-            monthFilter = new ComboBox { Header = "Μήνας έκδοσης / κίνησης", MinHeight = 40 };
-            monthFilter.Items.Add("Όλοι οι μήνες");
-            foreach (var month in data.Where(item => item.FilterDate.HasValue)
-                .Select(item => item.FilterDate!.Value.ToString("yyyy-MM"))
-                .Distinct().OrderByDescending(value => value)) monthFilter.Items.Add(month);
-            monthFilter.SelectedIndex = 0;
-            Grid.SetColumn(monthFilter, 2); filters.Children.Add(monthFilter);
+            fromDate = new EditableDateInput { Height = 42, PlaceholderText = "Από ημερομηνία" };
+            untilDate = new EditableDateInput { Height = 42, PlaceholderText = "Έως ημερομηνία" };
+            Grid.SetColumn(fromDate, 2); filters.Children.Add(fromDate);
+            Grid.SetColumn(untilDate, 3); filters.Children.Add(untilDate);
             panel.Children.Add(filters);
         }
         else panel.Children.Add(SearchFieldVisual.Wrap(search));
@@ -433,15 +456,15 @@ public sealed partial class PartnerCardWindow
             var term = search.Text.Trim();
             var selectedMovement = movementFilter?.SelectedIndex > 0
                 ? movementFilter.SelectedItem?.ToString() : null;
-            var selectedMonth = monthFilter?.SelectedIndex > 0
-                ? monthFilter.SelectedItem?.ToString() : null;
             var matching = data.Where(row =>
                 (term.Length == 0 || row.Cells.Any(cell => cell.Contains(term,
                     StringComparison.CurrentCultureIgnoreCase))) &&
                 (selectedMovement is null || row.MovementType == selectedMovement) &&
-                (selectedMonth is null || row.FilterDate?.ToString("yyyy-MM") == selectedMonth)).ToArray();
+                (fromDate?.Date is not DateTimeOffset from || row.FilterDate?.Date >= from.Date) &&
+                (untilDate?.Date is not DateTimeOffset until || row.FilterDate?.Date <= until.Date)).ToArray();
             var pages = Math.Max(1, (int)Math.Ceiling(matching.Length / 25.0));
             exportRows = matching;
+            onFiltered?.Invoke(matching);
             page = Math.Clamp(page, 1, pages);
             foreach (var entry in matching.Skip((page - 1) * 25).Take(25))
             {
@@ -479,8 +502,10 @@ public sealed partial class PartnerCardWindow
         search.TextChanged += (_, _) => { page = 1; Refresh(); };
         if (movementFilter is not null)
             movementFilter.SelectionChanged += (_, _) => { page = 1; Refresh(); };
-        if (monthFilter is not null)
-            monthFilter.SelectionChanged += (_, _) => { page = 1; Refresh(); };
+        if (fromDate is not null)
+            fromDate.DateChanged += (_, _) => { page = 1; Refresh(); };
+        if (untilDate is not null)
+            untilDate.DateChanged += (_, _) => { page = 1; Refresh(); };
         previous.Click += (_, _) => { page--; Refresh(); };
         next.Click += (_, _) => { page++; Refresh(); };
         if (open is not null)
@@ -511,23 +536,25 @@ public sealed partial class PartnerCardWindow
     private async Task AddPayoutAsync(string kind)
     {
         if (_record.Id == Guid.Empty) return;
+        var date = new EditableDateInput { Date = new DateTimeOffset(DateTime.Today),
+            Height = 42, PlaceholderText = "Ημερομηνία κίνησης" };
         var amount = new TextBox { Header = "Ποσό (€) *", PlaceholderText = "π.χ. 150,00" };
-        var method = new ComboBox { Header = "Τρόπος πληρωμής *",
-            ItemsSource = _paymentMethods, HorizontalAlignment = HorizontalAlignment.Stretch,
-            SelectedItem = _profile.PaymentMethod ?? _paymentMethods.FirstOrDefault() };
+        var method = new ComboBox { Header = kind == "commission" ? "Τρόπος καταχώρισης" : "Τρόπος πληρωμής *",
+            ItemsSource = kind == "commission" ? new[] { "Χειροκίνητη καταχώριση" } : _paymentMethods,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            SelectedItem = kind == "commission" ? "Χειροκίνητη καταχώριση" :
+                _profile.PaymentMethod ?? _paymentMethods.FirstOrDefault() };
         var reference = new TextBox { Header = "Αριθμός αναφοράς" };
         var description = new TextBox { Header = "Αιτιολογία" };
         var policy = new SearchablePicker<PartnerProductionItem>("Σύνδεση με ασφαλιστήριο",
             _snapshot.Production, item => $"{item.Number} · {item.CustomerName}");
-        var month = new ComboBox { Header = "Μήνας που αφορά", HorizontalAlignment = HorizontalAlignment.Stretch,
-            ItemsSource = Enumerable.Range(0, 24).Select(offset =>
-                DateTime.Today.AddMonths(-offset).ToString("MMMM yyyy",
-                    new System.Globalization.CultureInfo("el-GR"))).ToArray() };
         var form = new StackPanel { Spacing = 9, Width = 400 };
-        form.Children.Add(amount); form.Children.Add(method); form.Children.Add(reference);
-        form.Children.Add(policy); form.Children.Add(month); form.Children.Add(description);
+        form.Children.Add(date); form.Children.Add(amount); form.Children.Add(method); form.Children.Add(reference);
+        form.Children.Add(policy); form.Children.Add(description);
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
-            Title = kind == "receipt" ? "Γενική είσπραξη από συνεργάτη" : "Γενική πληρωμή σε συνεργάτη", Content = form,
+            Title = kind == "receipt" ? "Γενική είσπραξη από συνεργάτη" :
+                kind == "commission" ? "Χειροκίνητη προμήθεια συνεργάτη" :
+                "Γενική πληρωμή σε συνεργάτη", Content = form,
             PrimaryButtonText = "Καταχώριση", CloseButtonText = "Ακύρωση" };
         if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
         try
@@ -540,31 +567,86 @@ public sealed partial class PartnerCardWindow
             var paymentReference = string.IsNullOrWhiteSpace(reference.Text)
                 ? linked?.Number : reference.Text;
             var reason = string.Join(" · ", new[] { description.Text.Trim(),
-                linked is null ? null : $"Ασφαλιστήριο {linked.Number}",
-                month.SelectedItem is string selectedMonth ? $"Μήνας {selectedMonth}" : null }
+                linked is null ? null : $"Ασφαλιστήριο {linked.Number}" }
                 .Where(item => !string.IsNullOrWhiteSpace(item)));
             await _partners.AddMovementAsync(_record.Id, kind, value.Value, selectedMethod,
-                paymentReference, reason, linked?.PolicyId);
+                paymentReference, reason, linked?.PolicyId,
+                date.Date?.Date ?? throw new ArgumentException("Επιλέξτε ημερομηνία κίνησης."));
             _profile = ReadProfile();
             _record.Status = Selected("status") ?? _record.Status;
             _snapshot = await _partners.GetSnapshotAsync(_record.Id);
             BuildTabs(preserve: true);
             RecordSaved?.Invoke(this, EventArgs.Empty);
-            _status.Text = kind == "receipt" ? "Η είσπραξη καταχωρίστηκε." : "Η πληρωμή καταχωρίστηκε.";
+            _status.Text = kind == "receipt" ? "Η είσπραξη καταχωρίστηκε." :
+                kind == "commission" ? "Η προμήθεια καταχωρίστηκε." : "Η πληρωμή καταχωρίστηκε.";
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 
     private async Task ShowPayoutAsync(PartnerPayout payout)
     {
-        await new ContentDialog { XamlRoot = _root.XamlRoot,
-            Title = payout.Kind == "receipt" ? "Καρτέλα είσπραξης" : "Καρτέλα πληρωμής",
+        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
+            Title = payout.Kind == "receipt" ? "Καρτέλα είσπραξης" :
+                payout.Kind == "commission" ? "Καρτέλα προμήθειας" : "Καρτέλα πληρωμής",
             Content = $"Ημερομηνία: {payout.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}\n" +
                 $"Ποσό: {payout.Amount:N2} {payout.Currency}\n" +
                 $"Τρόπος: {payout.PaymentMethod}\n" +
                 $"Αναφορά: {payout.Reference ?? "—"}\n" +
                 $"Ασφαλιστήριο: {(_snapshot.Production.FirstOrDefault(item => item.PolicyId == payout.PolicyId)?.Number ?? "—")}\n" +
                 $"Αιτιολογία: {payout.Description ?? "—"}",
-            CloseButtonText = "Κλείσιμο" }.ShowAsync();
+            PrimaryButtonText = "Επεξεργασία", SecondaryButtonText = "Διαγραφή",
+            CloseButtonText = "Κλείσιμο" };
+        var result = await DialogButtonStyles.ShowAsync(dialog);
+        if (result == ContentDialogResult.Primary) await EditMovementAsync(payout);
+        else if (result == ContentDialogResult.Secondary)
+        {
+            var confirm = new ContentDialog { XamlRoot = _root.XamlRoot,
+                Title = "Διαγραφή οικονομικής κίνησης",
+                Content = $"Να διαγραφεί η κίνηση ποσού {payout.Amount:N2} €;",
+                PrimaryButtonText = "Διαγραφή", CloseButtonText = "Ακύρωση" };
+            if (await DialogButtonStyles.ShowAsync(confirm, destructive: true) != ContentDialogResult.Primary) return;
+            try
+            {
+                await _partners.DeleteMovementAsync(_record.Id, payout.Id);
+                _snapshot = await _partners.GetSnapshotAsync(_record.Id);
+                BuildTabs(preserve: true);
+                RecordSaved?.Invoke(this, EventArgs.Empty);
+                await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η κίνηση διαγράφηκε.");
+            }
+            catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
+        }
+    }
+
+    private async Task EditMovementAsync(PartnerPayout payout)
+    {
+        var date = new EditableDateInput { Date = new DateTimeOffset(payout.OccurredAtUtc.ToLocalTime()),
+            Height = 42, PlaceholderText = "Ημερομηνία κίνησης" };
+        var amount = new TextBox { Header = "Ποσό (€) *", Text = payout.Amount.ToString("N2") };
+        var method = new ComboBox { Header = "Τρόπος *", HorizontalAlignment = HorizontalAlignment.Stretch,
+            ItemsSource = _paymentMethods.Concat([payout.PaymentMethod]).Distinct().ToArray(),
+            SelectedItem = payout.PaymentMethod };
+        var reference = new TextBox { Header = "Αναφορά", Text = payout.Reference ?? "" };
+        var description = new TextBox { Header = "Αιτιολογία", Text = payout.Description ?? "",
+            AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 75 };
+        var form = new StackPanel { Width = 420, Spacing = 8,
+            Children = { date, amount, method, reference, description } };
+        var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
+            Title = "Επεξεργασία οικονομικής κίνησης", Content = form,
+            PrimaryButtonText = "Αποθήκευση", CloseButtonText = "Ακύρωση" };
+        if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
+        try
+        {
+            var value = Money(amount.Text, "Ποσό", 999_999_999m);
+            if (value is null or <= 0 || method.SelectedItem is not string selectedMethod)
+                throw new ArgumentException("Συμπληρώστε θετικό ποσό και τρόπο πληρωμής.");
+            await _partners.UpdateMovementAsync(_record.Id, payout.Id, value.Value,
+                selectedMethod, reference.Text, description.Text,
+                date.Date?.Date ?? throw new ArgumentException("Επιλέξτε ημερομηνία κίνησης."));
+            _snapshot = await _partners.GetSnapshotAsync(_record.Id);
+            BuildTabs(preserve: true);
+            RecordSaved?.Invoke(this, EventArgs.Empty);
+            await UiAlerts.ShowSuccessAsync(_root.XamlRoot, "Η κίνηση αποθηκεύτηκε.");
+        }
+        catch (Exception exception) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, exception.Message); }
     }
 }

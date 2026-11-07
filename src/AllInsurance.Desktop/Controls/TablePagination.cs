@@ -17,6 +17,7 @@ internal sealed class TablePagination
 
     public int PageOffset => (_page - 1) * Size;
     public IReadOnlyList<object> CapturedItems => _items;
+    public event Action? PageRendered;
     public StackPanel Bar { get; } = new() { Orientation = Orientation.Horizontal, Spacing = 10,
         Margin = new Thickness(0, 8, 0, 4) };
 
@@ -84,5 +85,6 @@ internal sealed class TablePagination
         _status.Text = $"{_items.Length} εγγραφές · Σελίδα {_page}/{pages}";
         _previous.IsEnabled = _page > 1;
         _next.IsEnabled = _page < pages;
+        PageRendered?.Invoke();
     }
 }

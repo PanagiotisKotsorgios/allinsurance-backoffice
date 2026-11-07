@@ -350,6 +350,7 @@ public sealed class AllInsuranceDbContext(DbContextOptions<AllInsuranceDbContext
             entity.Property(item => item.GrossPremium).HasPrecision(18, 2);
             entity.Property(item => item.NetPremium).HasPrecision(18, 2);
             entity.Property(item => item.OfficeCommission).HasPrecision(18, 2);
+            entity.Property(item => item.PartnerCommission).HasPrecision(18, 2);
             entity.Property(item => item.OverCommission).HasPrecision(18, 2);
             entity.HasIndex(item => new { item.Kind, item.OccurredOn });
             entity.HasOne<BusinessRecord>().WithMany().HasForeignKey(item => item.PartnerId)

@@ -44,6 +44,7 @@ public sealed partial class OfficeOperationsPage : Page
     {
         _overcommissions = overcommissions;
         _pager = new TablePagination(_list);
+        _pager.PageRendered += () => _applyColumns?.Invoke();
         BuildUi();
         Loaded += async (_, _) => await RefreshAsync();
     }
@@ -102,7 +103,7 @@ public sealed partial class OfficeOperationsPage : Page
         _root.Children.Add(summaryCard);
 
         var headings = _overcommissions
-            ? new[] { "Ημερομηνία", "Συνεργάτης", "Εταιρεία", "Μικτά", "Καθαρά", "Προμήθεια έδρας", "Υπερπρομήθεια" }
+            ? new[] { "Ημερομηνία", "Συνεργάτης", "Ασφαλιστική", "Μικτά", "Καθαρά", "Υπερπρομήθεια", "Προμήθεια συνεργάτη" }
             : new[] { "Ημερομηνία", "Κίνηση", "Κατηγορία", "Περιγραφή", "Ποσό", "Τρόπος", "Αναφορά" };
         var widths = _overcommissions ? new[] { 120d, 185, 185, 120, 120, 145, 145 } :
             new[] { 120d, 110, 160, 265, 120, 160, 145 };
@@ -116,25 +117,28 @@ public sealed partial class OfficeOperationsPage : Page
             tableHeader.Children.Add(cell);
         }
         tableHeader.Background = ThemeBrush(48, 68, 90, 208, 222, 235);
+        _list.Header = new Border { Child = tableHeader,
+            BorderBrush = ThemeBrush(113, 134, 155, 132, 153, 174), BorderThickness = new Thickness(1) };
         var table = new Grid { RowDefinitions =
-            { new RowDefinition { Height = GridLength.Auto }, new RowDefinition(),
-                new RowDefinition { Height = GridLength.Auto } } };
-        table.Children.Add(tableHeader);
+            { new RowDefinition(), new RowDefinition { Height = GridLength.Auto } } };
         TableRowStriping.Attach(_list);
         _list.DoubleTapped += async (_, _) =>
         {
             if (_list.SelectedItem is ListViewItem { Tag: OfficeOperation selected })
                 await EditAsync(selected);
         };
-        Grid.SetRow(_list, 1);
-        table.Children.Add(_list);
-        Grid.SetRow(_pager.Bar, 2);
+        var viewport = new ScrollViewer { Content = _list,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        viewport.SizeChanged += (_, args) => _list.Height = Math.Max(160, args.NewSize.Height - 2);
+        table.Children.Add(viewport);
+        Grid.SetRow(_pager.Bar, 1);
         table.Children.Add(_pager.Bar);
         var tableCard = new Border { Background = ThemeBrush(44, 44, 44, 235, 240, 245),
             CornerRadius = new CornerRadius(14), Padding = new Thickness(12), Child = table };
         Grid.SetRow(tableCard, 2);
         _root.Children.Add(tableCard);
-        _applyColumns = TableInteractions.Attach(tableHeader, _list, tableCard, 26);
+        _applyColumns = TableInteractions.Attach(tableHeader, _list, viewport, 2);
         _search.TextChanged += (_, _) => Render();
         _firstFilter.SelectionChanged += (_, _) => Render();
         _secondFilter.SelectionChanged += (_, _) => Render();
@@ -151,6 +155,10 @@ public sealed partial class OfficeOperationsPage : Page
         return new SolidColorBrush(dark
             ? Color.FromArgb(255, dr, dg, db) : Color.FromArgb(255, lr, lg, lb));
     }
+
+    private SolidColorBrush AmountBrush(bool positive) => positive
+        ? ThemeBrush(48, 76, 64, 207, 231, 215)
+        : ThemeBrush(99, 53, 53, 241, 213, 213);
 
     private Border Cell(string value, bool header = false)
     {
@@ -216,7 +224,7 @@ public sealed partial class OfficeOperationsPage : Page
         _summary.Text = _overcommissions
             ? $"Σύνολο υπερπρομηθειών: {visible.Sum(item => item.OverCommission ?? 0):N2} €  ·  " +
               $"Καθαρά ασφάλιστρα: {visible.Sum(item => item.NetPremium ?? 0):N2} €  ·  " +
-              $"Προμήθεια έδρας: {visible.Sum(item => item.OfficeCommission ?? 0):N2} €"
+              $"Προμήθεια συνεργάτη: {visible.Sum(item => item.PartnerCommission ?? 0):N2} €"
             : $"Έσοδα γραφείου: {visible.Where(item => item.Kind == "income").Sum(item => item.Amount):N2} €  ·  " +
               $"Έξοδα γραφείου: {visible.Where(item => item.Kind == "expense").Sum(item => item.Amount):N2} €  ·  " +
               $"Διαφορά: {visible.Sum(item => item.Kind == "income" ? item.Amount : -item.Amount):N2} €";
@@ -240,7 +248,7 @@ public sealed partial class OfficeOperationsPage : Page
             var cells = _overcommissions
                 ? new[] { item.OccurredOn.ToString("dd/MM/yyyy"), RecordName(_partners, item.PartnerId),
                     RecordName(_companies, item.CompanyId), Money(item.GrossPremium), Money(item.NetPremium),
-                    Money(item.OfficeCommission), Money(item.OverCommission) }
+                    Money(item.OverCommission), Money(item.PartnerCommission) }
                 : new[] { item.OccurredOn.ToString("dd/MM/yyyy"),
                     item.Kind == "income" ? "Έσοδο" : "Έξοδο", item.Category ?? "—",
                     item.Description, Money(item.Amount), item.PaymentMethod ?? "—", item.Reference ?? "—" };
@@ -249,11 +257,16 @@ public sealed partial class OfficeOperationsPage : Page
             {
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_columnWidths[index]) });
                 var cell = Cell(cells[index]);
+                if (_overcommissions && index is 5 or 6 && cells[index] != "—")
+                    cell.Background = AmountBrush(index == 5);
+                else if (!_overcommissions && index == 4)
+                    cell.Background = AmountBrush(item.Kind == "income");
                 Grid.SetColumn(cell, index);
                 grid.Children.Add(cell);
             }
-            var row = new ListViewItem { Content = grid, Tag = item,
-                Padding = new Thickness(0), MinHeight = 40 };
+            var row = new ListViewItem { Content = grid, Tag = item, Width = _columnWidths.Sum(),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Margin = new Thickness(0), Padding = new Thickness(0), MinHeight = 40 };
             var menu = new MenuFlyout();
             var edit = new MenuFlyoutItem { Text = "Επεξεργασία" };
             edit.Click += async (_, _) => await EditAsync(item);
@@ -264,7 +277,6 @@ public sealed partial class OfficeOperationsPage : Page
             _list.Items.Add(row);
         }
         _pager.Capture();
-        _applyColumns?.Invoke();
     }
 
     private static string Money(decimal? value) => value is decimal amount ? amount.ToString("N2", Greek) + " €" : "—";

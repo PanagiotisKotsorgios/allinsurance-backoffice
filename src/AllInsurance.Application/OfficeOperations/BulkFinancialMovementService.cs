@@ -7,11 +7,12 @@ using Microsoft.EntityFrameworkCore;
 namespace AllInsurance.Application.OfficeOperations;
 
 public sealed record BulkMovementItem(Guid TargetId, decimal Amount);
+public sealed record BulkFinancialPostResult(string Reference, IReadOnlyList<Guid> MovementIds);
 
 /// <summary>Atomically posts one financial movement to each selected party.</summary>
 public sealed class BulkFinancialMovementService(IApplicationDbContextFactory factory, ISessionService session)
 {
-    public async Task<string> PostAsync(string section, string direction,
+    public async Task<BulkFinancialPostResult> PostAsync(string section, string direction,
         IReadOnlyList<BulkMovementItem> items, string method, string? reference,
         string? description, string expectedCurrency,
         CancellationToken cancellationToken = default)
@@ -29,9 +30,12 @@ public sealed class BulkFinancialMovementService(IApplicationDbContextFactory fa
         description = description?.Trim();
         if (method.Length is < 1 or > 80 || reference?.Length > 100 || description?.Length > 500)
             throw new ArgumentException("Ελέγξτε τον τρόπο πληρωμής, την αναφορά και την αιτιολογία.");
+        if (direction == "receipt" && string.IsNullOrWhiteSpace(description))
+            throw new ArgumentException("Στη μαζική είσπραξη συμπληρώστε κοινή αιτιολογία για τις επιλεγμένες καρτέλες.");
         var batchReference = string.IsNullOrWhiteSpace(reference)
             ? "ΜΑΖ-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant() : reference;
         var ids = items.Select(item => item.TargetId).ToArray();
+        var movementIds = new List<Guid>(items.Count);
         var occurredAt = DateTime.UtcNow;
         var actor = session.Current!.DisplayName;
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
@@ -48,9 +52,11 @@ public sealed class BulkFinancialMovementService(IApplicationDbContextFactory fa
             if (customers.Count != ids.Length) throw new InvalidOperationException("Κάποιος επιλεγμένος πελάτης δεν υπάρχει πλέον.");
             foreach (var item in items)
             {
+                var movementId = Guid.NewGuid();
+                movementIds.Add(movementId);
                 db.CustomerTransactions.Add(new CustomerTransaction
                 {
-                    Id = Guid.NewGuid(), CustomerId = item.TargetId, Type = direction,
+                    Id = movementId, CustomerId = item.TargetId, Type = direction,
                     Amount = item.Amount, PaymentMethod = method, Currency = currency,
                     Reference = batchReference, Description = description,
                     OccurredAtUtc = occurredAt, CreatedByUserId = session.Current.UserId
@@ -73,9 +79,11 @@ public sealed class BulkFinancialMovementService(IApplicationDbContextFactory fa
             if (partners.Count != ids.Length) throw new InvalidOperationException("Κάποιος επιλεγμένος συνεργάτης δεν υπάρχει πλέον.");
             foreach (var item in items)
             {
+                var movementId = Guid.NewGuid();
+                movementIds.Add(movementId);
                 db.PartnerPayouts.Add(new PartnerPayout
                 {
-                    Id = Guid.NewGuid(), PartnerId = item.TargetId, Kind = direction,
+                    Id = movementId, PartnerId = item.TargetId, Kind = direction,
                     Amount = item.Amount, Currency = currency, PaymentMethod = method,
                     Reference = batchReference,
                     Description = description, OccurredAtUtc = occurredAt,
@@ -99,13 +107,15 @@ public sealed class BulkFinancialMovementService(IApplicationDbContextFactory fa
             if (organizations.Count != ids.Length) throw new InvalidOperationException("Κάποιος επιλεγμένος φορέας δεν υπάρχει πλέον.");
             foreach (var item in items)
             {
+                var movementId = Guid.NewGuid();
+                movementIds.Add(movementId);
                 var record = organizations[item.TargetId];
                 var data = WorkspaceCardData.Read(record.DetailsJson);
                 // Existing settlement convention: positive = paid to the organization,
                 // negative = received back. The balance calculation uses the signed value.
                 data.Settlements.Add(new OrganizationSettlement
                 {
-                    Id = Guid.NewGuid(), Date = occurredAt.ToLocalTime(),
+                    Id = movementId, Date = occurredAt.ToLocalTime(),
                     Amount = direction == "payment" ? item.Amount : -item.Amount,
                     PaymentMethod = method, Reference = batchReference, Currency = currency,
                     Note = description ?? ""
@@ -123,6 +133,6 @@ public sealed class BulkFinancialMovementService(IApplicationDbContextFactory fa
         }
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return batchReference;
+        return new BulkFinancialPostResult(batchReference, movementIds);
     }
 }

@@ -161,6 +161,8 @@ public sealed class ReceiptCardWindow : Window
                     .Select(item => item.DisplayName).SingleOrDefaultAsync() ?? "—"
                 : "—";
             _title.Text = _transaction.Type == "receipt" ? "Καρτέλα είσπραξης" : "Καρτέλα πληρωμής";
+            AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(
+                WindowNative.GetWindowHandle(this))).Title = _title.Text + " — AllInsurance Backoffice Software";
             _subtitle.Text = $"Αρ. {_transaction.Id.ToString("N")[..12].ToUpperInvariant()}  ·  " +
                 _transaction.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
             _amount.Text = $"{_transaction.Amount:N2} {_transaction.Currency}";

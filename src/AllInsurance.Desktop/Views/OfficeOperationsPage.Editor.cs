@@ -1,5 +1,7 @@
 using AllInsurance.Desktop.Controls;
+using AllInsurance.Application.Filters;
 using AllInsurance.Domain.Entities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System.Globalization;
@@ -23,15 +25,15 @@ public sealed partial class OfficeOperationsPage
             MinHeight = 40 };
         Add("Ημερομηνία *", date);
         var description = new TextBox { Text = existing?.Description ?? "", MinHeight = 40,
-            PlaceholderText = _overcommissions ? "Περιγραφή υπερπρομήθειας" : "Π.χ. αγορά γραφικής ύλης" };
-        Add("Περιγραφή *", description);
+            PlaceholderText = "Π.χ. αγορά γραφικής ύλης" };
+        if (!_overcommissions) Add("Περιγραφή *", description);
         ComboBox? kind = null;
         TextBox? category = null;
         TextBox? amount = null;
-        TextBox? method = null;
+        ComboBox? method = null;
         TextBox? gross = null;
         TextBox? net = null;
-        TextBox? office = null;
+        TextBox? partnerCommission = null;
         TextBox? over = null;
         SearchablePicker<Choice>? partner = null;
         SearchablePicker<Choice>? company = null;
@@ -47,11 +49,11 @@ public sealed partial class OfficeOperationsPage
             form.Children.Add(company);
             gross = new TextBox { Text = Format(existing?.GrossPremium), PlaceholderText = "0,00" };
             net = new TextBox { Text = Format(existing?.NetPremium), PlaceholderText = "0,00" };
-            office = new TextBox { Text = Format(existing?.OfficeCommission), PlaceholderText = "0,00" };
+            partnerCommission = new TextBox { Text = Format(existing?.PartnerCommission), PlaceholderText = "0,00" };
             over = new TextBox { Text = Format(existing?.OverCommission), PlaceholderText = "0,00" };
             Add("Μικτά ασφάλιστρα (€) *", gross);
             Add("Καθαρά ασφάλιστρα (€) *", net);
-            Add("Προμήθεια έδρας (€) *", office);
+            Add("Προμήθεια συνεργάτη (€) *", partnerCommission);
             Add("Υπερπρομήθεια (€) *", over);
         }
         else
@@ -64,16 +66,23 @@ public sealed partial class OfficeOperationsPage
             Add("Κατηγορία", category);
             amount = new TextBox { Text = Format(existing?.Amount), PlaceholderText = "0,00" };
             Add("Ποσό (€) *", amount);
-            method = new TextBox { Text = existing?.PaymentMethod ?? "",
-                PlaceholderText = "Μετρητά, τραπεζική μεταφορά, κάρτα…" };
+            var methods = (await App.Services.GetRequiredService<IFilterOptionService>()
+                    .ChoicesAsync("Τρόποι πληρωμής"))
+                .Concat(["Μετρητά", "Τραπεζική μεταφορά", "Κάρτα", "Ταχυπληρωμή"])
+                .Concat(existing?.PaymentMethod is string oldMethod ? [oldMethod] : [])
+                .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
+            method = new ComboBox { ItemsSource = methods, MinHeight = 40,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                SelectedItem = existing?.PaymentMethod is string savedMethod && methods.Contains(savedMethod)
+                    ? savedMethod : methods.FirstOrDefault() };
             Add("Τρόπος πληρωμής", method);
         }
         var reference = new TextBox { Text = existing?.Reference ?? "",
             PlaceholderText = "Παραστατικό ή αριθμός αναφοράς" };
-        Add("Αναφορά", reference);
+        if (!_overcommissions) Add("Αναφορά", reference);
         var notes = new TextBox { Text = existing?.Notes ?? "", AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap, MinHeight = 75 };
-        Add("Σημειώσεις", notes);
+        if (!_overcommissions) Add("Σημειώσεις", notes);
         var dialog = new ContentDialog { XamlRoot = XamlRoot,
             Title = existing is null ? _overcommissions ? "Νέα υπερπρομήθεια" : "Νέα κίνηση γραφείου"
                 : "Επεξεργασία εγγραφής",
@@ -87,17 +96,20 @@ public sealed partial class OfficeOperationsPage
                 Id = existing?.Id ?? Guid.Empty,
                 Kind = _overcommissions ? "overcommission" : kind!.SelectedIndex == 1 ? "income" : "expense",
                 OccurredOn = date.Date?.Date ?? throw new ArgumentException("Επιλέξτε ημερομηνία."),
-                Description = description.Text,
+                Description = _overcommissions
+                    ? $"{partner?.SelectedItem?.Name ?? "Συνεργάτης"} · {company?.SelectedItem?.Name ?? "Ασφαλιστική"}"
+                    : description.Text,
                 Category = category?.Text,
                 Amount = _overcommissions ? 0 : Parse(amount!.Text, "ποσό"),
-                PaymentMethod = method?.Text,
-                Reference = reference.Text,
-                Notes = notes.Text,
+                PaymentMethod = method?.SelectedItem as string,
+                Reference = _overcommissions ? existing?.Reference : reference.Text,
+                Notes = _overcommissions ? existing?.Notes : notes.Text,
                 PartnerId = partner?.SelectedItem?.Id,
                 CompanyId = company?.SelectedItem?.Id,
                 GrossPremium = gross is null ? null : Parse(gross.Text, "μικτά ασφάλιστρα"),
                 NetPremium = net is null ? null : Parse(net.Text, "καθαρά ασφάλιστρα"),
-                OfficeCommission = office is null ? null : Parse(office.Text, "προμήθεια έδρας"),
+                OfficeCommission = existing?.OfficeCommission,
+                PartnerCommission = partnerCommission is null ? null : Parse(partnerCommission.Text, "προμήθεια συνεργάτη"),
                 OverCommission = over is null ? null : Parse(over.Text, "υπερπρομήθεια")
             };
             await _service.SaveAsync(operation);

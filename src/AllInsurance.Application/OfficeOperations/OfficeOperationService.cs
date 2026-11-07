@@ -37,7 +37,8 @@ public sealed class OfficeOperationService(IApplicationDbContextFactory factory,
         input.PaymentMethod = input.PaymentMethod?.Trim();
         input.Notes = input.Notes?.Trim();
         input.OccurredOn = input.OccurredOn.Date;
-        if (input.Description.Length is 0 or > 300 || input.Category?.Length > 100 ||
+        if ((!string.IsNullOrWhiteSpace(input.Description) && input.Description.Length > 300) ||
+            input.Kind != "overcommission" && input.Description.Length == 0 || input.Category?.Length > 100 ||
             input.Reference?.Length > 100 || input.PaymentMethod?.Length > 80 ||
             input.Notes?.Length > 2000)
             throw new ArgumentException("Ελέγξτε την περιγραφή και το μήκος των πεδίων.");
@@ -48,8 +49,8 @@ public sealed class OfficeOperationService(IApplicationDbContextFactory factory,
             if (input.PartnerId is null || input.CompanyId is null)
                 throw new ArgumentException("Επιλέξτε συνεργάτη και ασφαλιστική εταιρεία.");
             if (input.GrossPremium is null or < 0 || input.NetPremium is null or < 0 ||
-                input.OfficeCommission is null or < 0 || input.OverCommission is null or <= 0)
-                throw new ArgumentException("Συμπληρώστε μη αρνητικά ασφάλιστρα, προμήθεια έδρας και θετική υπερπρομήθεια.");
+                input.PartnerCommission is null or < 0 || input.OverCommission is null or <= 0)
+                throw new ArgumentException("Συμπληρώστε μη αρνητικά ασφάλιστρα και προμήθεια συνεργάτη και θετική υπερπρομήθεια.");
             input.Amount = input.OverCommission.Value;
         }
         else if (input.Amount <= 0 || input.Amount > 999999999m)
@@ -90,6 +91,7 @@ public sealed class OfficeOperationService(IApplicationDbContextFactory factory,
             saved.GrossPremium = input.GrossPremium;
             saved.NetPremium = input.NetPremium;
             saved.OfficeCommission = input.OfficeCommission;
+            saved.PartnerCommission = input.PartnerCommission;
             saved.OverCommission = input.OverCommission;
             saved.UpdatedAtUtc = DateTime.UtcNow;
         }

@@ -337,6 +337,8 @@ public sealed class CustomerService(IApplicationDbContextFactory factory, ISessi
         {
             throw new ArgumentException("Συμπληρώστε έγκυρο είδος και θετικό ποσό.");
         }
+        if (type == "receipt" && businessRecordId is null && string.IsNullOrWhiteSpace(description))
+            throw new ArgumentException("Συνδέστε την είσπραξη με ασφαλιστήριο ή συμπληρώστε αιτιολογία.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         if (!await db.Customers.AnyAsync(customer => customer.Id == customerId, cancellationToken))
         {

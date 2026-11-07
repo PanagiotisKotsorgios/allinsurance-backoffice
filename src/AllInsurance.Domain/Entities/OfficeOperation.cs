@@ -16,6 +16,7 @@ public sealed class OfficeOperation
     public decimal? GrossPremium { get; set; }
     public decimal? NetPremium { get; set; }
     public decimal? OfficeCommission { get; set; }
+    public decimal? PartnerCommission { get; set; }
     public decimal? OverCommission { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
