@@ -18,10 +18,10 @@
                         <MenuBar VerticalAlignment="Center">
                         <MenuBarItem x:Name="NavigationMenu" Title="Πλοήγηση" />
                         <MenuBarItem Title="Λειτουργίες">
-                            <MenuFlyoutSubItem Text="Επιπλέον λειτουργίες">
-                                <MenuFlyoutItem Text="Έσοδα – έξοδα γραφείου" Click="OfficeFinances_Click" />
-                                <MenuFlyoutItem Text="Υπερπρομήθειες" Click="OverCommissions_Click" />
-                            </MenuFlyoutSubItem>
+                            <MenuFlyoutItem Text="Έσοδα – έξοδα γραφείου" Click="OfficeFinances_Click" />
+                            <MenuFlyoutItem Text="Εισπράξεις" Click="Receipts_Click" />
+                            <MenuFlyoutItem Text="Πληρωμές" Click="Payments_Click" />
+                            <MenuFlyoutItem Text="Υπερπρομήθειες" Click="OverCommissions_Click" />
                         </MenuBarItem>
                         <MenuBarItem Title="Εργαλεία">
                             <MenuFlyoutItem x:Name="UsersMenuItem" Text="Διαχείριση χρηστών" Click="Users_Click" />

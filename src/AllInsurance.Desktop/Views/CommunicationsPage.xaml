@@ -3,7 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:controls="using:AllInsurance.Desktop.Controls"
       Background="{ThemeResource PageBackgroundBrush}">
-    <Grid Margin="16,12" RowDefinitions="Auto,Auto,2*,Auto,1.3*" RowSpacing="12">
+    <Grid Margin="16,12" RowDefinitions="Auto,Auto,1.2*,Auto,2*" RowSpacing="10">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <StackPanel Spacing="3">
                 <TextBlock Text="Ενημέρωση" FontSize="28" FontWeight="SemiBold" />
@@ -114,7 +114,13 @@
                 </StackPanel>
                 <TextBox x:Name="SmsBody" Grid.Row="1" AcceptsReturn="True" TextWrapping="Wrap"
                          PlaceholderText="Γράψτε το σύντομο SMS..." TextChanged="SmsBody_Changed" />
-                <RichEditBox x:Name="EmailBody" Grid.Row="1" Visibility="Collapsed" />
+                <Grid x:Name="EmailEditorPanel" Grid.Row="1" RowDefinitions="Auto,*"
+                      RowSpacing="6" Visibility="Collapsed" MinHeight="150">
+                    <TextBlock Text="Κυρίως μήνυμα email" FontWeight="SemiBold" />
+                    <RichEditBox x:Name="EmailBody" Grid.Row="1" MinHeight="120"
+                                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                 BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1" />
+                </Grid>
                 <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <TextBlock x:Name="ComposeStatus" VerticalAlignment="Center" TextWrapping="Wrap" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">

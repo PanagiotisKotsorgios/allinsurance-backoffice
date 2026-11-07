@@ -293,6 +293,19 @@ public sealed partial class WorkspacePage : Page
         MainNavigation.SelectedItem = null;
         SectionHost.Content = new OfficeOperationsPage(false);
     }
+    private void Receipts_Click(object sender, RoutedEventArgs e)
+    {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "receipts");
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new FinancialMovementsPage(true);
+    }
+
+    private void Payments_Click(object sender, RoutedEventArgs e)
+    {
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "payments");
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new FinancialMovementsPage(false);
+    }
 
     private void OverCommissions_Click(object sender, RoutedEventArgs e)
     {

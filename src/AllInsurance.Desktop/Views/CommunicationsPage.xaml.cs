@@ -88,7 +88,7 @@ public sealed partial class CommunicationsPage : Page
         if (EmailHeader is null) return;
         var email = ChannelChoice.SelectedIndex == 1;
         EmailHeader.Visibility = email ? Visibility.Visible : Visibility.Collapsed;
-        EmailBody.Visibility = email ? Visibility.Visible : Visibility.Collapsed;
+        EmailEditorPanel.Visibility = email ? Visibility.Visible : Visibility.Collapsed;
         SmsBody.Visibility = email ? Visibility.Collapsed : Visibility.Visible;
         _selected.Clear();
         RefreshTemplates();

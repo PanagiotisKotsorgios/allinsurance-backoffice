@@ -86,6 +86,7 @@ public partial class App : Microsoft.UI.Xaml.Application
                 services.AddTransient<ITransactionSettingsService, TransactionSettingsService>();
                 services.AddTransient<IBusinessRecordService, BusinessRecordService>();
                 services.AddTransient<AllInsurance.Application.OfficeOperations.OfficeOperationService>();
+                services.AddTransient<AllInsurance.Application.OfficeOperations.FinancialMovementService>();
                 services.AddTransient<IPartnerService, PartnerService>();
                 services.AddTransient<AllInsurance.Application.Commissions.ICommissionRuleService,
                     AllInsurance.Application.Commissions.CommissionRuleService>();
