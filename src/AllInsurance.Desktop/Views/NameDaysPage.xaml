@@ -30,7 +30,7 @@
             <controls:ActionButton Grid.Column="1" Kind="Open" Label="Άνοιγμα καρτέλας" Click="Open_Click" />
         </Grid>
         <Border Grid.Row="3" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="12">
-            <Grid RowDefinitions="Auto,*">
+            <Grid RowDefinitions="Auto,*,Auto">
                 <Grid ColumnDefinitions="2*,110,125,105,150,190,100" Background="{ThemeResource TableHeaderBackgroundBrush}">
                     <TextBlock Text="Πρόσωπο" Margin="10,9" FontWeight="SemiBold" />
                     <TextBlock Grid.Column="1" Text="Είδος" Margin="10,9" FontWeight="SemiBold" />
@@ -55,6 +55,7 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+                <StackPanel x:Name="ExportHost" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0" />
             </Grid>
         </Border>
     </Grid>

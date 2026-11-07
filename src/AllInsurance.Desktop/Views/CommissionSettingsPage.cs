@@ -80,7 +80,8 @@ public sealed class CommissionSettingsPage : Page
         _filterCard = new Border { Child = filters, Padding = new Thickness(12, 8, 12, 8),
             CornerRadius = new CornerRadius(16) };
         _root.Children.Add(_filterCard);
-        var table = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto }, new RowDefinition() } };
+        var table = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition(), new RowDefinition { Height = GridLength.Auto } } };
         _header = TableRow(["Εταιρεία / πρακτορείο", "Κλάδος", "Χρήση", "Κάλυψη", "Πακέτο",
             "Εισερχόμενη %", "Προς συνεργάτη %", "Κατάσταση"], true);
         table.Children.Add(_header);
@@ -94,6 +95,18 @@ public sealed class CommissionSettingsPage : Page
                 await EditAsync(null, candidate);
         };
         Grid.SetRow(_list, 1); table.Children.Add(_list);
+        var exportHost = new StackPanel { Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+        TableExportActions.Attach(exportHost, this, () => new TableExportData("Κανόνες προμηθειών",
+            ["Εταιρεία / πρακτορείο", "Κλάδος", "Χρήση", "Κάλυψη", "Πακέτο",
+                "Προμήθεια έδρας %", "Προμήθεια συνεργάτη %", "Κατάσταση"],
+            _list.Items.OfType<ListViewItem>().Where(item => item.Tag is CommissionRule)
+                .Select(item => (CommissionRule)item.Tag)
+                .Select(rule => new[] { rule.Insurer, rule.Branch ?? "Όλοι", rule.VehicleUse ?? "Όλες",
+                    CommissionCoverageSelection.Display(rule.Coverage), rule.Package ?? "Όλα",
+                    $"{rule.OfficePercent:N2}%", $"{rule.PartnerPercent:N2}%",
+                    rule.IsActive ? "Ενεργός" : "Ανενεργός" }).ToArray()));
+        Grid.SetRow(exportHost, 2); table.Children.Add(exportHost);
         var tableScroll = new ScrollViewer { Content = table,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };

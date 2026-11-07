@@ -78,6 +78,14 @@ public sealed partial class CustomerCardWindow
         heading.Children.Add(valueHeading);
         content.Children.Add(heading);
         content.Children.Add(list);
+        var exportHost = new StackPanel { Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right };
+        TableExportActions.Attach(exportHost, _root, () => new TableExportData("Επικοινωνία πελάτη",
+            ["Τίτλος", "Περιεχόμενο"], list.Items.OfType<ListViewItem>()
+                .Where(item => item.Tag is ContactEntry)
+                .Select(item => (ContactEntry)item.Tag)
+                .Select(entry => new[] { entry.Title, entry.Value }).ToArray()));
+        content.Children.Add(exportHost);
         content.Visibility = Visibility.Collapsed;
         var toggle = new Button { Content = "▸  Επικοινωνία", HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 38 };

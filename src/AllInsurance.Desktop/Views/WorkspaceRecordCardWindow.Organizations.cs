@@ -57,6 +57,14 @@ public sealed partial class WorkspaceRecordCardWindow
         var list = new ListView { Height = 156, SelectionMode = ListViewSelectionMode.Single };
         TableRowStriping.Attach(list);
         panel.Children.Add(list);
+        var exportHost = new StackPanel { Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right };
+        TableExportActions.Attach(exportHost, _root, () => new TableExportData("Πρόσωπα επικοινωνίας",
+            ["Όνομα", "Ιδιότητα", "Email", "Κινητό", "Τηλέφωνο"],
+            (list.ItemsSource as IEnumerable<ContactRow> ?? [])
+                .Select(row => new[] { row.Contact.Name, row.Contact.Position,
+                    row.Contact.Email, row.Contact.Mobile, row.Contact.Phone }).ToArray()));
+        panel.Children.Add(exportHost);
         void Render() => list.ItemsSource = _data.Contacts.Where(contact =>
             string.IsNullOrWhiteSpace(search.Text) || new[] { contact.Name, contact.Position,
                 contact.Email, contact.Mobile, contact.Phone }.Any(value => value.Contains(search.Text,
@@ -109,6 +117,15 @@ public sealed partial class WorkspaceRecordCardWindow
         var list = new ListView { Height = 120, SelectionMode = ListViewSelectionMode.Single };
         TableRowStriping.Attach(list);
         panel.Children.Add(list);
+        var exportHost = new StackPanel { Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right };
+        TableExportActions.Attach(exportHost, _root, () => new TableExportData("Αρχεία επικοινωνίας",
+            ["Αρχείο", "Καταχώριση"], list.Items.OfType<ListViewItem>()
+                .Where(item => item.Tag is BusinessRecordAttachment)
+                .Select(item => (BusinessRecordAttachment)item.Tag)
+                .Select(file => new[] { file.FileName,
+                    file.UploadedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm") }).ToArray()));
+        panel.Children.Add(exportHost);
         async Task Refresh()
         {
             list.Items.Clear();
@@ -215,6 +232,14 @@ public sealed partial class WorkspaceRecordCardWindow
         var list = new ListView { Height = 140, SelectionMode = ListViewSelectionMode.Single };
         TableRowStriping.Attach(list);
         panel.Children.Add(list);
+        var exportHost = new StackPanel { Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right };
+        TableExportActions.Attach(exportHost, _root, () => new TableExportData("Αποδόσεις εταιρείας",
+            ["Ημερομηνία", "Ποσό", "Αιτιολογία"],
+            (list.ItemsSource as IEnumerable<SettlementRow> ?? [])
+                .Select(row => new[] { row.Item.Date.ToString("dd/MM/yyyy"),
+                    row.Item.Amount.ToString("N2"), row.Item.Note }).ToArray()));
+        panel.Children.Add(exportHost);
         void Render()
         {
             list.ItemsSource = _data.Settlements.OrderByDescending(item => item.Date)

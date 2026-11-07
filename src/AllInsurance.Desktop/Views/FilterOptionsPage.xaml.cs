@@ -25,6 +25,10 @@ public sealed partial class FilterOptionsPage : Page
     public FilterOptionsPage()
     {
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Παραμετροποίηση δεδομένων",
+            ["Κατηγορία", "Τιμή", "Εταιρεία / πρακτορείο", "Κλάδος"],
+            (OptionsList.ItemsSource as IEnumerable<OptionRow> ?? [])
+                .Select(row => new[] { row.Category, row.Value, row.Company, row.Branch }).ToArray()));
         AllInsurance.Desktop.Controls.TableRowStriping.Attach(OptionsList);
         Loaded += async (_, _) =>
         {

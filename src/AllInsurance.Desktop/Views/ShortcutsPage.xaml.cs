@@ -20,6 +20,10 @@ public sealed partial class ShortcutsPage : Page
     public ShortcutsPage()
     {
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Συντομεύσεις",
+            ["Ενέργεια", "Συνδυασμός πλήκτρων", "Κατάσταση"],
+            (ShortcutsList.ItemsSource as IEnumerable<ShortcutRow> ?? [])
+                .Select(row => new[] { row.Action, row.Keys, row.State }).ToArray()));
         TableRowStriping.Attach(ShortcutsList);
         _preferences = App.Services.GetRequiredService<WorkspacePreferences>();
         EnabledChoice.IsChecked = _preferences.ShortcutsEnabled;

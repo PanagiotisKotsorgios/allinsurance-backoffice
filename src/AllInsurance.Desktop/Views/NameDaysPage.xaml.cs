@@ -1,5 +1,6 @@
 using AllInsurance.Application.Abstractions;
 using AllInsurance.Domain.Entities;
+using AllInsurance.Desktop.Controls;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
@@ -18,6 +19,11 @@ public sealed partial class NameDaysPage : Page
     public NameDaysPage()
     {
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Εορτολόγιο",
+            ["Πρόσωπο", "Είδος", "Εορτή", "Σε ημέρες", "Τηλέφωνο", "Email", "Κατάσταση"],
+            (PeopleList.ItemsSource as IEnumerable<NameDayRow> ?? [])
+                .Select(row => new[] { row.Name, row.Kind, row.DayDisplay, row.DaysDisplay,
+                    row.Phone, row.Email, row.Status }).ToArray()));
         AllInsurance.Desktop.Controls.TableRowStriping.Attach(PeopleList);
         TypeFilter.SelectedIndex = 0;
         ModeFilter.SelectedIndex = 0;

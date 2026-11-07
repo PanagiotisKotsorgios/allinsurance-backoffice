@@ -418,6 +418,9 @@ public sealed partial class PartnerCardWindow
         panel.Children.Add(list);
         var count = new TextBlock { FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
         var pager = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        PartnerTableRow[] exportRows = [];
+        TableExportActions.Attach(pager, _tabContent, () => new TableExportData("Συνεργάτης - " + hint,
+            captions, exportRows.Select(row => row.Cells).ToArray()));
         var previous = new Button { Content = "‹ Προηγούμενη" };
         var next = new Button { Content = "Επόμενη ›" };
         pager.Children.Add(previous); pager.Children.Add(count); pager.Children.Add(next);
@@ -438,6 +441,7 @@ public sealed partial class PartnerCardWindow
                 (selectedMovement is null || row.MovementType == selectedMovement) &&
                 (selectedMonth is null || row.FilterDate?.ToString("yyyy-MM") == selectedMonth)).ToArray();
             var pages = Math.Max(1, (int)Math.Ceiling(matching.Length / 25.0));
+            exportRows = matching;
             page = Math.Clamp(page, 1, pages);
             foreach (var entry in matching.Skip((page - 1) * 25).Take(25))
             {

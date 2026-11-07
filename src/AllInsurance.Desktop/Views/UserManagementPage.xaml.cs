@@ -17,6 +17,11 @@ public sealed partial class UserManagementPage : Page
     public UserManagementPage()
     {
         InitializeComponent();
+        TableExportActions.Attach(ExportHost, this, () => new TableExportData("Χρήστες",
+            ["Χρήστης", "Όνομα χρήστη", "Ρόλοι", "Κατάσταση", "Κωδικός πρόσβασης"],
+            (UsersList.ItemsSource as IEnumerable<UserRow> ?? [])
+                .Select(row => new[] { row.DisplayName, row.Username, row.Roles,
+                    row.State, row.PasswordState }).ToArray()));
         TableRowStriping.Attach(UsersList);
         var session = App.Services.GetRequiredService<ISessionService>();
         if (session.Current?.Permissions.Contains(Permission.ManageUsers) != true)
