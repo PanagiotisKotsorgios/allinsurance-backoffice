@@ -47,13 +47,14 @@ public sealed class OfficeOperationTests
         await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync(new OfficeOperation
         { Kind = "overcommission", Description = "Λανθασμένη σύνδεση",
             PartnerId = Guid.NewGuid(), CompanyId = companyId, GrossPremium = 100,
-            NetPremium = 80, OfficeCommission = 15, OverCommission = 5 }));
+            NetPremium = 80, PartnerCommission = 15, OverCommission = 5 }));
         var id = await service.SaveAsync(new OfficeOperation
-        { Kind = "overcommission", Description = "Υπερπρομήθεια δοκιμής",
+        { Kind = "overcommission", Description = "",
             PartnerId = partnerId, CompanyId = companyId, GrossPremium = 100,
-            NetPremium = 80, OfficeCommission = 15, OverCommission = 5 });
+            NetPremium = 80, PartnerCommission = 15, OverCommission = 5 });
         var saved = (await service.GetAsync(id))!;
         Assert.Equal(5m, saved.Amount);
+        Assert.Equal(15m, saved.PartnerCommission);
         Assert.Equal(partnerId, saved.PartnerId);
         Assert.Equal(companyId, saved.CompanyId);
     }
