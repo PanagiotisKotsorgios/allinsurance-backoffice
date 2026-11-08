@@ -4,6 +4,7 @@ namespace AllInsurance.Domain.Entities;
 
 public sealed class PolicyCardData
 {
+    public string? CardCode { get; set; }
     public string? OfferNumber { get; set; }
     public string? ApplicationNumber { get; set; }
     public string? NoticeNumber { get; set; }
@@ -103,6 +104,7 @@ public sealed class PolicyInstallment
 
 public sealed class VehicleCardData
 {
+    public string? CardCode { get; set; }
     public string? Registration { get; set; }
     public string? Make { get; set; }
     public string? Model { get; set; }

@@ -144,6 +144,18 @@ public sealed partial class PartnerCardWindow
         Text(right, "workphone", "Τηλέφωνο εργασίας", _profile.WorkPhone);
         Text(right, "workemail", "Email εργασίας", _profile.WorkEmail);
         Text(right, "notes", "Σημειώσεις", _profile.Notes, multiline: true);
+        right.Children.Add(CardFieldLayout.CreateRow("Καταχώριση", new TextBlock
+        {
+            Text = _record.Id == Guid.Empty ? "Με την αποθήκευση" :
+                _record.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+            VerticalAlignment = VerticalAlignment.Center
+        }));
+        right.Children.Add(CardFieldLayout.CreateRow("Τελευταία ενημέρωση", new TextBlock
+        {
+            Text = _record.Id == Guid.Empty ? "—" :
+                _record.UpdatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+            VerticalAlignment = VerticalAlignment.Center
+        }));
         return form;
     }
 

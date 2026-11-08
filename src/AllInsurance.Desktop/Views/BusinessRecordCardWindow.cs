@@ -52,8 +52,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
     private Border? _headerStateBadge;
-    private readonly TextBlock _headerCode = new() { Foreground = new SolidColorBrush(Colors.White),
-        Margin = new Thickness(68, 2, 0, 0) };
+    private readonly CardHeaderCode _headerCode = new();
     private readonly Dictionary<string, TextBox> _text = [];
     private readonly Dictionary<string, EditableDateInput> _dates = [];
     private readonly List<Grid> _formGrids = [];
@@ -270,27 +269,35 @@ public sealed partial class BusinessRecordCardWindow : Window
                     ? "Νέο ανανεωτήριο · Ασφαλιστήριο" : "Νέο έγγραφο ασφάλισης" :
                 $"✓ {(_section == "policies" && BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).PreviousPolicyId.HasValue ? "Ανανεωτήριο · " : "")}{_record.DocumentType ?? "Ασφαλιστήριο"} · {_record.Title}");
         _headerState.Text = $"● {_record.Status ?? (_section == "vehicles" ? "Ενεργό" : "Σε εξέλιξη")}";
-        _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "Νέο");
-        var bannerText = new StackPanel { Spacing = 8 };
-        var identity = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+        _headerCode.SetCode(_section == "policies"
+            ? BusinessRecordDetails.Read<PolicyCardData>(_record.DetailsJson).CardCode ?? _record.Reference
+            : BusinessRecordDetails.Read<VehicleCardData>(_record.DetailsJson).CardCode ?? _record.Title);
+        var identity = new Grid { ColumnSpacing = 10, ColumnDefinitions =
+        {
+            new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition(),
+            new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition { Width = GridLength.Auto }
+        } };
         identity.Children.Add(new Image { Source = new BitmapImage(new Uri(_section == "vehicles"
             ? "ms-appx:///Assets/Sections/vehicles.png" : "ms-appx:///Assets/Sections/policies.png")),
-            Width = 54, Height = 54 });
-        var identityText = new StackPanel { Spacing = 3 };
-        identityText.Children.Add(_heading);
+            Width = 42, Height = 42 });
+        _heading.FontSize = 22;
+        _heading.TextTrimming = TextTrimming.CharacterEllipsis;
+        _heading.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_heading, 1); identity.Children.Add(_heading);
         if (_section == "policies")
         {
             _headerStateBadge = new Border { Child = _headerState,
                 CornerRadius = new CornerRadius(5), Padding = new Thickness(7, 3, 7, 3),
-                HorizontalAlignment = HorizontalAlignment.Left };
-            identityText.Children.Add(_headerStateBadge);
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(_headerStateBadge, 2); identity.Children.Add(_headerStateBadge);
             UpdatePolicyHeaderBadge();
         }
-        else identityText.Children.Add(_headerState);
-        identity.Children.Add(identityText);
-        bannerText.Children.Add(identity);
-        bannerText.Children.Add(_headerCode);
-        banner.Child = bannerText;
+        else { _headerState.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(_headerState, 2); identity.Children.Add(_headerState); }
+        Grid.SetColumn(_headerCode, 3); identity.Children.Add(_headerCode);
+        banner.Padding = new Thickness(18, 9, 18, 9);
+        banner.Child = identity;
         _root.Children.Add(banner);
         Grid.SetRow(_tabs, 1);
         _root.Children.Add(_tabs);
@@ -356,6 +363,7 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     private void ApplyEditMode()
     {
+        _headerCode.SetEditing(_editing);
         if (_saveButton is not null) _saveButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
         if (_editButton is not null) _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
         foreach (var field in _text.Values) field.IsReadOnly = !_editing;
@@ -901,6 +909,9 @@ public sealed partial class BusinessRecordCardWindow : Window
                     throw new InvalidOperationException("Χρησιμοποιήστε «Έκδοση και παραλαβή συμβολαίου».");
                 var data = new PolicyCardData
                 {
+                    CardCode = _policyData.CardCode is null &&
+                        string.Equals(_headerCode.EnteredCode, _record.Reference, StringComparison.Ordinal)
+                            ? null : _headerCode.EnteredCode,
                     PartnerId = (_policyPartnerChoice?.SelectedItem as Choice)?.Id,
                     PartnerCommissionPercent = _policyData.PartnerId == (_policyPartnerChoice?.SelectedItem as Choice)?.Id
                         ? _policyData.PartnerCommissionPercent : null,
@@ -1004,6 +1015,9 @@ public sealed partial class BusinessRecordCardWindow : Window
                     throw new ArgumentException("Επιλέξτε καταχωρημένη χρήση οχήματος από τα δεδομένα συστήματος.");
                 var data = new VehicleCardData
                 {
+                    CardCode = BusinessRecordDetails.Read<VehicleCardData>(_record.DetailsJson).CardCode is null &&
+                        string.Equals(_headerCode.EnteredCode, _record.Title, StringComparison.Ordinal)
+                            ? null : _headerCode.EnteredCode,
                     Registration = plate, Make = Value("make"), Model = Value("model"),
                     Vin = Value("vin"), ManufactureYear = IntValue(Value("year"), "Έτος κατασκευής"),
                     FirstRegistrationDate = DateValue("first"), Use = Value("use"),
@@ -1074,7 +1088,8 @@ public sealed partial class BusinessRecordCardWindow : Window
                 : _record.Title;
             _headerState.Text = $"● {_record.Status ?? "—"}";
             UpdatePolicyHeaderBadge();
-            _headerCode.Text = "ΚΩΔΙΚΟΣ  " + (_record.Reference ?? "—");
+            _headerCode.SetCode(_section == "policies" ? _policyData.CardCode ?? _record.Reference :
+                BusinessRecordDetails.Read<VehicleCardData>(_record.DetailsJson).CardCode ?? _record.Title);
             var wasConversion = _conversionRequested;
             _conversionRequested = false;
             _editing = false;

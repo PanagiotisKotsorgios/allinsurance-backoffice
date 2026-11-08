@@ -402,6 +402,7 @@ public sealed partial class WorkspaceRecordCardWindow
 
     private void ApplyEditMode()
     {
+        _headerCode.SetEditing(_editing);
         if (_editButton is not null) _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
         if (_saveButton is not null) _saveButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
         foreach (var input in _inputs.Values)
@@ -430,6 +431,8 @@ public sealed partial class WorkspaceRecordCardWindow
     {
         try
         {
+            var previousCode = _record.Reference;
+            var headerCode = _headerCode.EnteredCode;
             foreach (var (key, input) in _inputs)
             {
                 var spec = _specs[key];
@@ -470,6 +473,12 @@ public sealed partial class WorkspaceRecordCardWindow
                     default: _data.Fields[key] = value; break;
                 }
             }
+            if (headerCode.Length > 0 && !string.Equals(headerCode, previousCode, StringComparison.Ordinal))
+            {
+                _record.Reference = headerCode;
+                if (_inputs.GetValueOrDefault("reference") is TextBox referenceInput)
+                    referenceInput.Text = headerCode;
+            }
             if (_section.Key == "claims" && _data.PolicyId is Guid policyId &&
                 _all["policies"].FirstOrDefault(item => item.Id == policyId) is BusinessRecord policy)
             {
@@ -493,6 +502,7 @@ public sealed partial class WorkspaceRecordCardWindow
             _record = await _records.GetAsync(id) ?? _record;
             _data = WorkspaceCardData.Read(_record.DetailsJson);
             _editing = false;
+            ApplyEditMode();
             _all[_section.Key] = (await _records.SearchAsync(_section.Key)).ToArray();
             UpdateHeader();
             BuildTabs(preserve: true);

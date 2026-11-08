@@ -63,9 +63,7 @@ public sealed partial class PartnerCardWindow : Window
     private double _contentWidth = 1100;
     private readonly TextBlock _heading = new() { FontSize = 25, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         Foreground = new SolidColorBrush(Colors.White), TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _subtitle = new() { Foreground = new SolidColorBrush(Colors.White) };
-    private readonly TextBlock _metadata = new() { Foreground = new SolidColorBrush(Colors.White),
-        FontSize = 11, Opacity = 0.82 };
+    private readonly CardHeaderCode _headerCode = new();
     private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White) };
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private string[] _categories = [];
@@ -169,22 +167,24 @@ public sealed partial class PartnerCardWindow : Window
         var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 22, 119, 170), Offset = 1 });
-        var bannerContent = new StackPanel { Spacing = 8 };
-        var identity = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+        var identity = new Grid { ColumnSpacing = 10, ColumnDefinitions =
+        {
+            new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition(),
+            new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition { Width = GridLength.Auto }
+        } };
         identity.Children.Add(new Image { Source = new BitmapImage(new Uri(
-            "ms-appx:///Assets/Sections/partners.png")), Width = 54, Height = 54 });
-        var identityText = new StackPanel { Spacing = 3 };
-        identityText.Children.Add(_heading);
-        identityText.Children.Add(_headerState);
-        identity.Children.Add(identityText);
-        bannerContent.Children.Add(identity);
-        _subtitle.Margin = new Thickness(68, 2, 0, 0);
-        bannerContent.Children.Add(_subtitle);
-        _metadata.Margin = new Thickness(68, 0, 0, 0);
-        bannerContent.Children.Add(_metadata);
+            "ms-appx:///Assets/Sections/partners.png")), Width = 42, Height = 42 });
+        _heading.FontSize = 22;
+        _heading.TextWrapping = TextWrapping.NoWrap;
+        _heading.TextTrimming = TextTrimming.CharacterEllipsis;
+        _heading.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_heading, 1); identity.Children.Add(_heading);
+        _headerState.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_headerState, 2); identity.Children.Add(_headerState);
+        Grid.SetColumn(_headerCode, 3); identity.Children.Add(_headerCode);
         _root.Children.Add(new Border { Background = gradient, CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(24, 12, 24, 12), Margin = new Thickness(18, 8, 18, 4),
-            Child = bannerContent });
+            Padding = new Thickness(18, 9, 18, 9), Margin = new Thickness(18, 8, 18, 4),
+            Child = identity });
         UpdateHeader();
         var strip = new ScrollViewer { Content = _tabStrip, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, Margin = new Thickness(18, 0, 18, 0) };
@@ -225,17 +225,14 @@ public sealed partial class PartnerCardWindow : Window
     {
         if (_saveButton is not null) _saveButton.Visibility = _editing ? Visibility.Visible : Visibility.Collapsed;
         if (_editButton is not null) _editButton.Visibility = _editing ? Visibility.Collapsed : Visibility.Visible;
+        _headerCode.SetEditing(_editing);
     }
 
     private void UpdateHeader()
     {
         _heading.Text = _record.Id == Guid.Empty ? "Νέος συνεργάτης" : _record.Title;
         _headerState.Text = $"● {_record.Status ?? "Ενεργός συνεργάτης"}";
-        _subtitle.Text = _record.Id == Guid.Empty ? "ΚΩΔΙΚΟΣ  Νέος   ·   ΑΦΜ  —" :
-            $"ΚΩΔΙΚΟΣ  {_record.Reference ?? "—"}     ΑΦΜ  {_profile.TaxNumber ?? "—"}";
-        _metadata.Text = _record.Id == Guid.Empty ? "Η καταχώριση θα χρονοσημανθεί με την αποθήκευση." :
-            $"Καταχώριση: {_record.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}   ·   " +
-            $"Ενημέρωση: {_record.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}";
+        _headerCode.SetCode(_record.Reference);
     }
 
     private void AddTab(string label, UIElement content)
@@ -401,7 +398,9 @@ public sealed partial class PartnerCardWindow : Window
                 throw new ArgumentException("Η λήξη συνεργασίας πρέπει να είναι μετά την έναρξη.");
             _record.Title = profile.PersonType == "Νομικό πρόσωπο" ? profile.CompanyName! :
                 $"{profile.LastName} {profile.FirstName}".Trim();
-            if (_record.Id == Guid.Empty) _record.Reference = "P-" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
+            _record.Reference = _headerCode.EnteredCode.Length > 0 ? _headerCode.EnteredCode :
+                _record.Id == Guid.Empty ? "P-" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant() :
+                _record.Reference;
             _record.Status = Selected("status") ?? "Ενεργός";
             _record.RelatedParty = profile.City;
             _record.EventDate = profile.StartDate;

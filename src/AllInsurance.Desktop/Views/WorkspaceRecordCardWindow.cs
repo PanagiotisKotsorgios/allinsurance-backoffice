@@ -57,10 +57,9 @@ public sealed partial class WorkspaceRecordCardWindow : Window
     private readonly TextBlock _heading = new() { FontSize = 25,
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
         Foreground = new SolidColorBrush(Colors.White), TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _subtitle = new() { Foreground = new SolidColorBrush(Colors.White),
-        TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock _metadata = new() { Foreground = new SolidColorBrush(Colors.White),
-        FontSize = 12, Opacity = 0.86 };
+    private readonly TextBlock _headerState = new() { Foreground = new SolidColorBrush(Colors.White),
+        VerticalAlignment = VerticalAlignment.Center };
+    private readonly CardHeaderCode _headerCode = new();
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap };
     private ActionButton? _editButton;
     private ActionButton? _saveButton;
@@ -160,18 +159,22 @@ public sealed partial class WorkspaceRecordCardWindow : Window
         var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 22, 119, 170), Offset = 1 });
-        var identity = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+        var identity = new Grid { ColumnSpacing = 10, ColumnDefinitions =
+        {
+            new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition(),
+            new ColumnDefinition { Width = GridLength.Auto }, new ColumnDefinition { Width = GridLength.Auto }
+        } };
         identity.Children.Add(new Image { Source = new BitmapImage(new Uri(_section.Icon)),
-            Width = 54, Height = 54 });
-        var text = new StackPanel { Spacing = 4 };
-        text.Children.Add(_heading); text.Children.Add(_subtitle);
-        identity.Children.Add(text);
-        var banner = new StackPanel { Spacing = 5 };
-        banner.Children.Add(identity);
-        _metadata.Margin = new Thickness(68, 0, 0, 0);
-        banner.Children.Add(_metadata);
-        _root.Children.Add(new Border { Child = banner, Background = gradient,
-            CornerRadius = new CornerRadius(16), Padding = new Thickness(24, 12, 24, 12),
+            Width = 42, Height = 42 });
+        _heading.FontSize = 22;
+        _heading.TextWrapping = TextWrapping.NoWrap;
+        _heading.TextTrimming = TextTrimming.CharacterEllipsis;
+        _heading.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_heading, 1); identity.Children.Add(_heading);
+        Grid.SetColumn(_headerState, 2); identity.Children.Add(_headerState);
+        Grid.SetColumn(_headerCode, 3); identity.Children.Add(_headerCode);
+        _root.Children.Add(new Border { Child = identity, Background = gradient,
+            CornerRadius = new CornerRadius(16), Padding = new Thickness(18, 9, 18, 9),
             Margin = new Thickness(18, 8, 18, 4) });
         UpdateHeader();
         var tabScroll = new ScrollViewer { Content = _tabStrip,
@@ -212,11 +215,8 @@ public sealed partial class WorkspaceRecordCardWindow : Window
     private void UpdateHeader()
     {
         _heading.Text = _record.Id == Guid.Empty ? "Νέα " + Singular() : _record.Title;
-        _subtitle.Text = (_record.Reference ?? (_record.Id == Guid.Empty ? "Νέα καταχώριση" : "Χωρίς κωδικό")) +
-            "   ·   " + (_record.Status ?? "Χωρίς κατάσταση");
-        _metadata.Text = _record.Id == Guid.Empty ? "Η καταχώριση θα χρονοσημανθεί στην αποθήκευση." :
-            $"Καταχώριση: {_record.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}   ·   " +
-            $"Ενημέρωση: {_record.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}";
+        _headerState.Text = "● " + (_record.Status ?? "Χωρίς κατάσταση");
+        _headerCode.SetCode(_record.Reference);
     }
 
     private string Singular() => _section.Key switch
