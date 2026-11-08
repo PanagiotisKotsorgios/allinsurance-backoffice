@@ -745,6 +745,7 @@ public sealed partial class SectionPage : Page
         ApplyColumnOrder(grid);
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
+        TableRowStriping.ApplyRow(grid, RecordsList.Items.IndexOf(row), RecordsList);
         if (_section.Key == "policies" &&
             grid.Children[8] is Border { Child: TextBlock policyText } policyCell)
         {
