@@ -108,7 +108,7 @@ public sealed partial class OfficeOperationsPage : Page
         var widths = _overcommissions ? new[] { 120d, 185, 185, 120, 120, 145, 145 } :
             new[] { 120d, 110, 160, 265, 120, 160, 145 };
         _columnWidths = widths;
-        var tableHeader = new Grid { Width = widths.Sum() };
+        var tableHeader = new Grid { Width = widths.Sum(), Height = 40 };
         for (var index = 0; index < headings.Length; index++)
         {
             tableHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[index]) });
@@ -168,8 +168,8 @@ public sealed partial class OfficeOperationsPage : Page
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center },
             BorderBrush = ThemeBrush(113, 134, 155, 132, 153, 174),
-            BorderThickness = new Thickness(0, 0, 1, header ? 1 : 1),
-            Padding = new Thickness(9, 8, 9, 8) };
+            BorderThickness = new Thickness(0, 0, 1, header ? 0 : 1),
+            Padding = new Thickness(9, 0, 9, 0) };
     }
 
     private async Task RefreshAsync()
@@ -252,7 +252,7 @@ public sealed partial class OfficeOperationsPage : Page
                 : new[] { item.OccurredOn.ToString("dd/MM/yyyy"),
                     item.Kind == "income" ? "Έσοδο" : "Έξοδο", item.Category ?? "—",
                     item.Description, Money(item.Amount), item.PaymentMethod ?? "—", item.Reference ?? "—" };
-            var grid = new Grid();
+            var grid = new Grid { Height = 40 };
             for (var index = 0; index < cells.Length; index++)
             {
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_columnWidths[index]) });
@@ -266,7 +266,7 @@ public sealed partial class OfficeOperationsPage : Page
             }
             var row = new ListViewItem { Content = grid, Tag = item, Width = _columnWidths.Sum(),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(0), Padding = new Thickness(0), MinHeight = 40 };
+                Margin = new Thickness(0), Padding = new Thickness(0), Height = 40, MinHeight = 40 };
             var menu = new MenuFlyout();
             var edit = new MenuFlyoutItem { Text = "Επεξεργασία" };
             edit.Click += async (_, _) => await EditAsync(item);

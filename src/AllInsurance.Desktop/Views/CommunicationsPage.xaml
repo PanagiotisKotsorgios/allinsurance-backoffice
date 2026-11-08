@@ -68,7 +68,9 @@
         </Border>
         <TextBlock Grid.Row="3" Text="Σύνταξη μηνύματος" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
         <Border Grid.Row="4" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="14">
-            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Auto"
+                          HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
+            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="10" Padding="0,0,8,0">
                 <StackPanel Spacing="8">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <ComboBox x:Name="TemplateChoice" Header="Πρότυπο μηνύματος" Width="250"
@@ -113,13 +115,17 @@
                 </StackPanel>
                 </StackPanel>
                 <TextBox x:Name="SmsBody" Grid.Row="1" AcceptsReturn="True" TextWrapping="Wrap"
-                         PlaceholderText="Γράψτε το σύντομο SMS..." TextChanged="SmsBody_Changed" />
-                <Grid x:Name="EmailEditorPanel" Grid.Row="1" RowDefinitions="Auto,*"
+                         Height="260" PlaceholderText="Γράψτε το σύντομο SMS..." TextChanged="SmsBody_Changed" />
+                <Grid x:Name="EmailEditorPanel" Grid.Row="1" RowDefinitions="Auto,Auto,Auto"
                       RowSpacing="6" Visibility="Collapsed" MinHeight="150">
                     <TextBlock Text="Κυρίως μήνυμα email" FontWeight="SemiBold" />
-                    <RichEditBox x:Name="EmailBody" Grid.Row="1" MinHeight="120"
+                    <RichEditBox x:Name="EmailBody" Grid.Row="1" Height="320" MinHeight="220"
                                  VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1" />
+                    <Slider x:Name="EditorHeightSlider" Grid.Row="2" Header="Ύψος κυρίως μηνύματος"
+                            Minimum="220" Maximum="700" Value="320" StepFrequency="20"
+                            ValueChanged="EditorHeight_Changed" />
                 </Grid>
                 <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <TextBlock x:Name="ComposeStatus" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -130,6 +136,7 @@
                     </StackPanel>
                 </Grid>
             </Grid>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Page>

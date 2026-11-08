@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using System.Globalization;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -18,10 +19,10 @@ public sealed partial class RenewalsPage : Page
     {
         InitializeComponent();
         TableExportActions.Attach(ExportHost, this, () => new TableExportData("Ανανεώσεις",
-            ["Αριθμός συμβολαίου", "Λήξη", "Ημέρες για τη λήξη", "Ασφαλιστική", "Συνεργάτης", "Πελάτης"],
+            ["Αριθμός συμβολαίου", "Πελάτης", "Εταιρεία", "Κλάδος", "Λήξη", "Ημέρες για τη λήξη", "Ασφάλιστρο"],
             (RenewalsList.ItemsSource as IEnumerable<RenewalRow> ?? [])
-                .Select(item => new[] { item.Number, item.Expiry, item.DaysLeft,
-                    item.Insurer, item.Partner, item.Customer }).ToArray()));
+                .Select(item => new[] { item.Number, item.Customer, item.Insurer, item.Branch,
+                    item.Expiry, item.DaysLeft, item.Premium }).ToArray()));
         TableRowStriping.Attach(RenewalsList);
         Loaded += async (_, _) =>
         {
@@ -145,15 +146,21 @@ public sealed partial class RenewalsPage : Page
         public string Customer { get; } = record.Customer is { } customer
             ? $"{customer.LastName} {customer.FirstName}" : record.RelatedParty ?? "—";
         public string Insurer { get; } = data.Insurer ?? "—";
+        public string Branch { get; } = data.Branch ?? "—";
         public string Partner { get; } = partner;
         public string Expiry => EndDate.ToString("dd/MM/yyyy");
         public string DaysLeft => (EndDate.Date - DateTime.Today).Days.ToString();
+        public string Premium => Data.GrossPremium is decimal amount
+            ? amount.ToString("N2", CultureInfo.GetCultureInfo("el-GR")) + " €" : "—";
         public Microsoft.UI.Xaml.Media.SolidColorBrush ExpiryBackground =>
-            StatusPalette.Brush((EndDate.Date - DateTime.Today).Days switch
+            new((EndDate.Date - DateTime.Today).Days switch
             {
-                <= 0 => StatusPalette.Negative,
-                <= 30 => StatusPalette.Caution,
+                <= 7 => StatusPalette.Negative,
+                <= 30 => Windows.UI.Color.FromArgb(255, 245, 211, 77),
                 _ => StatusPalette.Positive
             });
+        public Microsoft.UI.Xaml.Media.SolidColorBrush ExpiryForeground =>
+            new((EndDate.Date - DateTime.Today).Days is > 7 and <= 30
+                ? Windows.UI.Color.FromArgb(255, 47, 41, 24) : Microsoft.UI.Colors.White);
     }
 }

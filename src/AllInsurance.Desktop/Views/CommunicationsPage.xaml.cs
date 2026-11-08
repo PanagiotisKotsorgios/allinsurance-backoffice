@@ -199,6 +199,12 @@ public sealed partial class CommunicationsPage : Page
         ComposeStatus.Text = $"SMS: {length} χαρακτήρες · περίπου {segments} τμήμα(τα)";
     }
 
+    private void EditorHeight_Changed(object sender,
+        Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (EmailBody is not null) EmailBody.Height = e.NewValue;
+    }
+
     private void Bold_Click(object sender, RoutedEventArgs e) => ToggleFormat("bold");
     private void Italic_Click(object sender, RoutedEventArgs e) => ToggleFormat("italic");
     private void Underline_Click(object sender, RoutedEventArgs e) => ToggleFormat("underline");

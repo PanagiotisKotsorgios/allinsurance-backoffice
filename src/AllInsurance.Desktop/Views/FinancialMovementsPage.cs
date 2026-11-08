@@ -102,7 +102,8 @@ public sealed class FinancialMovementsPage : Page
         Grid.SetRow(summary, 2); root.Children.Add(summary);
 
         var tableWidth = _widths.Sum();
-        var header = new Grid { Width = tableWidth, Background = Brush("TableHeaderBackgroundBrush") };
+        var header = new Grid { Width = tableWidth, Height = 40,
+            Background = Brush("TableHeaderBackgroundBrush") };
         for (var i = 0; i < Headers.Length; i++)
         {
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_widths[i]) });
@@ -162,8 +163,9 @@ public sealed class FinancialMovementsPage : Page
 
     private static Border Cell(string text, bool heading = false) => new()
     {
-        BorderBrush = Brush("TableBorderBrush"), BorderThickness = new Thickness(0, 0, 1, 1),
-        Padding = new Thickness(9, 7, 9, 7),
+        BorderBrush = Brush("TableBorderBrush"),
+        BorderThickness = new Thickness(0, 0, 1, heading ? 0 : 1),
+        Padding = new Thickness(9, 0, 9, 0),
         Child = new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             FontWeight = heading ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal }
@@ -213,7 +215,7 @@ public sealed class FinancialMovementsPage : Page
         _list.Items.Clear();
         foreach (var item in _shown)
         {
-            var row = new Grid { Width = _widths.Sum() };
+            var row = new Grid { Width = _widths.Sum(), Height = 40 };
             var values = Values(item);
             for (var index = 0; index < values.Length; index++)
             {
@@ -224,7 +226,7 @@ public sealed class FinancialMovementsPage : Page
             }
             var listItem = new ListViewItem { Content = row, Tag = item,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0),
-                Padding = new Thickness(0), MinHeight = 40 };
+                Padding = new Thickness(0), Height = 40, MinHeight = 40 };
             var menu = new MenuFlyout();
             var details = new MenuFlyoutItem { Text = "Προβολή κίνησης" };
             details.Click += (_, _) => ShowDetails(item);
