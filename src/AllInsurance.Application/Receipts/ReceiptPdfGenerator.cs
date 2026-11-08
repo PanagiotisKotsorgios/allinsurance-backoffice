@@ -75,7 +75,7 @@ public static class ReceiptPdfGenerator
         graphics.DrawString("Υπογραφή πρακτορείου", regular, XBrushes.Black,
             new XRect(left + width - 195, signatureY + 9, 195, 25), XStringFormats.Center);
         var attribution = new XFont("Arial", 8, XFontStyleEx.Regular);
-        graphics.DrawString("© Acalypso Software Solutions · www.mykalypsis.gr · info@mykalypsis.gr",
+        graphics.DrawString("© KALYPSIS SOFTWARE SOLUTIONS · www.mykalypsis.gr · info@mykalypsis.gr",
             attribution, XBrushes.Gray,
             new XRect(left, page.Height.Point - 42, width, 18), XStringFormats.TopRight);
         using var stream = new MemoryStream();
