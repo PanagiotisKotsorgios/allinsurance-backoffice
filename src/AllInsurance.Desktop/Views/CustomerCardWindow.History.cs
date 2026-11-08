@@ -55,6 +55,7 @@ public sealed partial class CustomerCardWindow
             HorizontalAlignment = HorizontalAlignment.Left,
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0) };
+        TableRowStriping.Attach(list);
         root.Children.Add(list);
         list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>
         {

@@ -444,6 +444,7 @@ public sealed partial class CustomerCardWindow : Window
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0),
             Tag = category };
+        TableRowStriping.Attach(list);
         _detailLists[category] = list;
         var pager = new TablePagination(list);
         list.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(async (_, args) =>

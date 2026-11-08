@@ -18,6 +18,7 @@ public sealed partial class CustomerCardWindow
 
         var list = new ListView { MaxHeight = 235, SelectionMode = ListViewSelectionMode.Single,
             HorizontalAlignment = HorizontalAlignment.Stretch };
+        TableRowStriping.Attach(list);
         void Add(string title, string? value, Action<string?> setter)
         {
             if (!string.IsNullOrWhiteSpace(value))

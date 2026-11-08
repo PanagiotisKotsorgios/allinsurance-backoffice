@@ -412,15 +412,18 @@ public sealed partial class BusinessRecordCardWindow
         if (_record.Id == Guid.Empty || _record.DocumentType is not (null or "Ασφαλιστήριο") ||
             _record.Status == "Ακυρωμένο") return;
         var date = new EditableDateInput { Date = DateTimeOffset.Now, MinHeight = 40 };
+        var endorsementNumber = new TextBox { Header = "Αριθμός πρόσθετης πράξης (αν έχει εκδοθεί)",
+            MinHeight = 40 };
         var reason = new TextBox { Header = "Αιτιολογία ακύρωσης *", AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap, MinHeight = 90 };
         var form = new StackPanel { Spacing = 9, Width = 420,
-            Children = { new TextBlock { Text = "Ημερομηνία ακύρωσης *" }, date, reason,
+            Children = { new TextBlock { Text = "Ημερομηνία πρόσθετης πράξης ακύρωσης *" },
+                date, endorsementNumber, reason,
                 new TextBlock { Text = "Τυχόν επιστροφή χρημάτων καταχωρίζεται χωριστά ως πληρωμή προς πελάτη.",
                     TextWrapping = TextWrapping.Wrap } } };
         var dialog = new ContentDialog { XamlRoot = _root.XamlRoot,
-            Title = "Ακύρωση ασφαλιστηρίου", Content = form,
-            PrimaryButtonText = "Καταχώριση ακύρωσης", CloseButtonText = "Πίσω" };
+            Title = "Πρόσθετη πράξη ακύρωσης", Content = form,
+            PrimaryButtonText = "Καταχώριση πράξης", CloseButtonText = "Πίσω" };
         if (await DialogButtonStyles.ShowAsync(dialog) != ContentDialogResult.Primary) return;
         if (date.Date is null || string.IsNullOrWhiteSpace(reason.Text))
         {
@@ -433,8 +436,13 @@ public sealed partial class BusinessRecordCardWindow
         var oldReason = _text["cancelreason"].Text;
         _dates["canceldate"].Date = date.Date;
         _text["cancelreason"].Text = reason.Text.Trim();
+        var endorsement = new PolicyEndorsement { Type = "Πρόσθετη πράξη ακύρωσης",
+            Number = endorsementNumber.Text.Trim(), EffectiveDate = date.Date.Value.Date,
+            Notes = reason.Text.Trim() };
+        _policyData.Endorsements.Add(endorsement);
         _statusChoice!.SelectedItem = "Ακυρωμένο";
         if (await SaveAsync()) return;
+        _policyData.Endorsements.Remove(endorsement);
         _statusChoice.SelectedItem = oldStatus;
         _dates["canceldate"].Date = oldDate;
         _text["cancelreason"].Text = oldReason;

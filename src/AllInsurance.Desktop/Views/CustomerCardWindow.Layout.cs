@@ -1,4 +1,5 @@
 using AllInsurance.Application.Customers;
+using AllInsurance.Application.Business;
 using AllInsurance.Application.Settings;
 using AllInsurance.Desktop.Controls;
 using AllInsurance.Domain.Entities;
@@ -6,12 +7,51 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.Extensions.DependencyInjection;
 using Windows.UI;
 
 namespace AllInsurance.Desktop.Views;
 
 public sealed partial class CustomerCardWindow
 {
+    private PartnerCardWindow? _linkedPartnerCard;
+
+    private Button PartnerLinkButton()
+    {
+        var button = new ActionButton { Kind = "Open", Label = "Άνοιγμα συνεργάτη",
+            IconOnly = true, Width = 38, Height = 38 };
+        button.Click += async (_, _) =>
+        {
+            try
+            {
+                var name = _editing ? _partnerChoice?.SelectedItem as string : _customer.PartnerName;
+                var partner = (await App.Services.GetRequiredService<IBusinessRecordService>()
+                    .SearchAsync("partners")).FirstOrDefault(item =>
+                    string.Equals(item.Title, name, StringComparison.CurrentCultureIgnoreCase));
+                if (partner is null)
+                {
+                    await UiAlerts.ShowErrorAsync(_root.XamlRoot, "Επιλέξτε καταχωρημένο συνεργάτη.");
+                    return;
+                }
+                if (_linkedPartnerCard is not null) { _linkedPartnerCard.BringToFront(); return; }
+                _linkedPartnerCard = new PartnerCardWindow(partner.Id);
+                _linkedPartnerCard.Closed += (_, _) => { _linkedPartnerCard = null; BringToFront(); };
+                _linkedPartnerCard.BringToFront();
+            }
+            catch (Exception error) { await UiAlerts.ShowErrorAsync(_root.XamlRoot, error.Message); }
+        };
+        return button;
+    }
+
+    private void AddPartnerRow(StackPanel panel, Control field)
+    {
+        var host = new Grid { ColumnSpacing = 4, ColumnDefinitions =
+        { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
+        host.Children.Add(field);
+        var link = PartnerLinkButton();
+        Grid.SetColumn(link, 1); host.Children.Add(link);
+        panel.Children.Add(CreateFieldRow("Συνεργάτης", host));
+    }
     private Grid CompactColumns(out StackPanel left, out StackPanel right)
     {
         var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth,
@@ -59,12 +99,12 @@ public sealed partial class CustomerCardWindow
             _partnerChoice = new ComboBox { MinHeight = 40, Height = 40,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 IsEnabled = !_customer.BelongsToOffice };
-            left.Children.Add(CreateFieldRow("Συνεργάτης", _partnerChoice));
+            AddPartnerRow(left, _partnerChoice);
             _readFields.Add(() => _customer.PartnerName = _partnerChoice.SelectedItem as string);
             _ = LoadPartnerChoicesAsync();
         }
-        else AddText(left, "Συνεργάτης", () => _customer.PartnerName,
-            value => _customer.PartnerName = value);
+        else AddPartnerRow(left, new TextBox { Text = _customer.PartnerName ?? "",
+            IsReadOnly = true, MinHeight = 40, VerticalContentAlignment = VerticalAlignment.Center });
         _mainBalanceText = new TextBlock { FontSize = 14,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
         _mainBalanceBadge = new Border { Child = _mainBalanceText,
@@ -389,6 +429,7 @@ public sealed partial class CustomerCardWindow
         var list = new ListView { Height = 300, Width = 942, HorizontalAlignment = HorizontalAlignment.Left,
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1), Padding = new Thickness(0) };
+        TableRowStriping.Attach(list);
         root.Children.Add(list);
         var pager = new TablePagination(list);
         root.Children.Add(pager.Bar);

@@ -20,6 +20,7 @@ public sealed partial class WorkspaceRecordCardWindow
     private static FieldSpec M(string key, string label) => new(key, label, "memo");
     private static FieldSpec D(string key, string label) => new(key, label, "date");
     private static FieldSpec B(string key, string label) => new(key, label, "bool");
+    private static FieldSpec Balance() => new("balance", "Υπόλοιπο", "balance");
     private static FieldSpec L(string key, string label, bool required = false) =>
         new(key, label, "link", required);
     private static FieldSpec S(string key, string label, params string[] options) =>
@@ -59,7 +60,7 @@ public sealed partial class WorkspaceRecordCardWindow
              T("legalName", "Νομική επωνυμία"),
              S("payoutMethod", "Τρόπος απόδοσης", "Τραπεζική μεταφορά", "Συμψηφισμός", "Μετρητά"),
              S("payoutPeriod", "Περίοδος απόδοσης", "Μηνιαία", "Εβδομαδιαία", "Ανά ασφαλιστήριο"),
-             N("creditLimit", "Πιστωτικό όριο (€)"), N("creditDays", "Πιστωτικό όριο ημερών")],
+             N("creditLimit", "Πιστωτικό όριο (€)"), N("creditDays", "Πιστωτικό όριο ημερών"), Balance()],
             [T("contractNumber", "Αριθμός συνεργασίας"), D("startDate", "Έναρξη συνεργασίας"),
              D("endDate", "Λήξη συνεργασίας"), T("manager", "Υπεύθυνος συνεργασίας"),
              T("licenseNumber", "Αριθμός άδειας"), T("gemi", "ΓΕΜΗ"),
@@ -69,7 +70,6 @@ public sealed partial class WorkspaceRecordCardWindow
              N("printDeadline", "Εκτύπωση εντός (ημέρες)"),
              N("renewalDays", "Ημέρες ανανέωσης"), B("splitTax", "Split φόρου"),
              M("notes", "Σημειώσεις")]);
-        AppendToLastTab(OrganizationBalanceBadge());
         AddTab("Οικονομικά εταιρείας", OrganizationSettlementsPanel());
         FormTab("Επικοινωνία",
             [T("contact", "Πρόσωπο επικοινωνίας"), T("phone", "Τηλέφωνο"),
@@ -94,11 +94,11 @@ public sealed partial class WorkspaceRecordCardWindow
              S("origin", "Προέλευση", "Εσωτερικό", "Εξωτερικό"),
              L("company", "Ασφαλιστική εταιρεία"), T("area", "Περιοχή"),
              T("manager", "Υπεύθυνος"), T("taxNumber", "ΑΦΜ"),
-             S("payoutMethod", "Τρόπος απόδοσης", "Τραπεζική μεταφορά", "Συμψηφισμός", "Μετρητά")],
-            [T("contractNumber", "Αριθμός σύμβασης"), D("startDate", "Έναρξη συνεργασίας"),
-             D("endDate", "Λήξη συνεργασίας"), N("creditLimit", "Πιστωτικό όριο (€)"),
+              S("payoutMethod", "Τρόπος απόδοσης", "Τραπεζική μεταφορά", "Συμψηφισμός", "Μετρητά"),
+              N("creditLimit", "Πιστωτικό όριο (€)"), N("creditDays", "Πιστωτικό όριο ημερών"), Balance()],
+             [T("contractNumber", "Αριθμός σύμβασης"), D("startDate", "Έναρξη συνεργασίας"),
+              D("endDate", "Λήξη συνεργασίας"),
              T("branchCode", "Κωδικός υποκαταστήματος"), M("notes", "Σημειώσεις")]);
-        AppendToLastTab(OrganizationBalanceBadge());
         AddTab("Οικονομικά πρακτορείου", OrganizationSettlementsPanel());
         FormTab("Επικοινωνία",
             [T("phone", "Τηλέφωνο"), T("mobile", "Κινητό"), T("email", "Email"),
@@ -214,6 +214,11 @@ public sealed partial class WorkspaceRecordCardWindow
 
     private void AddField(StackPanel panel, FieldSpec spec)
     {
+        if (spec.Kind == "balance")
+        {
+            panel.Children.Add(CardFieldLayout.CreateRow(spec.Label, OrganizationBalanceBadge()));
+            return;
+        }
         _specs[spec.Key] = spec;
         FrameworkElement control;
         FrameworkElement display;

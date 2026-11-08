@@ -85,8 +85,13 @@ public sealed partial class WorkspaceRecordCardWindow
         var search = new TextBox { PlaceholderText = "Αναζήτηση αριθμού, τίτλου ή κατάστασης...",
             Height = 38, MinHeight = 38, HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(SearchFieldVisual.Wrap(search));
-        var widths = new[] { 350, 210, 180, 170 };
-        var captions = new[] { "Εγγραφή", "Κωδικός", "Κατάσταση", "Ημερομηνία" };
+        var widths = section == "policies"
+            ? new[] { 190, 170, 205, 185, 120, 120, 150 }
+            : new[] { 350, 210, 180, 170 };
+        var captions = section == "policies"
+            ? new[] { "Αριθμός συμβολαίου", "Κλάδος", "Πελάτης", "Ασφαλιστική",
+                "Έναρξη", "Λήξη", "Κατάσταση" }
+            : new[] { "Εγγραφή", "Κωδικός", "Κατάσταση", "Ημερομηνία" };
         var total = widths.Sum();
         var header = new Grid { Width = total,
             Background = new SolidColorBrush(IsDarkTheme() ? Color.FromArgb(255, 55, 65, 77) :
@@ -105,7 +110,7 @@ public sealed partial class WorkspaceRecordCardWindow
             HorizontalAlignment = HorizontalAlignment.Left,
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1) });
-        var list = new ListView { Width = total + 2, Height = 250,
+        var list = new ListView { Width = total + 2, Height = section == "policies" ? 330 : 250,
             HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(0),
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1) };
@@ -121,8 +126,16 @@ public sealed partial class WorkspaceRecordCardWindow
                 new[] { item.Title, item.Reference, item.Status }.Any(value =>
                     value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true)))
             {
-                var values = new[] { record.Title, record.Reference ?? "—", record.Status ?? "—",
-                    record.EventDate?.ToString("dd/MM/yyyy") ?? "—" };
+                var policy = section == "policies"
+                    ? BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson) : null;
+                var values = policy is null
+                    ? new[] { record.Title, record.Reference ?? "—", record.Status ?? "—",
+                        record.EventDate?.ToString("dd/MM/yyyy") ?? "—" }
+                    : new[] { policy.PolicyNumber ?? record.Reference ?? record.Title,
+                        policy.Branch ?? "—",
+                        _customers.FirstOrDefault(item => item.Id == record.CustomerId)?.FullName ?? "—",
+                        policy.Insurer ?? "—", policy.StartDate?.ToString("dd/MM/yyyy") ?? "—",
+                        policy.EndDate?.ToString("dd/MM/yyyy") ?? "—", record.Status ?? "—" };
                 var grid = new Grid { Width = total, Height = 40 };
                 foreach (var width in widths) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 for (var column = 0; column < values.Length; column++)
@@ -223,6 +236,22 @@ public sealed partial class WorkspaceRecordCardWindow
         var panel = RelatedPanel();
         var list = new ListView { Height = 410, HorizontalAlignment = HorizontalAlignment.Stretch };
         TableRowStriping.Attach(list);
+        list.DoubleTapped += async (_, _) =>
+        {
+            if (list.SelectedItem is not ListViewItem { Tag: BusinessRecordActivity activity }) return;
+            var detail = new StackPanel { Spacing = 8, Width = 440 };
+            foreach (var (label, value) in new[]
+            {
+                ("Ημερομηνία", activity.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")),
+                ("Ενέργεια", activity.Action), ("Περιγραφή", activity.Description),
+                ("Χρήστης", activity.ActorName)
+            })
+                detail.Children.Add(new TextBox { Header = label, Text = value ?? "",
+                    IsReadOnly = true, TextWrapping = TextWrapping.Wrap,
+                    MinHeight = label == "Περιγραφή" ? 80 : 40 });
+            await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = _root.XamlRoot,
+                Title = "Καρτέλα ενέργειας", Content = detail, CloseButtonText = "Κλείσιμο" });
+        };
         panel.Children.Add(list);
         var pager = new TablePagination(list);
         panel.Children.Add(pager.Bar);
@@ -241,10 +270,10 @@ public sealed partial class WorkspaceRecordCardWindow
                 var activities = await _records.GetActivitiesAsync(_record.Id);
                 list.Items.Clear();
                 foreach (var activity in activities)
-                    list.Items.Add(new TextBlock { Text =
+                    list.Items.Add(new ListViewItem { Tag = activity, Content = new TextBlock { Text =
                         $"{activity.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}  ·  " +
                         $"{activity.Action}  ·  {activity.Description}  ·  {activity.ActorName}",
-                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 5, 8, 5) });
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 5, 8, 5) } });
                 pager.Capture();
             }
             catch (Exception exception) { _status.Text = exception.Message; }

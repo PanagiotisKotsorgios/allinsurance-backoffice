@@ -14,11 +14,11 @@ namespace AllInsurance.Desktop.Views;
 
 public sealed partial class WorkspaceRecordCardWindow
 {
-    private UIElement OrganizationBalanceBadge()
+    private Border OrganizationBalanceBadge()
     {
         var amount = OrganizationBalance.Calculate(_record, _data,
             _all.GetValueOrDefault("policies") ?? []);
-        return new Border { Margin = new Thickness(22, 4, 22, 12),
+        return new Border { Margin = new Thickness(0, 2, 0, 2),
             Padding = new Thickness(12, 8, 12, 8), CornerRadius = new CornerRadius(7),
             HorizontalAlignment = HorizontalAlignment.Left,
             Background = StatusPalette.Brush(amount == 0
@@ -71,6 +71,11 @@ public sealed partial class WorkspaceRecordCardWindow
                     StringComparison.CurrentCultureIgnoreCase)))
             .Select(contact => new ContactRow(contact)).ToArray();
         search.TextChanged += (_, _) => Render();
+        list.DoubleTapped += async (_, _) =>
+        {
+            if (list.SelectedItem is ContactRow row)
+                await ShowOrganizationContactAsync(row.Contact);
+        };
         add.Click += async (_, _) =>
         {
             if (!await CanRecordOrganizationActionAsync()) return;
@@ -101,6 +106,24 @@ public sealed partial class WorkspaceRecordCardWindow
         };
         Render();
         return panel;
+    }
+
+    private async Task ShowOrganizationContactAsync(OrganizationContact contact)
+    {
+        var form = new StackPanel { Spacing = 8, Width = 430 };
+        foreach (var (label, value) in new[]
+        {
+            ("Όνομα", contact.Name), ("Ιδιότητα", contact.Position),
+            ("Email", contact.Email), ("Κινητό", contact.Mobile), ("Τηλέφωνο", contact.Phone)
+        })
+        {
+            var field = new TextBox { Header = label, Text = value ?? "", IsReadOnly = true,
+                MinHeight = 40, VerticalContentAlignment = VerticalAlignment.Center };
+            form.Children.Add(field);
+        }
+        await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = _root.XamlRoot,
+            Title = "Καρτέλα προσώπου επικοινωνίας", Content = form,
+            CloseButtonText = "Κλείσιμο" });
     }
 
     private UIElement OrganizationContactFilesPanel()

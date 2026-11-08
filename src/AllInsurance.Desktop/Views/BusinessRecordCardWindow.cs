@@ -296,12 +296,13 @@ public sealed partial class BusinessRecordCardWindow : Window
         _root.Children.Add(_tabs);
         Grid.SetRow(_tabContent, 2);
         _root.Children.Add(_tabContent);
-        var footer = new Grid { ColumnDefinitions =
-        {
-            new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto }
-        }, Margin = new Thickness(18, 10, 18, 14) };
+        var footer = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
+            new RowDefinition { Height = GridLength.Auto } },
+            Margin = new Thickness(18, 10, 18, 14) };
         footer.Children.Add(_status);
-        var actionRows = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
+        var toolbar = new Grid { MinWidth = _section == "policies" ? 970 : 0,
+            ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto } } };
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
             HorizontalAlignment = HorizontalAlignment.Right };
         if (_section == "policies")
@@ -310,7 +311,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                 HorizontalAlignment = HorizontalAlignment.Right };
             _footerReceiptButton = new ActionButton { Kind = "Receipt", Label = "Είσπραξη" };
             _footerPaymentButton = new ActionButton { Kind = "Payment", Label = "Πληρωμή" };
-            _footerRenewButton = new ActionButton { Kind = "Renewals", Label = "Ανανέωση ασφαλιστηρίου" };
+            _footerRenewButton = new ActionButton { Kind = "Renewals", Label = "Ανανέωση" };
             _footerCancelButton = new ActionButton { Kind = "Deactivate", Label = "Ακύρωση" };
             _footerReceiptButton.Click += async (_, _) => await AddPolicyTransactionAsync("receipt");
             _footerPaymentButton.Click += async (_, _) => await AddPolicyTransactionAsync("payment");
@@ -320,7 +321,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             quick.Children.Add(_footerPaymentButton);
             quick.Children.Add(_footerRenewButton);
             quick.Children.Add(_footerCancelButton);
-            actionRows.Children.Add(quick);
+            toolbar.Children.Add(quick);
             _convertButton = new ActionButton { Kind = "Edit", Label = "Έκδοση και παραλαβή συμβολαίου" };
             _convertButton.Click += async (_, _) => await ConvertAsync();
             actions.Children.Add(_convertButton);
@@ -334,9 +335,15 @@ public sealed partial class BusinessRecordCardWindow : Window
         var close = new ActionButton { Kind = "Close", Label = "Κλείσιμο" };
         close.Click += (_, _) => Close();
         actions.Children.Add(close);
-        actionRows.Children.Add(actions);
-        Grid.SetColumn(actionRows, 1);
-        footer.Children.Add(actionRows);
+        Grid.SetColumn(actions, 1);
+        toolbar.Children.Add(actions);
+        var footerScroll = new ScrollViewer { Content = toolbar,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        footerScroll.SizeChanged += (_, args) =>
+            toolbar.Width = Math.Max(toolbar.MinWidth, args.NewSize.Width);
+        Grid.SetRow(footerScroll, 1);
+        footer.Children.Add(footerScroll);
         Grid.SetRow(footer, 3);
         _root.Children.Add(footer);
         if (_section == "policies") BuildPolicyTabs(customers, vehicles, transactions, companies);
@@ -563,7 +570,12 @@ public sealed partial class BusinessRecordCardWindow : Window
             search.Text = (_customerChoice.SelectedItem as Choice)?.Name ?? "";
         _customerChoice.Visibility = Visibility.Collapsed;
         panel.Children.Add(_customerChoice);
-        panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *", search));
+        var host = new Grid { ColumnSpacing = 4, ColumnDefinitions =
+        { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
+        host.Children.Add(search);
+        var open = CustomerLinkButton();
+        Grid.SetColumn(open, 1); host.Children.Add(open);
+        panel.Children.Add(CardFieldLayout.CreateRow("Πελάτης / ιδιοκτήτης *", host));
         return _customerChoice;
     }
 
@@ -783,7 +795,6 @@ public sealed partial class BusinessRecordCardWindow : Window
         extraLeft.Spacing = 5;
         extraRight.Spacing = 5;
         CustomerChoice(left, customers);
-        AddCustomerLink(left);
         var registration = Text(left, "registration", "Αριθμός κυκλοφορίας *", data.Registration);
         var plateWarningOpen = false;
         registration.BeforeTextChanging += (_, args) =>
@@ -806,17 +817,17 @@ public sealed partial class BusinessRecordCardWindow : Window
         Date(left, "first", "Πρώτη άδεια κυκλοφορίας", data.FirstRegistrationDate);
         Date(extraLeft, "transfer", "Ημερομηνία μεταβίβασης", data.TransferDate);
         Text(extraLeft, "taxclass", "Κατηγορία φορολόγησης", data.TaxClass);
-        Text(extraLeft, "seats", "Θέσεις", data.Seats?.ToString());
-        Text(extraLeft, "doors", "Πόρτες", data.Doors?.ToString());
+        Text(left, "seats", "Θέσεις", data.Seats?.ToString());
+        Text(left, "doors", "Πόρτες", data.Doors?.ToString());
         Text(extraLeft, "fuelcolor", "Χρώμα καυσίμου", data.FuelColor);
         Text(extraLeft, "permit", "Άδεια κυκλοφορίας", data.RegistrationPermit);
         Text(extraLeft, "licence", "Ειδικό δίπλωμα", data.SpecialLicence);
         Text(extraLeft, "discount", "Δικαιολογητικά έκπτωσης", data.DiscountDocuments);
         Text(extraLeft, "roadtax", "Τέλη κυκλοφορίας (€)", data.RoadTax?.ToString("N2"));
         Text(extraLeft, "reports", "Έντυπα αναγγελίας", data.ReportForms);
-        VehicleCheck(extraLeft, "convertible", "Κάμπριο", data.IsConvertible);
-        VehicleCheck(extraLeft, "sunroof", "Ηλιοροφή", data.HasSunroof);
-        VehicleCheck(extraLeft, "heavy", "Βάρος άνω των 3,5 τόνων", data.OverThreeAndHalfTons);
+        VehicleCheck(right, "convertible", "Κάμπριο", data.IsConvertible);
+        VehicleCheck(right, "sunroof", "Ηλιοροφή", data.HasSunroof);
+        VehicleCheck(right, "heavy", "Βάρος άνω των 3,5 τόνων", data.OverThreeAndHalfTons);
         VehicleCheck(extraLeft, "dual", "Διπλοί πίσω τροχοί", data.HasRearDualWheels);
         right.Children.Add(CardFieldLayout.CreateRow("Χρήση",
             SearchValue(right, "use", "χρήσης οχήματος", data.Use, _vehicleUseOptions)));
@@ -830,7 +841,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         Text(extraRight, "wheelbase", "Μεταξόνιο (cm)", data.WheelbaseCm?.ToString("N2"));
         Text(extraRight, "height", "Ύψος (cm)", data.HeightCm?.ToString("N2"));
         Text(extraRight, "track", "Μετατρόχιο (cm)", data.TrackWidthCm?.ToString("N2"));
-        Text(extraRight, "market", "Εκτιμώμενη αξία (€)", data.EstimatedMarketValue?.ToString("N2"));
+        Text(right, "market", "Εκτιμώμενη αξία (€)", data.EstimatedMarketValue?.ToString("N2"));
         Text(extraRight, "co2", "Εκπομπές CO₂ (g/km)", data.Co2GramsPerKm?.ToString("N2"));
         Date(extraRight, "nextkteo", "Επόμενο ΚΤΕΟ", data.NextKteoDate);
         _kteoStatusChoice = Choices(extraRight, "Κατάσταση ΚΤΕΟ",

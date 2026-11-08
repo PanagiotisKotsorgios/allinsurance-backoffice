@@ -438,6 +438,7 @@ public sealed partial class PartnerCardWindow
             HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(0),
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1) };
+        TableRowStriping.Attach(list);
         panel.Children.Add(list);
         var count = new TextBlock { FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
         var pager = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };

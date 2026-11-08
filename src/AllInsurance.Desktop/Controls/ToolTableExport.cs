@@ -12,6 +12,9 @@ internal static class ToolTableExport
         using var writer = new StreamWriter(path, false, new UTF8Encoding(true));
         writer.WriteLine(string.Join(';', headers.Select(Escape)));
         foreach (var row in rows) writer.WriteLine(string.Join(';', row.Select(Escape)));
+        writer.WriteLine();
+        writer.WriteLine(string.Join(';', Enumerable.Repeat("", Math.Max(0, headers.Length - 1))
+            .Append(Escape(ExportBranding.Text))));
         return path;
     }
 
@@ -29,7 +32,9 @@ internal static class ToolTableExport
             foreach (var value in row) html.Append("<td>").Append(WebUtility.HtmlEncode(value)).Append("</td>");
             html.Append("</tr>");
         }
-        File.WriteAllText(path, html.Append("</tbody></table></body></html>").ToString(), Encoding.UTF8);
+        html.Append("</tbody></table><footer style='margin-top:18px;text-align:right;color:#526276;font-size:11px'>")
+            .Append(WebUtility.HtmlEncode(ExportBranding.Text)).Append("</footer></body></html>");
+        File.WriteAllText(path, html.ToString(), Encoding.UTF8);
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
         return path;
     }

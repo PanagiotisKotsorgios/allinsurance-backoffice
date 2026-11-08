@@ -56,18 +56,10 @@ public sealed partial class BusinessRecordCardWindow
 
     private static Button LinkedCardButton(string description)
     {
-        var button = new Button
-        {
-            Content = new FontIcon { Glyph = "\uE8A7",
-                FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets") },
-            Width = 34, Height = 34, Padding = new Microsoft.UI.Xaml.Thickness(0),
-            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 23, 111, 171)),
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White)
-        };
+        var button = new ActionButton { Kind = "Open", Label = description,
+            IconOnly = true, Width = 38, Height = 38 };
         ToolTipService.SetToolTip(button, description);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, description);
-        ButtonMotion.Attach(button);
         return button;
     }
 }

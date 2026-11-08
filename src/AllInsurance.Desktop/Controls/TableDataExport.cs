@@ -33,6 +33,9 @@ internal static class TableDataExport
         writer.WriteLine(string.Join(';', columns.Select(i => Escape(data.Headers[i]))));
         foreach (var row in data.Rows)
             writer.WriteLine(string.Join(';', columns.Select(i => Escape(i < row.Length ? row[i] : ""))));
+        writer.WriteLine();
+        writer.WriteLine(string.Join(';', Enumerable.Repeat("", Math.Max(0, columns.Length - 1))
+            .Append(Escape(ExportBranding.Text))));
     }
 
     public static void Excel(string path, TableExportData data, int[] columns)
@@ -99,6 +102,9 @@ internal static class TableDataExport
             Row(columns.Select(i => i < data.Rows[index].Length ? data.Rows[index][i] : "").ToArray(),
                 rowStyle, style == "Detail");
         }
+        Row([]);
+        Row(Enumerable.Repeat("", Math.Max(0, columns.Length - 1))
+            .Append(ExportBranding.Text).ToArray());
         xml.WriteEndElement();
         if (data.Rows.Length > 0 && columns.Length > 0)
         {
@@ -169,7 +175,9 @@ internal static class TableDataExport
             }
             html.Append("</tr>");
         }
-        File.WriteAllText(path, html.Append("</tbody></table></body></html>").ToString(), Encoding.UTF8);
+        html.Append("</tbody></table><footer style='margin-top:18px;text-align:right;color:#526276;font-size:8pt'>")
+            .Append(WebUtility.HtmlEncode(ExportBranding.Text)).Append("</footer></body></html>");
+        File.WriteAllText(path, html.ToString(), Encoding.UTF8);
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
         return path;
     }
