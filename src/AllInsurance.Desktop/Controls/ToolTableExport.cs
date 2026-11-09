@@ -1,3 +1,4 @@
+using AllInsurance.Application.Exports;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
@@ -44,7 +45,7 @@ internal static class ToolTableExport
         var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "AllInsurance", "Εξαγωγές");
         Directory.CreateDirectory(folder);
-        return Path.Combine(folder, $"{name}-{DateTime.Now:yyyyMMdd-HHmmss}{extension}");
+        return Path.Combine(folder, ExportFileName.Create(name, DateTime.Now) + extension);
     }
 
     private static string Escape(string? value)

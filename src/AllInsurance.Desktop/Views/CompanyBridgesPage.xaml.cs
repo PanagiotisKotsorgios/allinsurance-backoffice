@@ -1,4 +1,5 @@
 using AllInsurance.Application.Business;
+using AllInsurance.Application.Bridges;
 using AllInsurance.Application.Abstractions;
 using AllInsurance.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -70,11 +71,21 @@ public sealed partial class CompanyBridgesPage : Page
         if (sender is not Button { Tag: ValueTuple<string, string> source }) return;
         var picker = new FileOpenPicker();
         picker.FileTypeFilter.Add(".csv");
+        picker.FileTypeFilter.Add(".txt");
         InitializeWithWindow.Initialize(picker, App.MainWindowHandle());
         var file = await picker.PickSingleFileAsync();
         if (file is null) return;
         try
         {
+            var nativeSource = source.Item1.Equals("Υδρόγειος", StringComparison.OrdinalIgnoreCase)
+                ? NativeBridgeSource.Ydrogeios
+                : source.Item1.StartsWith("Ορίζων", StringComparison.OrdinalIgnoreCase)
+                    ? NativeBridgeSource.Orizon : (NativeBridgeSource?)null;
+            if (nativeSource is not null)
+            {
+                await ImportNativeAsync(file.Path, nativeSource.Value, source.Item1);
+                return;
+            }
             var csv = await File.ReadAllTextAsync(file.Path);
             var firstLine = csv.Split(['\r', '\n'], 2)[0];
             var delimiter = firstLine.Count(character => character == ';') >= firstLine.Count(character => character == ',') ? ';' : ',';

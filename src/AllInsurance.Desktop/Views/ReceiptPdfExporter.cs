@@ -1,3 +1,4 @@
+using AllInsurance.Application.Exports;
 using AllInsurance.Application.Receipts;
 using AllInsurance.Desktop.Settings;
 using AllInsurance.Domain.Entities;
@@ -14,7 +15,8 @@ internal static class ReceiptPdfExporter
         var profile = AgencyProfileSettings.Load();
         profile.EnsureReceiptReady();
         var picker = new FileSavePicker { SuggestedFileName =
-            $"Απόδειξη-{transaction.OccurredAtUtc.ToLocalTime():yyyyMMdd}-{transaction.Id.ToString("N")[..8]}" };
+            ExportFileName.Create("Είσπραξη", transaction.OccurredAtUtc.ToLocalTime()) +
+            "-" + transaction.Id.ToString("N")[..8] };
         picker.FileTypeChoices.Add("Αρχείο PDF", [".pdf"]);
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(owner));
         var target = await picker.PickSaveFileAsync();

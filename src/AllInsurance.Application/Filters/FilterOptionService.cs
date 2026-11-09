@@ -14,6 +14,7 @@ public sealed class FilterOptionService(IApplicationDbContextFactory factory, IS
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var saved = await db.FilterOptions.AsNoTracking().Select(item => item.Category)
             .Distinct().ToListAsync(cancellationToken);
+        saved = saved.Where(category => !category.StartsWith("bridge:", StringComparison.Ordinal)).ToList();
         return new[] { "Πόλεις", "Κλάδοι", "Καλύψεις", "Χρήσεις οχημάτων",
             "Πακέτα ασφαλίσεων", "Επαγγέλματα", "Καταστάσεις",
             "Φύλα", "Νομικές μορφές", "Οικογενειακές καταστάσεις", "Πηγές πελατών",

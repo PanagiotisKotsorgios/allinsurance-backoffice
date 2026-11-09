@@ -1,3 +1,4 @@
+using AllInsurance.Application.Exports;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -30,7 +31,7 @@ internal static class TableExportActions
                 try
                 {
                     var data = getData();
-                    var picker = new FileSavePicker { SuggestedFileName = SafeName(data.Title) + "-" + DateTime.Now.ToString("yyyyMMdd") };
+                    var picker = new FileSavePicker { SuggestedFileName = ExportFileName.Create(data.Title, DateTime.Now) };
                     picker.FileTypeChoices.Add(label, [extension]);
                     InitializeWithWindow.Initialize(picker, App.MainWindowHandle());
                     var file = await picker.PickSaveFileAsync();
@@ -85,6 +86,4 @@ internal static class TableExportActions
         catch (Exception error) { await UiAlerts.ShowErrorAsync(owner.XamlRoot, "Αποτυχία εκτύπωσης: " + error.Message); }
     }
 
-    private static string SafeName(string value) => string.Concat(value.Select(c =>
-        Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
 }
