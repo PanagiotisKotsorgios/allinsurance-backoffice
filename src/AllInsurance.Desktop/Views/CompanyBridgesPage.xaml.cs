@@ -9,11 +9,13 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
+using System.Globalization;
 
 namespace AllInsurance.Desktop.Views;
 
 public sealed partial class CompanyBridgesPage : Page
 {
+    private readonly List<(Button Button, string SearchText)> _folderEntries = [];
     private readonly IBusinessRecordService _records = App.Services.GetRequiredService<IBusinessRecordService>();
     private readonly IApplicationDbContextFactory _factory = App.Services.GetRequiredService<IApplicationDbContextFactory>();
     private static readonly string[] Insurers =
@@ -41,6 +43,7 @@ public sealed partial class CompanyBridgesPage : Page
                 .DistinctBy(item => item.Item1 + "|" + item.Item2, StringComparer.CurrentCultureIgnoreCase)
                 .OrderBy(item => item.Item1).ThenBy(item => item.Item2).ToArray();
             Folders.Children.Clear();
+            _folderEntries.Clear();
             foreach (var (name, kind) in names)
             {
                 var button = new Button { HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -61,10 +64,27 @@ public sealed partial class CompanyBridgesPage : Page
                 } };
                 button.Click += Folder_Click;
                 Folders.Children.Add(button);
+                _folderEntries.Add((button, name + " " + kind));
             }
+            FilterFolders();
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
     }
+
+    private void CompanySearch_Changed(object sender, TextChangedEventArgs e) => FilterFolders();
+
+    private void FilterFolders()
+    {
+        var term = CompanySearch?.Text.Trim() ?? "";
+        foreach (var (button, text) in _folderEntries)
+            button.Visibility = term.Length == 0 ||
+                CultureInfo.GetCultureInfo("el-GR").CompareInfo.IndexOf(text, term,
+                    CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0
+                ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void Parameters_Click(object sender, RoutedEventArgs e) =>
+        Frame?.Navigate(typeof(BridgeMappingsPage));
 
     private async void Folder_Click(object sender, RoutedEventArgs e)
     {

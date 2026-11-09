@@ -209,7 +209,14 @@ public sealed partial class CompanyBridgesPage
     private async Task<Dictionary<string, string>?> MapFilterCodesAsync(NativeBridgeSource source,
         string category, string label, string company, IEnumerable<string> rawCodes)
     {
-        var mappingCategory = $"bridge:{source}:{category}";
+        var mappingKind = category switch
+        {
+            "Κλάδοι" => BridgeMappingKind.Branch,
+            "Χρήσεις οχημάτων" => BridgeMappingKind.VehicleUse,
+            "Καλύψεις" => BridgeMappingKind.Coverage,
+            _ => throw new ArgumentOutOfRangeException(nameof(category))
+        };
+        var mappingCategory = BridgeMappingStore.Category(source, mappingKind);
         var saved = (await _bridgeFilters.ListAsync(mappingCategory))
             .Select(item => (item.Id, Parts: item.Value.Split('|', 2)))
             .Where(item => item.Parts.Length == 2)
@@ -256,7 +263,7 @@ public sealed partial class CompanyBridgesPage
     private async Task<Dictionary<string, Guid?>?> MapPartnerCodesAsync(NativeBridgeSource source,
         IEnumerable<string> rawCodes, IReadOnlyList<BusinessRecord> partners)
     {
-        var category = $"bridge:{source}:partner";
+        var category = BridgeMappingStore.Category(source, BridgeMappingKind.Partner);
         var saved = (await _bridgeFilters.ListAsync(category))
             .Select(item => (item.Id, Parts: item.Value.Split('|', 2)))
             .Where(item => item.Parts.Length == 2)
