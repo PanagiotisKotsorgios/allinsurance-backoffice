@@ -234,7 +234,12 @@ public sealed partial class WorkspaceRecordCardWindow
     private void BuildHistoryTab()
     {
         var panel = RelatedPanel();
+        var search = new TextBox { PlaceholderText = "Αναζήτηση στο ιστορικό", MinHeight = 40 };
+        var action = new ComboBox { Header = "Ενέργεια", MinWidth = 180 };
+        panel.Children.Add(search);
+        panel.Children.Add(action);
         var list = new ListView { Height = 410, HorizontalAlignment = HorizontalAlignment.Stretch };
+        list.Header = RecordHistoryTable.Header();
         TableRowStriping.Attach(list);
         list.DoubleTapped += async (_, _) =>
         {
@@ -256,10 +261,24 @@ public sealed partial class WorkspaceRecordCardWindow
         var pager = new TablePagination(list);
         panel.Children.Add(pager.Bar);
         AddTab("Ιστορικό ενεργειών", panel);
+        BusinessRecordActivity[] activities = [];
+        void Render()
+        {
+            var term = search.Text.Trim();
+            var selected = action.SelectedIndex > 0 ? action.SelectedItem?.ToString() : null;
+            list.Items.Clear();
+            foreach (var activity in activities.Where(item =>
+                (selected is null || item.Action == selected) &&
+                (term.Length == 0 || new[] { item.Action, item.Description, item.ActorName }
+                    .Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true))))
+                list.Items.Add(RecordHistoryTable.Row(activity));
+            pager.Capture();
+        }
+        search.TextChanged += (_, _) => Render();
+        action.SelectionChanged += (_, _) => Render();
         if (_record.Id == Guid.Empty)
         {
-            list.Items.Add("Το ιστορικό θα εμφανιστεί μετά την πρώτη αποθήκευση.");
-            pager.Capture();
+            Render();
             return;
         }
         _ = LoadHistoryAsync();
@@ -267,14 +286,13 @@ public sealed partial class WorkspaceRecordCardWindow
         {
             try
             {
-                var activities = await _records.GetActivitiesAsync(_record.Id);
-                list.Items.Clear();
-                foreach (var activity in activities)
-                    list.Items.Add(new ListViewItem { Tag = activity, Content = new TextBlock { Text =
-                        $"{activity.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}  ·  " +
-                        $"{activity.Action}  ·  {activity.Description}  ·  {activity.ActorName}",
-                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(8, 5, 8, 5) } });
-                pager.Capture();
+                activities = [.. await _records.GetActivitiesAsync(_record.Id)];
+                action.Items.Clear();
+                action.Items.Add("Όλες οι ενέργειες");
+                foreach (var value in activities.Select(item => item.Action).Distinct().OrderBy(value => value))
+                    action.Items.Add(value);
+                action.SelectedIndex = 0;
+                Render();
             }
             catch (Exception exception) { _status.Text = exception.Message; }
         }

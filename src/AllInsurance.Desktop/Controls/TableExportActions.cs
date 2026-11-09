@@ -1,5 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using AllInsurance.Desktop.Views;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -10,7 +12,14 @@ internal static class TableExportActions
 {
     public static void Attach(Panel host, FrameworkElement owner, Func<TableExportData> getData)
     {
-        var button = new Button { Content = "Εξαγωγή δεδομένων ▴", MinHeight = 30,
+        var buttonContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7,
+            VerticalAlignment = VerticalAlignment.Center };
+        buttonContent.Children.Add(new Image { Source = new SvgImageSource(new Uri("ms-appx:///Assets/Icons/action-download.svg")),
+            Width = 17, Height = 17, VerticalAlignment = VerticalAlignment.Center });
+        buttonContent.Children.Add(new TextBlock { Text = "Εξαγωγή δεδομένων ▴", VerticalAlignment = VerticalAlignment.Center });
+        var button = new Button { Content = buttonContent, MinHeight = 30,
+            BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 88, 125, 161)),
+            BorderThickness = new Thickness(1.5),
             Padding = new Thickness(10, 3, 10, 3), VerticalAlignment = VerticalAlignment.Center };
         var flyout = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.Top };
         foreach (var (label, extension) in new[] { ("Excel (.xlsx)", ".xlsx"), ("CSV (.csv)", ".csv") })

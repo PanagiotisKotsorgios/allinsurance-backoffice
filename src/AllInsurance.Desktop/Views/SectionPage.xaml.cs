@@ -72,8 +72,9 @@ public sealed partial class SectionPage : Page
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         _partners = App.Services.GetRequiredService<IPartnerService>();
         InitializeComponent();
-        BatchButton.Visibility = section.Key is "partners" or "companies" or "agencies"
+        BulkReceiptButton.Visibility = section.Key is "partners" or "companies" or "agencies"
             ? Visibility.Visible : Visibility.Collapsed;
+        BulkPaymentButton.Visibility = BulkReceiptButton.Visibility;
         TableExportActions.Attach(PaginationActions, this, ExportData);
         TableRowStriping.Attach(RecordsList);
         RecordsList.AddHandler(UIElement.PointerPressedEvent,
@@ -218,8 +219,7 @@ public sealed partial class SectionPage : Page
     private void UpdateResponsiveLayout(double width)
     {
         if (FilterBar is null || _visibleFilterCount == 0 || width <= 0) return;
-        var requiredWidth = _visibleFilterCount * 188 + 180 + 230 + 160 +
-            (BatchButton.Visibility == Visibility.Visible ? 175 : 0) + 56;
+        var requiredWidth = _visibleFilterCount * 188 + 180 + 230 + 160 + 56;
         var popup = width < requiredWidth;
         if (popup != _filtersInPopup)
         {
@@ -240,13 +240,11 @@ public sealed partial class SectionPage : Page
         foreach (var filter in FilterBar.Children.OfType<FrameworkElement>())
             filter.Width = popup ? 240 : 180;
         ShowFiltersButton.Visibility = popup ? Visibility.Visible : Visibility.Collapsed;
-        var narrow = width < (BatchButton.Visibility == Visibility.Visible ? 950 : 760);
+        var narrow = width < 760;
         AddButton.IconOnly = narrow;
         DeleteButton.IconOnly = narrow;
-        BatchButton.IconOnly = narrow;
         AddButton.Width = narrow ? 44 : 230;
         DeleteButton.Width = narrow ? 44 : 160;
-        BatchButton.Width = narrow ? 44 : 175;
         var veryNarrow = width < 480;
         ClearFiltersButton.IconOnly = veryNarrow;
         ClearFiltersButton.Width = veryNarrow ? 44 : 180;

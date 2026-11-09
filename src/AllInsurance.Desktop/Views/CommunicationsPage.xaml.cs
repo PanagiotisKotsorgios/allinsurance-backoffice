@@ -25,7 +25,9 @@ public sealed partial class CommunicationsPage : Page
     private Candidate[] _shown = [];
     private readonly HashSet<Guid> _selected = [];
     private bool _syncingSelection;
-    private BusinessRecordCardWindow? _policyCard;
+    private bool _sending;
+    private CommunicationGateway.EmailQuota? _emailQuota;
+    private int _emailsSentInSession;
     private readonly List<MessageTemplate> _templates = [];
     private readonly Dictionary<string, DateTime> _sent = [];
     private static readonly string CommunicationFolder = Path.Combine(
@@ -38,17 +40,16 @@ public sealed partial class CommunicationsPage : Page
     {
         InitializeComponent();
         TableExportActions.Attach(ExportHost, this, () => new TableExportData("Ενημέρωση πελατών",
-            ["Πελάτης", "Email", "Τηλέφωνο", "Απεστάλη", "Ασφαλιστήριο", "Λήξη", "Είδος"],
+            ["Πελάτης", "Email", "Τηλέφωνο", "Απεστάλη", "Ασφαλιστήριο", "Λήξη", "Ημέρες για τη λήξη"],
             _shown.Select(item =>
             {
                 var key = $"{item.Record.Id}:{(ChannelChoice.SelectedIndex == 1 ? "email" : "sms")}";
                 return new[] { item.CustomerName, item.Email, item.Phone,
                     _sent.TryGetValue(key, out var date) ? date.ToLocalTime().ToString("dd/MM/yyyy") : "—",
-                    item.Number, item.DueDate.ToString("dd/MM/yyyy"), item.Type };
+                    item.Number, item.DueDate.ToString("dd/MM/yyyy"), item.DaysLeft.ToString() };
             }).ToArray()));
         AllInsurance.Desktop.Controls.TableRowStriping.Attach(RecipientsList);
         ChannelChoice.SelectedIndex = 0;
-        DocumentFilter.SelectedIndex = 0;
         FromDate.Date = new DateTimeOffset(DateTime.Today);
         UntilDate.Date = new DateTimeOffset(DateTime.Today.AddDays(30));
         SmsBody.Text = "Αγαπητέ/ή {όνομα}, το ασφαλιστήριό σας {αριθμός} λήγει στις {λήξη}. Επικοινωνήστε μαζί μας για την ανανέωσή του.";
@@ -75,6 +76,12 @@ public sealed partial class CommunicationsPage : Page
                          .Distinct(StringComparer.CurrentCultureIgnoreCase).OrderBy(value => value))
                 CompanyFilter.Items.Add(name);
             CompanyFilter.SelectedIndex = 0;
+            BranchFilter.Items.Clear();
+            BranchFilter.Items.Add("Όλοι οι κλάδοι");
+            foreach (var name in _candidates.Select(item => item.Branch).Where(value => !string.IsNullOrWhiteSpace(value))
+                         .Distinct(StringComparer.CurrentCultureIgnoreCase).OrderBy(value => value))
+                BranchFilter.Items.Add(name);
+            BranchFilter.SelectedIndex = 0;
             ApplyFilters();
         }
         catch (Exception exception)
@@ -93,25 +100,26 @@ public sealed partial class CommunicationsPage : Page
         _selected.Clear();
         RefreshTemplates();
         ApplyFilters();
+        if (email) _ = RefreshEmailQuotaAsync();
+        else CreditsText.Text = "SMS credits: Bulker";
     }
 
     private void FiltersChanged(object sender, object args) => ApplyFilters();
 
     private void ApplyFilters()
     {
-        if (RecipientsList is null || DocumentFilter is null || ChannelChoice is null || CompanyFilter is null ||
+        if (RecipientsList is null || ChannelChoice is null || CompanyFilter is null || BranchFilter is null ||
             FromDate is null || UntilDate is null || SearchInput is null) return;
         var from = FromDate.Date?.Date ?? DateTime.Today;
         var until = UntilDate.Date?.Date ?? from.AddDays(30);
         var term = SearchInput.Text.Trim();
         var company = CompanyFilter.SelectedIndex > 0 ? CompanyFilter.SelectedItem?.ToString() : null;
+        var branch = BranchFilter.SelectedIndex > 0 ? BranchFilter.SelectedItem?.ToString() : null;
         _shown = _candidates.Where(item => item.DueDate.Date >= from && item.DueDate.Date <= until)
-            .Where(item => DocumentFilter.SelectedIndex == 0 || DocumentFilter.SelectedIndex == 1 && item.Type == "Ασφαλιστήριο" ||
-                DocumentFilter.SelectedIndex == 2 && item.Type == "Αίτηση" ||
-                DocumentFilter.SelectedIndex == 3 && item.Type == "Ειδοποιητήριο")
             .Where(item => company is null || item.Company == company)
+            .Where(item => branch is null || item.Branch == branch)
             .Where(item => term.Length == 0 || new[] { item.CustomerName, item.Number, item.Company,
-                item.Branch, item.Email, item.Phone }
+                    item.Branch, item.Email, item.Phone }
                 .Any(value => value.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
             .OrderBy(item => item.DueDate).ToArray();
         RecipientsList.Items.Clear();
@@ -147,14 +155,27 @@ public sealed partial class CommunicationsPage : Page
         var sentKey = $"{candidate.Record.Id}:{(ChannelChoice.SelectedIndex == 1 ? "email" : "sms")}";
         var values = new[] { candidate.CustomerName, candidate.Email, candidate.Phone,
             _sent.TryGetValue(sentKey, out var sentAt) ? sentAt.ToLocalTime().ToString("dd/MM/yyyy") : "—",
-            candidate.Number, candidate.DueDate.ToString("dd/MM/yyyy"), candidate.Type };
+            candidate.Number, candidate.DueDate.ToString("dd/MM/yyyy"), candidate.DaysLeft.ToString() };
         for (var index = 0; index < values.Length; index++)
         {
             var cell = new Border { BorderBrush = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["TableBorderBrush"],
                 BorderThickness = new Thickness(0, 0, index == values.Length - 1 ? 0 : 1, 1),
                 Padding = new Thickness(8, 0, 8, 0),
                 Child = new TextBlock { Text = values[index], VerticalAlignment = VerticalAlignment.Center,
+                    FontWeight = index == values.Length - 1 ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal,
                     TextTrimming = TextTrimming.CharacterEllipsis } };
+            if (index == values.Length - 1)
+            {
+                cell.Background = new SolidColorBrush(candidate.DaysLeft switch
+                {
+                    <= 7 => Windows.UI.Color.FromArgb(255, 174, 73, 78),
+                    <= 30 => Windows.UI.Color.FromArgb(255, 245, 211, 77),
+                    _ => Windows.UI.Color.FromArgb(255, 74, 145, 94)
+                });
+                if (cell.Child is TextBlock days)
+                    days.Foreground = new SolidColorBrush(candidate.DaysLeft is > 7 and <= 30
+                        ? Windows.UI.Color.FromArgb(255, 47, 41, 24) : Microsoft.UI.Colors.White);
+            }
             Grid.SetColumn(cell, index + 1); grid.Children.Add(cell);
         }
         return new ListViewItem { Content = grid, Tag = candidate, Padding = new Thickness(0),
@@ -189,6 +210,22 @@ public sealed partial class CommunicationsPage : Page
         var missing = _shown.Count(item => _selected.Contains(item.Record.Id) &&
             string.IsNullOrWhiteSpace(channel == "email" ? item.Email : item.Phone));
         ComposeStatus.Text = $"Κανάλι: {channel.ToUpperInvariant()} · {missing} επιλεγμένοι χωρίς στοιχεία επικοινωνίας";
+    }
+
+    private async Task RefreshEmailQuotaAsync()
+    {
+        if (ChannelChoice.SelectedIndex != 1 || !_gateway.IsConfigured(true))
+        { CreditsText.Text = "Brevo: προσθέστε ρυθμίσεις"; return; }
+        try
+        {
+            _emailQuota = await _gateway.GetEmailQuotaAsync();
+            CreditsText.Text = _emailQuota.DailyLimit is int limit
+                ? $"Brevo Free: {(_emailQuota.SentToday is int sent ? Math.Max(0, limit - sent - _emailsSentInSession).ToString() : "—")}/{limit} διαθέσιμα σήμερα*"
+                : $"Brevo {_emailQuota.Plan}: όριο από τον λογαριασμό";
+        }
+        catch (Exception error)
+        { _emailQuota = null; CreditsText.Text = "Brevo: μη διαθέσιμο υπόλοιπο";
+          ComposeStatus.Text = "Δεν διαβάστηκε το όριο Brevo: " + error.Message; }
     }
 
     private void SmsBody_Changed(object sender, TextChangedEventArgs e)
@@ -285,7 +322,7 @@ public sealed partial class CommunicationsPage : Page
                 foreach (var pair in JsonSerializer.Deserialize<Dictionary<string, DateTime>>(
                     File.ReadAllText(SentFile)) ?? []) _sent[pair.Key] = pair.Value;
         }
-        catch (Exception exception) when (exception is IOException or JsonException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         { ComposeStatus.Text = "Δεν διαβάστηκαν τα τοπικά πρότυπα/ιστορικό: " + exception.Message; }
     }
 
@@ -308,8 +345,9 @@ public sealed partial class CommunicationsPage : Page
         if (template is null) return;
         SubjectInput.Text = template.Subject;
         if (channel == "sms") SmsBody.Text = template.Body;
-        else EmailBody.Document.SetText(TextSetOptions.FormatRtf,
-            string.IsNullOrWhiteSpace(template.RichBody) ? template.Body : template.RichBody);
+        else if (template.RichBody?.StartsWith("{\\rtf", StringComparison.OrdinalIgnoreCase) == true)
+            EmailBody.Document.SetText(TextSetOptions.FormatRtf, template.RichBody);
+        else EmailBody.Document.SetText(TextSetOptions.None, template.Body);
     }
 
     private async void SaveTemplate_Click(object sender, RoutedEventArgs e)
@@ -355,6 +393,8 @@ public sealed partial class CommunicationsPage : Page
 
     private async void Recipient_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
+        try
+        {
         var current = e.OriginalSource as DependencyObject;
         while (current is not null && current is not ListViewItem)
             current = VisualTreeHelper.GetParent(current);
@@ -380,6 +420,8 @@ public sealed partial class CommunicationsPage : Page
         await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = XamlRoot,
             Title = "Στοιχεία παραλήπτη", Content = panel, CloseButtonText = "Κλείσιμο" });
         e.Handled = true;
+        }
+        catch (Exception error) { await UiAlerts.ShowErrorAsync(XamlRoot, "Δεν άνοιξε η καρτέλα παραλήπτη: " + error.Message); }
     }
 
     private async void Settings_Click(object sender, RoutedEventArgs e)
@@ -422,18 +464,9 @@ public sealed partial class CommunicationsPage : Page
                 SmsSender = emailChannel ? settings.SmsSender : sms.Text.Trim()
             }, emailChannel ? brevo.Password : "", emailChannel ? "" : bulker.Password);
             ComposeStatus.Text = "Οι ρυθμίσεις αποστολής αποθηκεύτηκαν.";
+            if (emailChannel) await RefreshEmailQuotaAsync();
         }
         catch (Exception exception) { await UiAlerts.ShowErrorAsync(XamlRoot, exception.Message); }
-    }
-
-    private async void OpenPolicy_Click(object sender, RoutedEventArgs e)
-    {
-        if (RecipientsList.SelectedItem is not ListViewItem { Tag: Candidate candidate })
-        { await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε ασφαλιστήριο από τον πίνακα."); return; }
-        if (_policyCard is not null) { _policyCard.BringToFront(); return; }
-        _policyCard = new BusinessRecordCardWindow("policies", recordId: candidate.Record.Id);
-        _policyCard.Closed += (_, _) => { _policyCard = null; _ = LoadAsync(); };
-        _policyCard.BringToFront();
     }
 
     private string BodyText()
@@ -509,6 +542,8 @@ public sealed partial class CommunicationsPage : Page
 
     private async void Preview_Click(object sender, RoutedEventArgs e)
     {
+        try
+        {
         var selected = _shown.FirstOrDefault(item => _selected.Contains(item.Record.Id)) ?? _shown.FirstOrDefault();
         if (selected is null) { await UiAlerts.ShowErrorAsync(XamlRoot, "Δεν υπάρχουν παραλήπτες για προεπισκόπηση."); return; }
         UIElement preview;
@@ -533,6 +568,8 @@ public sealed partial class CommunicationsPage : Page
             Title = $"Προεπισκόπηση για {selected.CustomerName}",
             Content = new ScrollViewer { Content = preview, MaxHeight = 450 },
             CloseButtonText = "Κλείσιμο" });
+        }
+        catch (Exception error) { await UiAlerts.ShowErrorAsync(XamlRoot, "Δεν δημιουργήθηκε προεπισκόπηση: " + error.Message); }
     }
 
     private async void SaveDraft_Click(object sender, RoutedEventArgs e)
@@ -554,11 +591,25 @@ public sealed partial class CommunicationsPage : Page
 
     private async void Send_Click(object sender, RoutedEventArgs e)
     {
+        if (_sending) return;
+        _sending = true;
+        try
+        {
         var email = ChannelChoice.SelectedIndex == 1;
         var recipients = _shown.Where(item => _selected.Contains(item.Record.Id)).ToArray();
         if (recipients.Length == 0) { await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε παραλήπτες από τη λίστα."); return; }
         if (!_gateway.IsConfigured(email))
         { await UiAlerts.ShowErrorAsync(XamlRoot, "Συμπληρώστε πρώτα τις ρυθμίσεις αποστολής Brevo ή Bulker SMS."); return; }
+        if (email)
+        {
+            await RefreshEmailQuotaAsync();
+            if (_emailQuota?.Remaining is int remaining && recipients.Length > remaining - _emailsSentInSession)
+            {
+                await UiAlerts.ShowErrorAsync(XamlRoot,
+                    $"Το δωρεάν όριο Brevo επιτρέπει περίπου {Math.Max(0, remaining - _emailsSentInSession)} ακόμη email σήμερα. Επιλέξτε λιγότερους παραλήπτες ή συνεχίστε αύριο. Τα στοιχεία αποστολής Brevo μπορεί να ενημερώνονται με καθυστέρηση.");
+                return;
+            }
+        }
         if (string.IsNullOrWhiteSpace(BodyText()) || email && string.IsNullOrWhiteSpace(SubjectInput.Text))
         { await UiAlerts.ShowErrorAsync(XamlRoot, "Συμπληρώστε θέμα και κείμενο μηνύματος."); return; }
         var missing = recipients.Count(item => string.IsNullOrWhiteSpace(email ? item.Email : item.Phone));
@@ -585,9 +636,14 @@ public sealed partial class CommunicationsPage : Page
                     }
                     else await _gateway.SendSmsAsync(recipient.Phone, body);
                     _sent[$"{recipient.Record.Id}:{(email ? "email" : "sms")}"] = DateTime.UtcNow;
+                    if (email) _emailsSentInSession++;
                     success++;
                 }
-                catch (Exception exception) { errors.Add($"{recipient.CustomerName}: {exception.Message}"); }
+                catch (Exception exception)
+                {
+                    errors.Add($"{recipient.CustomerName}: {exception.Message}");
+                    if (email && exception.Message.Contains("Brevo", StringComparison.OrdinalIgnoreCase)) break;
+                }
                 ComposeStatus.Text = $"Αποστολή: {success + errors.Count}/{recipients.Length}";
             }
         }
@@ -605,6 +661,10 @@ public sealed partial class CommunicationsPage : Page
         await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = XamlRoot, Title = "Αποτέλεσμα αποστολής",
             Content = $"Επιτυχείς αιτήσεις: {success}\nΑποτυχίες: {errors.Count}" +
                 (errors.Count > 0 ? "\n\n" + string.Join("\n", errors.Take(5)) : ""), CloseButtonText = "Κλείσιμο" });
+        }
+        catch (Exception error)
+        { SendButton.IsEnabled = true; await UiAlerts.ShowErrorAsync(XamlRoot, "Η αποστολή δεν ολοκληρώθηκε: " + error.Message); }
+        finally { _sending = false; SendButton.IsEnabled = true; }
     }
 
     private sealed class Candidate(BusinessRecord record, PolicyCardData data)
@@ -619,5 +679,6 @@ public sealed partial class CommunicationsPage : Page
         public string Branch { get; } = data.Branch ?? "—";
         public string Type { get; } = record.DocumentType ?? "Ασφαλιστήριο";
         public DateTime DueDate { get; } = data.EndDate ?? record.EventDate ?? record.CreatedAtUtc;
+        public int DaysLeft => (DueDate.Date - DateTime.Today).Days;
     }
 }

@@ -159,10 +159,8 @@ public sealed partial class CustomersPage : Page
         var narrow = width < 1000;
         AddButton.IconOnly = narrow;
         DeleteButton.IconOnly = narrow;
-        BatchButton.IconOnly = narrow;
         AddButton.Width = narrow ? 44 : 180;
         DeleteButton.Width = narrow ? 44 : 175;
-        BatchButton.Width = narrow ? 44 : 175;
         var veryNarrow = width < 480;
         ClearFiltersButton.IconOnly = veryNarrow;
         ClearFiltersButton.Width = veryNarrow ? 44 : 185;

@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
 using Windows.Security.Credentials;
 
@@ -6,6 +7,11 @@ namespace AllInsurance.Desktop.Views;
 
 internal sealed class CommunicationGateway
 {
+    public sealed record EmailQuota(string Plan, int? DailyLimit, int? SentToday)
+    {
+        public int? Remaining => DailyLimit is int limit && SentToday is int sent
+            ? Math.Max(0, limit - sent) : null;
+    }
     private const string VaultResource = "AllInsurance.Backoffice.Communications";
     private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(25) };
     private static readonly string SettingsFile = Path.Combine(
@@ -21,8 +27,50 @@ internal sealed class CommunicationGateway
 
     public Settings ReadSettings()
     {
-        if (!File.Exists(SettingsFile)) return new Settings();
-        return JsonSerializer.Deserialize<Settings>(File.ReadAllText(SettingsFile)) ?? new Settings();
+        try
+        {
+            if (!File.Exists(SettingsFile)) return new Settings();
+            return JsonSerializer.Deserialize<Settings>(File.ReadAllText(SettingsFile)) ?? new Settings();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        { return new Settings(); }
+    }
+
+    public async Task<EmailQuota> GetEmailQuotaAsync(CancellationToken cancellationToken = default)
+    {
+        var key = GetSecret("brevo") ?? throw new InvalidOperationException("Δεν έχει οριστεί κλειδί Brevo.");
+        using var accountRequest = new HttpRequestMessage(HttpMethod.Get, "https://api.brevo.com/v3/account");
+        accountRequest.Headers.Add("api-key", key);
+        using var accountResponse = await Client.SendAsync(accountRequest, cancellationToken);
+        if (!accountResponse.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Brevo: δεν διαβάστηκε το πρόγραμμα συνδρομής (HTTP {(int)accountResponse.StatusCode}).");
+        using var account = JsonDocument.Parse(await accountResponse.Content.ReadAsStringAsync(cancellationToken));
+        var plans = account.RootElement.TryGetProperty("plan", out var value) && value.ValueKind == JsonValueKind.Array
+            ? value.EnumerateArray().ToArray() : [];
+        var emailPlans = plans.Where(plan => plan.TryGetProperty("creditsType", out var type) &&
+            type.GetString()?.Contains("sendLimit", StringComparison.OrdinalIgnoreCase) == true).ToArray();
+        var free = emailPlans.Any(plan => plan.TryGetProperty("type", out var type) &&
+            string.Equals(type.GetString(), "free", StringComparison.OrdinalIgnoreCase)) &&
+            !emailPlans.Any(plan => plan.TryGetProperty("type", out var type) &&
+                !string.Equals(type.GetString(), "free", StringComparison.OrdinalIgnoreCase));
+        var planName = emailPlans.FirstOrDefault().ValueKind == JsonValueKind.Object &&
+            emailPlans[0].TryGetProperty("type", out var planType) ? planType.GetString() ?? "Brevo" : "Brevo";
+        var today = DateTime.Today.ToString("yyyy-MM-dd");
+        using var reportRequest = new HttpRequestMessage(HttpMethod.Get,
+            $"https://api.brevo.com/v3/smtp/statistics/reports?startDate={today}&endDate={today}");
+        reportRequest.Headers.Add("api-key", key);
+        using var reportResponse = await Client.SendAsync(reportRequest, cancellationToken);
+        int? sent = null;
+        if (reportResponse.IsSuccessStatusCode)
+        {
+            using var report = JsonDocument.Parse(await reportResponse.Content.ReadAsStringAsync(cancellationToken));
+            sent = 0;
+            if (report.RootElement.TryGetProperty("reports", out var rows) && rows.ValueKind == JsonValueKind.Array)
+                foreach (var row in rows.EnumerateArray())
+                    if (row.TryGetProperty("requests", out var requests) && requests.TryGetInt32(out var count))
+                        sent += count;
+        }
+        return new EmailQuota(planName, free ? 300 : null, sent);
     }
 
     public void SaveSettings(Settings settings, string? brevoKey, string? bulkerKey)
@@ -54,6 +102,8 @@ internal sealed class CommunicationGateway
         });
         using var response = await Client.SendAsync(request);
         var result = await response.Content.ReadAsStringAsync();
+        if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.PaymentRequired)
+            throw new InvalidOperationException("Το Brevo έφτασε το διαθέσιμο όριο αποστολής ή χρειάζεται επιπλέον credits. Δοκιμάστε ξανά όταν ανανεωθεί το όριο.");
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException($"Brevo HTTP {(int)response.StatusCode}: {TrimResponse(result)}");
         return "Brevo: " + TrimResponse(result);

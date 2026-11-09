@@ -11,7 +11,8 @@
                            Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBlock x:Name="CreditsText" Text="SMS credits: —" VerticalAlignment="Center" FontWeight="SemiBold" />
+                <TextBlock x:Name="CreditsText" Text="SMS credits: —" VerticalAlignment="Center" FontWeight="SemiBold"
+                           ToolTipService.ToolTip="Η ένδειξη Brevo βασίζεται στο πρόγραμμα συνδρομής και στις διαθέσιμες μετρήσεις transactional email. Η τελική αποδοχή αποστολής ελέγχεται από το Brevo." />
                 <controls:ActionButton Kind="Add" Label="Προσθήκη credits" Click="Credits_Click" />
                 <controls:ActionButton Kind="Edit" Label="Ρυθμίσεις αποστολής" Click="Settings_Click" />
             </StackPanel>
@@ -24,11 +25,8 @@
                     <ComboBox x:Name="ChannelChoice" Header="Κανάλι" Width="195" SelectionChanged="ChannelChanged">
                         <ComboBoxItem Content="SMS" /><ComboBoxItem Content="Email" />
                     </ComboBox>
-                    <ComboBox x:Name="DocumentFilter" Header="Είδος εγγράφου" Width="195" SelectionChanged="FiltersChanged">
-                        <ComboBoxItem Content="Όλα" /><ComboBoxItem Content="Ασφαλιστήρια" />
-                        <ComboBoxItem Content="Αιτήσεις" /><ComboBoxItem Content="Ειδοποιητήρια" />
-                    </ComboBox>
-                    <ComboBox x:Name="CompanyFilter" Header="Εταιρεία" Width="195" SelectionChanged="FiltersChanged" />
+                    <ComboBox x:Name="CompanyFilter" Header="Ασφαλιστική εταιρεία" Width="195" SelectionChanged="FiltersChanged" />
+                    <ComboBox x:Name="BranchFilter" Header="Κλάδος" Width="195" SelectionChanged="FiltersChanged" />
                     <StackPanel><TextBlock Text="Λήξη από" /><controls:EditableDateInput x:Name="FromDate" Width="195" Height="42" DateChanged="FiltersChanged" /></StackPanel>
                     <StackPanel><TextBlock Text="Λήξη έως" /><controls:EditableDateInput x:Name="UntilDate" Width="195" Height="42" DateChanged="FiltersChanged" /></StackPanel>
                 </VariableSizedWrapGrid>
@@ -36,15 +34,13 @@
         </Border>
         <Border Grid.Row="2" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="12">
             <Grid RowDefinitions="Auto,*,Auto">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                         <controls:VisibleSelectionCheckBox x:Name="SelectAll" Checked="SelectAll_Changed"
                               Unchecked="SelectAll_Changed" />
                         <TextBlock Text="Επιλογή όλων" VerticalAlignment="Center" />
                     </StackPanel>
                     <TextBlock x:Name="RecipientsText" Grid.Column="1" VerticalAlignment="Center" />
-                    <controls:ActionButton Grid.Column="2" Kind="Open" Label="Καρτέλα ασφαλιστηρίου"
-                                           Click="OpenPolicy_Click" />
                 </Grid>
                 <ListView x:Name="RecipientsList" Grid.Row="1" SelectionMode="Single" Padding="0"
                           BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1"
@@ -59,7 +55,7 @@
                             <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Αποστολή" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                             <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Ασφαλιστήριο" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                             <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,0"><TextBlock Text="Λήξη" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
-                            <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="8,0"><TextBlock Text="Είδος" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
+                            <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="8,0"><TextBlock Text="Ημέρες για τη λήξη" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                         </Grid>
                     </ListView.Header>
                 </ListView>

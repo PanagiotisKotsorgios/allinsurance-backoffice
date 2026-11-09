@@ -55,6 +55,8 @@ public class ActionButton : Button
             "Add" => ("#579473", "plus"),
             "Save" => ("#438665", "save"),
             "Receipt" => ("#4F806F", "receipt"),
+            "BulkReceipt" => ("#687887", "receipt"),
+            "BulkPayment" => ("#687887", "wallet"),
             "Edit" => ("#517FA4", "pencil"),
             "Columns" => ("#517FA4", "columns-3"),
             "Renewals" => ("#517FA4", "refresh-cw"),

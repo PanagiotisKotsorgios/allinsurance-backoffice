@@ -19,6 +19,10 @@ public sealed partial class BusinessRecordCardWindow
     private ListView? _policyAttachmentList;
     private TablePagination? _policyAttachmentPager;
     private ListView? _policyHistoryList;
+    private TablePagination? _policyHistoryPager;
+    private TextBox? _policyHistorySearch;
+    private ComboBox? _policyHistoryAction;
+    private BusinessRecordActivity[] _policyHistoryActivities = [];
 
     private void BuildPolicyFinanceTab(PolicyCardData data)
     {
@@ -348,10 +352,31 @@ public sealed partial class BusinessRecordCardWindow
             links.Children.Add(next);
         }
         panel.Children.Add(links);
+        _policyHistorySearch = new TextBox { PlaceholderText = "Αναζήτηση στο ιστορικό", MinHeight = 40 };
+        _policyHistoryAction = new ComboBox { Header = "Ενέργεια", MinWidth = 180 };
+        _policyHistorySearch.TextChanged += (_, _) => RenderPolicyHistory();
+        _policyHistoryAction.SelectionChanged += (_, _) => RenderPolicyHistory();
+        panel.Children.Add(_policyHistorySearch);
+        panel.Children.Add(_policyHistoryAction);
         _policyHistoryList = new ListView { Height = 350 };
+        _policyHistoryList.Header = RecordHistoryTable.Header();
+        _policyHistoryList.DoubleTapped += async (_, _) =>
+        {
+            if (_policyHistoryList.SelectedItem is not ListViewItem { Tag: BusinessRecordActivity activity }) return;
+            var detail = new StackPanel { Spacing = 8, Width = 440 };
+            foreach (var (label, value) in new[] {
+                ("Ημερομηνία", activity.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")),
+                ("Ενέργεια", activity.Action), ("Περιγραφή", activity.Description),
+                ("Χρήστης", activity.ActorName) })
+                detail.Children.Add(new TextBox { Header = label, Text = value ?? "", IsReadOnly = true,
+                    TextWrapping = TextWrapping.Wrap, MinHeight = label == "Περιγραφή" ? 80 : 40 });
+            await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = _root.XamlRoot,
+                Title = "Καρτέλα ενέργειας", Content = detail, CloseButtonText = "Κλείσιμο" });
+        };
         TableRowStriping.Attach(_policyHistoryList);
         panel.Children.Add(_policyHistoryList);
         var pager = new TablePagination(_policyHistoryList);
+        _policyHistoryPager = pager;
         panel.Children.Add(pager.Bar);
         AddTab("Ιστορικό ενεργειών", panel);
         _ = RefreshPolicyHistoryAsync(pager);
@@ -360,14 +385,36 @@ public sealed partial class BusinessRecordCardWindow
     private async Task RefreshPolicyHistoryAsync(TablePagination pager)
     {
         if (_policyHistoryList is null) return;
-        var activities = _record.Id == Guid.Empty ? [] : await _records.GetActivitiesAsync(_record.Id);
+        try
+        {
+        _policyHistoryActivities = _record.Id == Guid.Empty ? [] :
+            [.. await _records.GetActivitiesAsync(_record.Id)];
+        if (_policyHistoryAction is not null)
+        {
+            _policyHistoryAction.Items.Clear();
+            _policyHistoryAction.Items.Add("Όλες οι ενέργειες");
+            foreach (var value in _policyHistoryActivities.Select(item => item.Action).Distinct().OrderBy(value => value))
+                _policyHistoryAction.Items.Add(value);
+            _policyHistoryAction.SelectedIndex = 0;
+        }
+        RenderPolicyHistory();
+        }
+        catch (Exception error) { _status.Text = "Δεν φορτώθηκε το ιστορικό: " + error.Message; }
+    }
+
+    private void RenderPolicyHistory()
+    {
+        if (_policyHistoryList is null || _policyHistoryPager is null) return;
+        var term = _policyHistorySearch?.Text.Trim() ?? "";
+        var selected = _policyHistoryAction?.SelectedIndex > 0
+            ? _policyHistoryAction.SelectedItem?.ToString() : null;
         _policyHistoryList.Items.Clear();
-        foreach (var item in activities)
-            _policyHistoryList.Items.Add(new TextBlock { Text =
-                $"{item.OccurredAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}  ·  {item.Action}  ·  " +
-                $"{item.Description}  ·  {item.ActorName}", TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(8, 5, 8, 5) });
-        pager.Capture();
+        foreach (var item in _policyHistoryActivities.Where(item =>
+            (selected is null || item.Action == selected) &&
+            (term.Length == 0 || new[] { item.Action, item.Description, item.ActorName }
+                .Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true))))
+            _policyHistoryList.Items.Add(RecordHistoryTable.Row(item));
+        _policyHistoryPager.Capture();
     }
 
     private async Task OpenRelatedPolicyAsync(Guid id)

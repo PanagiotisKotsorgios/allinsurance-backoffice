@@ -123,8 +123,11 @@ internal static class TableDataExport
             {
                 xml.WriteStartElement("c");
                 xml.WriteAttributeString("t", "inlineStr");
-                var cellStyle = commissions && data.Headers[columns[column]].Contains("Προμήθεια")
-                    ? data.Headers[columns[column]].Contains("συνεργάτη") ? 2 : 4 : style;
+                var cellStyle = commissions &&
+                    (data.Headers[columns[column]].Contains("Προμήθεια") ||
+                     data.Headers[columns[column]].Contains("Στην έδρα"))
+                    ? data.Headers[columns[column]].Contains("συνεργάτη") ||
+                        data.Headers[columns[column]].Contains("Στην έδρα") ? 2 : 4 : style;
                 if (cellStyle != 0) xml.WriteAttributeString("s", cellStyle.ToString());
                 xml.WriteStartElement("is");
                 xml.WriteElementString("t", values[column] ?? "");
@@ -168,8 +171,9 @@ internal static class TableDataExport
             html.Append("<tr class='").Append(WebUtility.HtmlEncode(style)).Append("'>");
             foreach (var i in columns)
             {
-                var css = data.Headers[i].Contains("Προμήθεια")
-                    ? data.Headers[i].Contains("συνεργάτη") ? "partner-commission" : "office-commission" : "";
+                var css = data.Headers[i].Contains("Προμήθεια") || data.Headers[i].Contains("Στην έδρα")
+                    ? data.Headers[i].Contains("συνεργάτη") || data.Headers[i].Contains("Στην έδρα")
+                        ? "partner-commission" : "office-commission" : "";
                 html.Append("<td class='").Append(css).Append("'>")
                     .Append(WebUtility.HtmlEncode(i < row.Length ? row[i] : "")).Append("</td>");
             }

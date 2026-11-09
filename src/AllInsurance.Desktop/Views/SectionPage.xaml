@@ -28,8 +28,8 @@
                                               IsHitTestVisible="False" />
                     </Grid>
                     </Border>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <StackPanel x:Name="InlineFiltersHost" Orientation="Horizontal">
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                    <StackPanel x:Name="InlineFiltersHost" Grid.Column="0" Orientation="Horizontal">
                     <StackPanel x:Name="FilterBar" Orientation="Horizontal" Spacing="8">
                         <controls:MultiSelectFilter x:Name="StatusFilter" Title="Κατάσταση" Height="36" />
                         <controls:MultiSelectFilter x:Name="CustomerFilter" Title="Πελάτης" Height="36" />
@@ -55,28 +55,19 @@
                         </controls:ActionButton>
                     </StackPanel>
                     </StackPanel>
-                    <controls:ActionButton x:Name="ShowFiltersButton" Kind="Choice" Label="Φίλτρα" Width="100"
+                    <controls:ActionButton x:Name="ShowFiltersButton" Grid.Column="1" Kind="Choice" Label="Φίλτρα" Width="100"
                                            Height="36" Visibility="Collapsed">
                         <controls:ActionButton.Flyout>
                             <Flyout><StackPanel x:Name="PopupFiltersHost" Width="240" Spacing="8" /></Flyout>
                         </controls:ActionButton.Flyout>
                     </controls:ActionButton>
-                    <controls:ActionButton x:Name="ClearFiltersButton" Kind="Clear" Label="Καθαρισμός φίλτρων"
+                    <controls:ActionButton x:Name="ClearFiltersButton" Grid.Column="2" Kind="Clear" Label="Καθαρισμός φίλτρων"
                                            Width="180" Height="36" Click="ClearFilters_Click" />
-                    <controls:ActionButton x:Name="AddButton" Kind="Add" Label="Προσθήκη"
+                    <controls:ActionButton x:Name="AddButton" Grid.Column="3" Kind="Add" Label="Προσθήκη"
                                            Width="230" Height="36" Click="Add_Click" />
-                    <controls:ActionButton x:Name="DeleteButton" Kind="Delete" Label="Διαγραφή"
+                    <controls:ActionButton x:Name="DeleteButton" Grid.Column="5" Kind="Delete" Label="Διαγραφή"
                                            Width="160" Height="36" Click="Delete_Click" />
-                    <controls:ActionButton x:Name="BatchButton" Kind="Choice" Label="Μαζικές κινήσεις"
-                                           Width="175" Height="36" Visibility="Collapsed">
-                        <controls:ActionButton.Flyout>
-                            <MenuFlyout>
-                                <MenuFlyoutItem Text="Μαζική είσπραξη" Click="BulkReceipt_Click" />
-                                <MenuFlyoutItem Text="Μαζική πληρωμή" Click="BulkPayment_Click" />
-                            </MenuFlyout>
-                        </controls:ActionButton.Flyout>
-                    </controls:ActionButton>
-                    </StackPanel>
+                    </Grid>
                 </StackPanel>
             </Border>
             <Grid Grid.Row="1" RowDefinitions="*,Auto" RowSpacing="10">
@@ -149,9 +140,15 @@
                             </ListView>
                         </StackPanel>
                     </ScrollViewer>
-                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,8,0,0">
+                    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12" Margin="0,8,0,0">
                         <TextBlock x:Name="PageText" VerticalAlignment="Center" />
-                        <StackPanel x:Name="PaginationActions" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <controls:ActionButton x:Name="BulkReceiptButton" Kind="BulkReceipt" Label="Μαζική είσπραξη"
+                                                   Height="30" Visibility="Collapsed" Click="BulkReceipt_Click" />
+                            <controls:ActionButton x:Name="BulkPaymentButton" Kind="BulkPayment" Label="Μαζική πληρωμή"
+                                                   Height="30" Visibility="Collapsed" Click="BulkPayment_Click" />
+                        </StackPanel>
+                        <StackPanel x:Name="PaginationActions" Grid.Column="3" Orientation="Horizontal" Spacing="8">
                             <controls:ActionButton Kind="Previous" Label="Προηγούμενη" Click="Previous_Click" />
                             <controls:ActionButton Kind="Next" Label="Επόμενη" Click="Next_Click" />
                         </StackPanel>

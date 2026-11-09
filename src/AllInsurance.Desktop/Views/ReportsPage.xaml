@@ -40,8 +40,13 @@
                 </VariableSizedWrapGrid>
                 </StackPanel>
                 <StackPanel x:Name="ProductionFilters" Visibility="Collapsed">
-                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="178" ItemHeight="40">
-                        <ComboBox x:Name="GroupingMode" Width="170" SelectedIndex="0"
+                    <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="178" ItemHeight="62">
+                        <ComboBox x:Name="ProductionDateBasis" Header="Ημερομηνία" Width="170" SelectedIndex="0" SelectionChanged="FiltersChanged">
+                            <ComboBoxItem Content="Έκδοσης" /><ComboBoxItem Content="Έναρξης" /><ComboBoxItem Content="Καταχώρησης" />
+                        </ComboBox>
+                        <StackPanel><TextBlock Text="Από" /><controls:EditableDateInput x:Name="ProductionFromDate" Width="170" Height="38" DateChanged="FiltersChanged" /></StackPanel>
+                        <StackPanel><TextBlock Text="Έως" /><controls:EditableDateInput x:Name="ProductionUntilDate" Width="170" Height="38" DateChanged="FiltersChanged" /></StackPanel>
+                        <ComboBox x:Name="GroupingMode" Header="Ομαδοποίηση" Width="170" SelectedIndex="0"
                                   SelectionChanged="FiltersChanged">
                             <ComboBoxItem Content="Συνεργάτης και εταιρεία" />
                             <ComboBoxItem Content="Ανά εταιρεία" />
@@ -49,6 +54,7 @@
                             <ComboBoxItem Content="Ανά κλάδο" />
                             <ComboBoxItem Content="Ανά πελάτη" />
                             <ComboBoxItem Content="Ανά πακέτο" />
+                            <ComboBoxItem Content="Ανά μήνα" />
                         </ComboBox>
                         <controls:MultiSelectFilter x:Name="ProductionCompanies" Width="170" Title="Εταιρείες" />
                         <controls:MultiSelectFilter x:Name="ProductionBranches" Width="170" Title="Κλάδοι" />
@@ -56,6 +62,8 @@
                         <controls:MultiSelectFilter x:Name="ProductionPackages" Width="170" Title="Πακέτα" />
                         <controls:MultiSelectFilter x:Name="ProductionPartners" Width="170" Title="Συνεργάτες" />
                         <controls:MultiSelectFilter x:Name="ProductionCustomers" Width="170" Title="Πελάτες" />
+                        <controls:MultiSelectFilter x:Name="ProductionUses" Width="170" Title="Χρήσεις οχημάτων" />
+                        <controls:MultiSelectFilter x:Name="ProductionStatuses" Width="170" Title="Καταστάσεις" />
                     </VariableSizedWrapGrid>
                 </StackPanel>
             </StackPanel>
@@ -73,13 +81,19 @@
                 <ScrollViewer x:Name="ReportTableViewport" HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Disabled" SizeChanged="ReportTableViewport_SizeChanged">
                     <StackPanel x:Name="ReportTableStack" HorizontalAlignment="Left">
-                <Grid x:Name="ReportHeaderGrid" ColumnDefinitions="260,230,130,130,185,185" Background="{ThemeResource TableHeaderBackgroundBrush}">
+                <Grid x:Name="ReportHeaderGrid" ColumnDefinitions="190,205,170,165,125,125,130,130,195,195,195,130" Background="{ThemeResource TableHeaderBackgroundBrush}">
                     <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadA" FontWeight="SemiBold" /></Border>
                     <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadB" FontWeight="SemiBold" /></Border>
                     <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadC" FontWeight="SemiBold" /></Border>
                     <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadD" FontWeight="SemiBold" /></Border>
                     <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadE" FontWeight="SemiBold" /></Border>
                     <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,9"><TextBlock x:Name="HeadF" FontWeight="SemiBold" /></Border>
+                    <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadG" FontWeight="SemiBold" /></Border>
+                    <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadH" FontWeight="SemiBold" /></Border>
+                    <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadI" FontWeight="SemiBold" /></Border>
+                    <Border Grid.Column="9" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadJ" FontWeight="SemiBold" /></Border>
+                    <Border Grid.Column="10" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,9"><TextBlock x:Name="HeadK" FontWeight="SemiBold" /></Border>
+                    <Border Grid.Column="11" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,9"><TextBlock x:Name="HeadL" FontWeight="SemiBold" /></Border>
                 </Grid>
                 <ListView x:Name="ReportList" SelectionMode="None" Height="420" Padding="0"
                           HorizontalAlignment="Left" />
