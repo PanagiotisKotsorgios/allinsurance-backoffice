@@ -744,41 +744,6 @@ public sealed partial class SectionPage : Page
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
         TableRowStriping.ApplyRow(grid, RecordsList.Items.IndexOf(row), RecordsList);
-        var statusIndex = _section.Key switch
-        {
-            "partners" => 7,
-            "vehicles" => 8,
-            "companies" or "agencies" => 7,
-            "claims" => 6,
-            "policies" => -1,
-            _ => 4
-        };
-        if (statusIndex >= 0 && grid.Children[statusIndex] is Border { Child: TextBlock statusText } statusCell)
-        {
-            var status = _section.Key == "vehicles" ? row.ExtraDisplay : row.Record.Status;
-            var highlighted = status is "Ενεργό" or "Ενεργός" or "Ασφαλισμένο" or
-                "Σε εξέλιξη" or "Πιθανός";
-            statusCell.Background = highlighted ? StatusPalette.Brush(
-                status is "Ενεργό" or "Ενεργός" or "Ασφαλισμένο"
-                    ? StatusPalette.Positive : StatusPalette.Caution) : null;
-            statusText.Foreground = highlighted ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
-        }
-        if (_section.Key == "partners" &&
-            grid.Children[6] is Border { Child: TextBlock balanceText } balanceCell)
-        {
-            var outstanding = row.PartnerBalance.GetValueOrDefault() != 0m;
-            balanceCell.Background = outstanding
-                ? StatusPalette.Brush(StatusPalette.Negative) : null;
-            balanceText.Foreground = outstanding
-                ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
-        }
-        if (_section.Key is "companies" or "agencies" &&
-            grid.Children[6] is Border { Child: TextBlock dueText } dueCell)
-        {
-            var outstanding = row.OrganizationBalance.GetValueOrDefault() != 0m;
-            dueCell.Background = outstanding ? StatusPalette.Brush(StatusPalette.Negative) : null;
-            dueText.Foreground = outstanding ? new SolidColorBrush(Microsoft.UI.Colors.White) : null;
-        }
         if (firstLoad && FindRecordContainer(grid) is ListViewItem container)
             TableRowResizer.Attach(grid, container, _section.Key, row.Record.Id);
         _syncingChecks = true;
@@ -1112,10 +1077,40 @@ public sealed partial class SectionPage : Page
         public string ExtraDisplay => PolicyProfile is not null
             ? Record.DocumentType ?? "Ασφαλιστήριο"
             : VehicleInsuranceState ?? Record.Status ?? "—";
-        public SolidColorBrush? PolicyTypeBackground => PolicyProfile is null ? null :
-            PolicyStatusColors.Background(Record.DocumentType, Record.Status, PolicyProfile.EndDate);
-        public SolidColorBrush? PolicyTypeForeground => PolicyProfile is null ? null :
-            new SolidColorBrush(Microsoft.UI.Colors.White);
+        public SolidColorBrush? StatusCellBackground => Record.SectionKey is
+            "partners" or "vehicles" or "companies" or "agencies" or "claims" or "policies"
+            ? null : StatusBackground(Record.Status);
+        public SolidColorBrush? StatusCellForeground => Contrast(StatusCellBackground);
+        public SolidColorBrush? CustomerCellBackground => Record.SectionKey switch
+        {
+            "partners" when PartnerBalance.GetValueOrDefault() != 0m =>
+                StatusPalette.Brush(StatusPalette.Negative),
+            "companies" or "agencies" when OrganizationBalance.GetValueOrDefault() != 0m =>
+                StatusPalette.Brush(StatusPalette.Negative),
+            "claims" => StatusBackground(Record.Status),
+            _ => null
+        };
+        public SolidColorBrush? CustomerCellForeground => Contrast(CustomerCellBackground);
+        public SolidColorBrush? CreatedCellBackground => Record.SectionKey is
+            "partners" or "companies" or "agencies" ? StatusBackground(Record.Status) : null;
+        public SolidColorBrush? CreatedCellForeground => Contrast(CreatedCellBackground);
+        public SolidColorBrush? ExtraCellBackground => Record.SectionKey switch
+        {
+            "policies" => PolicyStatusColors.Background(Record.DocumentType, Record.Status,
+                PolicyProfile?.EndDate),
+            "vehicles" => StatusBackground(VehicleInsuranceState ?? Record.Status),
+            _ => null
+        };
+        public SolidColorBrush? ExtraCellForeground => Contrast(ExtraCellBackground);
+        private static SolidColorBrush? Contrast(SolidColorBrush? background) => background is null
+            ? null : new SolidColorBrush(Microsoft.UI.Colors.White);
+        private static SolidColorBrush? StatusBackground(string? status) => status switch
+        {
+            "Ενεργό" or "Ενεργός" or "Ασφαλισμένο" =>
+                StatusPalette.Brush(StatusPalette.Positive),
+            "Σε εξέλιξη" or "Πιθανός" => StatusPalette.Brush(StatusPalette.Caution),
+            _ => null
+        };
         private string CustomerLabel => Record.Customer is null ? "—" :
             $"{Record.Customer.LastName} {Record.Customer.FirstName}".Trim();
         public override string ToString() => Record.Title;

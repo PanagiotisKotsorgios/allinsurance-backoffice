@@ -119,20 +119,20 @@
                                             <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding RelatedParty}" TextTrimming="CharacterEllipsis" />
                                             </Border>
-                                            <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
-                                                <TextBlock Text="{Binding Status}" />
+                                            <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5" Background="{Binding StatusCellBackground}">
+                                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusCellForeground}" />
                                             </Border>
                                             <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding EventDateDisplay}" />
                                             </Border>
-                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
-                                                <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" />
+                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5" Background="{Binding CustomerCellBackground}">
+                                                <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" Foreground="{Binding CustomerCellForeground}" />
                                             </Border>
-                                            <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
-                                                <TextBlock Text="{Binding CreatedDisplay}" />
+                                            <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Background="{Binding CreatedCellBackground}">
+                                                <TextBlock Text="{Binding CreatedDisplay}" Foreground="{Binding CreatedCellForeground}" />
                                             </Border>
-                                            <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Visibility="Collapsed" Background="{Binding PolicyTypeBackground}">
-                                                <TextBlock Text="{Binding ExtraDisplay}" Foreground="{Binding PolicyTypeForeground}" />
+                                            <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Visibility="Collapsed" Background="{Binding ExtraCellBackground}">
+                                                <TextBlock Text="{Binding ExtraDisplay}" Foreground="{Binding ExtraCellForeground}" />
                                             </Border>
                                         </Grid>
                                     </DataTemplate>
