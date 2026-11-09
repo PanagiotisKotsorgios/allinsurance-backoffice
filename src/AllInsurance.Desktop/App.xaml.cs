@@ -91,6 +91,8 @@ public partial class App : Microsoft.UI.Xaml.Application
                 services.AddTransient<IPartnerService, PartnerService>();
                 services.AddTransient<AllInsurance.Application.Commissions.ICommissionRuleService,
                     AllInsurance.Application.Commissions.CommissionRuleService>();
+                services.AddTransient<AllInsurance.Application.Commissions.ICommissionRecalculationService,
+                    AllInsurance.Application.Commissions.CommissionRecalculationService>();
                 services.AddTransient<IFilterOptionService, FilterOptionService>();
                 services.AddTransient<AdministratorSetupViewModel>();
                 services.AddTransient<LoginViewModel>();

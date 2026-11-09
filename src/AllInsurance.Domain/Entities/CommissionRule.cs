@@ -8,6 +8,8 @@ public sealed class CommissionRule
     public string? VehicleUse { get; set; }
     public string? Coverage { get; set; }
     public string? Package { get; set; }
+    public string? PartnerCategory { get; set; }
+    public Guid? PartnerId { get; set; }
     public decimal OfficePercent { get; set; }
     public decimal PartnerPercent { get; set; }
     public bool IsActive { get; set; } = true;

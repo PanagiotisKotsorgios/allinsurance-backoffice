@@ -744,12 +744,6 @@ public sealed partial class SectionPage : Page
         if (grid.DataContext is not BusinessRecordRow row ||
             grid.Children[0] is not Border { Child: VisibleSelectionCheckBox check }) return;
         TableRowStriping.ApplyRow(grid, RecordsList.Items.IndexOf(row), RecordsList);
-        if (_section.Key == "policies" &&
-            grid.Children[8] is Border { Child: TextBlock policyText } policyCell)
-        {
-            policyCell.Background = PolicyStatusColors.DocumentTypeBackground(row.Record.DocumentType);
-            policyText.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
-        }
         var statusIndex = _section.Key switch
         {
             "partners" => 7,
@@ -1118,6 +1112,10 @@ public sealed partial class SectionPage : Page
         public string ExtraDisplay => PolicyProfile is not null
             ? Record.DocumentType ?? "Ασφαλιστήριο"
             : VehicleInsuranceState ?? Record.Status ?? "—";
+        public SolidColorBrush? PolicyTypeBackground => PolicyProfile is null ? null :
+            PolicyStatusColors.Background(Record.DocumentType, Record.Status, PolicyProfile.EndDate);
+        public SolidColorBrush? PolicyTypeForeground => PolicyProfile is null ? null :
+            new SolidColorBrush(Microsoft.UI.Colors.White);
         private string CustomerLabel => Record.Customer is null ? "—" :
             $"{Record.Customer.LastName} {Record.Customer.FirstName}".Trim();
         public override string ToString() => Record.Title;

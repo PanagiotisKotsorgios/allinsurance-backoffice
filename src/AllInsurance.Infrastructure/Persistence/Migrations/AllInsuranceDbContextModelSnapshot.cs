@@ -198,6 +198,13 @@ namespace AllInsurance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PartnerCategory")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("PartnerId")
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("PartnerPercent")
                         .HasPrecision(5, 2)
                         .HasColumnType("TEXT");

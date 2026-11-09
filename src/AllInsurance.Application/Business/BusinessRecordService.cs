@@ -68,6 +68,12 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             record.DocumentType is not ("Προσφορά" or "Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο" or "Πρόσθετη πράξη" or "Πράσινη κάρτα"))
             throw new ArgumentException("Μη έγκυρος τύπος εγγράφου ασφάλισης.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        var previousPolicyType = record.SectionKey == "policies" && record.Id != Guid.Empty
+            ? await db.BusinessRecords.AsNoTracking().Where(item => item.Id == record.Id)
+                .Select(item => item.DocumentType).SingleOrDefaultAsync(cancellationToken)
+            : null;
+        var firstPolicyIssue = record.Id == Guid.Empty ||
+            previousPolicyType is not (null or "Ασφαλιστήριο");
         if (record.SectionKey is "companies" or "agencies" or "claims" or "updates" or "reports" or "bridges")
         {
             var links = WorkspaceCardData.Read(record.DetailsJson);
@@ -231,7 +237,7 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                 !await db.BusinessRecords.AnyAsync(item => item.Id == explicitPartner &&
                     item.SectionKey == "partners", cancellationToken))
                 throw new ArgumentException("Ο συνεργάτης του ασφαλιστηρίου δεν υπάρχει.");
-            if (details.PartnerId is Guid selectedPartner && details.PartnerCommissionPercent is null)
+            if (firstPolicyIssue && details.PartnerId is Guid selectedPartner && details.PartnerCommissionPercent is null)
             {
                 var partnerJson = await db.BusinessRecords.AsNoTracking()
                     .Where(item => item.Id == selectedPartner).Select(item => item.DetailsJson)
@@ -259,7 +265,7 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                 }
             }
             if (record.DocumentType is null or "Ασφαλιστήριο" &&
-                details.OfficeCommissionPercent is null &&
+                firstPolicyIssue && details.OfficeCommissionPercent is null &&
                 (!string.IsNullOrWhiteSpace(details.Insurer) ||
                  !string.IsNullOrWhiteSpace(details.Agency)))
             {
@@ -274,8 +280,16 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                 var commissionRules = new CommissionRuleService(factory, session);
                 var coverageNames = string.Join(" | ", details.Coverages.Select(item => item.Name)
                     .Append(details.CoverageNotes).Where(value => !string.IsNullOrWhiteSpace(value)));
+                string? partnerCategory = null;
+                if (details.PartnerId is Guid matchingPartner)
+                {
+                    var partnerJson = await db.BusinessRecords.AsNoTracking()
+                        .Where(item => item.Id == matchingPartner).Select(item => item.DetailsJson)
+                        .SingleOrDefaultAsync(cancellationToken);
+                    partnerCategory = PartnerProfileData.Read(partnerJson).Category;
+                }
                 var match = new CommissionMatch(details.Insurer ?? "", details.Branch, vehicleUse,
-                    coverageNames, details.Product);
+                    coverageNames, details.Product, details.PartnerId, partnerCategory);
                 var rule = !string.IsNullOrWhiteSpace(details.Agency)
                     ? await commissionRules.ResolveAsync(match with { Insurer = details.Agency },
                         cancellationToken) : null;

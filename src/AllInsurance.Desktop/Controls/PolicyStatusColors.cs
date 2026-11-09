@@ -18,7 +18,8 @@ internal static class PolicyStatusColors
     public static SolidColorBrush Background(string? documentType, string? status, DateTime? expiry)
     {
         if (Contains(documentType, "ακύρ") || Contains(status, "ακύρ") ||
-            Contains(status, "άκυρ") || Contains(status, "ληγ"))
+            Contains(status, "άκυρ") || Contains(status, "ληγ") ||
+            Contains(status, "έληξ") || Contains(status, "ληξ"))
             return StatusPalette.Brush(StatusPalette.Negative);
         if (Contains(documentType, "πράσινη κάρτα"))
             return StatusPalette.Brush(StatusPalette.Positive);

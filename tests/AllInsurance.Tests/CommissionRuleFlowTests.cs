@@ -9,6 +9,72 @@ namespace AllInsurance.Tests;
 public sealed class CommissionRuleFlowTests
 {
     [Fact]
+    public async Task PartnerOverrideWinsOverCategoryAndOldPolicyChangesOnlyAfterExplicitApply()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var rules = new CommissionRuleService(environment.ContextFactory, environment.Session);
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var partnerId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "partners", Title = "PARTNER A",
+            DetailsJson = new PartnerProfileData { TaxNumber = "123456789", Category = "Α" }.Write()
+        });
+        var generalId = await rules.SaveAsync(new CommissionRule
+        { Insurer = "Test Insurance", OfficePercent = 15, PartnerPercent = 5 });
+        var categoryId = await rules.SaveAsync(new CommissionRule
+        { Insurer = "Test Insurance", PartnerCategory = "Α", OfficePercent = 20, PartnerPercent = 8 });
+        var personalId = await rules.SaveAsync(new CommissionRule
+        { Insurer = "Test Insurance", PartnerId = partnerId, OfficePercent = 25, PartnerPercent = 10 });
+        Assert.Equal(personalId, (await rules.ResolveAsync(new CommissionMatch(
+            "Test Insurance", null, null, null, null, partnerId, "Α")))?.Id);
+        Assert.Equal(categoryId, (await rules.ResolveAsync(new CommissionMatch(
+            "Test Insurance", null, null, null, null, null, "Α")))?.Id);
+        Assert.Equal(generalId, (await rules.ResolveAsync(new CommissionMatch(
+            "Test Insurance", null, null, null, null, null, "Β")))?.Id);
+
+        var policyId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "policies", Title = "POL-OLD", DocumentType = "Ασφαλιστήριο",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            {
+                PolicyNumber = "POL-OLD", Insurer = "Test Insurance", PartnerId = partnerId,
+                NetPremium = 1000, StartDate = new DateTime(2026, 1, 1),
+                EndDate = new DateTime(2026, 12, 31)
+            })
+        });
+        var saved = BusinessRecordDetails.Read<PolicyCardData>((await records.GetAsync(policyId))!.DetailsJson);
+        Assert.Equal(25m, saved.OfficeCommissionPercent);
+        Assert.Equal(10m, saved.PartnerCommissionPercent);
+
+        var personal = (await rules.ListAsync()).Single(item => item.Id == personalId);
+        personal.OfficePercent = 30;
+        personal.PartnerPercent = 12;
+        await rules.SaveAsync(personal);
+        var oldRecord = (await records.GetAsync(policyId))!;
+        await records.SaveAsync(oldRecord);
+        saved = BusinessRecordDetails.Read<PolicyCardData>((await records.GetAsync(policyId))!.DetailsJson);
+        Assert.Equal(25m, saved.OfficeCommissionPercent);
+        Assert.Equal(10m, saved.PartnerCommissionPercent);
+
+        var recalculation = new CommissionRecalculationService(environment.ContextFactory,
+            environment.Session);
+        var preview = (await recalculation.PreviewAsync(new CommissionRecalculationFilter(
+            PartnerId: partnerId))).Single(item => item.PolicyId == policyId);
+        Assert.Equal(250m, preview.OldOfficeAmount);
+        Assert.Equal(300m, preview.NewOfficeAmount);
+        Assert.Equal(30m, preview.NewOfficePercent);
+        Assert.Equal(1, await recalculation.ApplyAsync([preview]));
+        saved = BusinessRecordDetails.Read<PolicyCardData>((await records.GetAsync(policyId))!.DetailsJson);
+        Assert.Equal(30m, saved.OfficeCommissionPercent);
+        Assert.Equal(12m, saved.PartnerCommissionPercent);
+        Assert.Contains(await records.GetActivitiesAsync(policyId), item =>
+            item.Action == "Επανυπολογισμός προμήθειας");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => recalculation.ApplyAsync([preview]));
+    }
+
+    [Fact]
     public async Task AgencyRuleWithCoverageOverridesCompanyRuleOnIssuedPolicy()
     {
         await using var environment = new TestEnvironment();

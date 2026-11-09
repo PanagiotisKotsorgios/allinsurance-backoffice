@@ -131,8 +131,8 @@
                                             <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5">
                                                 <TextBlock Text="{Binding CreatedDisplay}" />
                                             </Border>
-                                            <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Visibility="Collapsed">
-                                                <TextBlock Text="{Binding ExtraDisplay}" />
+                                            <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Visibility="Collapsed" Background="{Binding PolicyTypeBackground}">
+                                                <TextBlock Text="{Binding ExtraDisplay}" Foreground="{Binding PolicyTypeForeground}" />
                                             </Border>
                                         </Grid>
                                     </DataTemplate>

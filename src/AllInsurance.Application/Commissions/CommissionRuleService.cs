@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AllInsurance.Application.Commissions;
 
 public sealed record CommissionMatch(string Insurer, string? Branch, string? VehicleUse,
-    string? Coverage, string? Package);
+    string? Coverage, string? Package, Guid? PartnerId = null, string? PartnerCategory = null);
 
 public interface ICommissionRuleService
 {
@@ -34,12 +34,22 @@ public sealed class CommissionRuleService(IApplicationDbContextFactory factory, 
         RequireSession();
         if (string.IsNullOrWhiteSpace(match.Insurer)) return null;
         var rules = await ListAsync(cancellationToken);
+        return ResolveFrom(rules, match);
+    }
+
+    public static CommissionRule? ResolveFrom(IEnumerable<CommissionRule> rules, CommissionMatch match)
+    {
+        if (string.IsNullOrWhiteSpace(match.Insurer)) return null;
         return rules.Where(rule => rule.IsActive && Equal(rule.Insurer, match.Insurer) &&
                 OptionalMatch(rule.Branch, match.Branch) &&
                 OptionalMatch(rule.VehicleUse, match.VehicleUse) &&
                 OptionalCoverage(rule.Coverage, match.Coverage) &&
-                OptionalMatch(rule.Package, match.Package))
-            .OrderByDescending(rule => new[] { rule.Branch, rule.VehicleUse,
+                OptionalMatch(rule.Package, match.Package) &&
+                (rule.PartnerId is null || rule.PartnerId == match.PartnerId) &&
+                (rule.PartnerId is not null || OptionalMatch(rule.PartnerCategory, match.PartnerCategory)))
+            .OrderByDescending(rule => rule.PartnerId is not null ? 2 :
+                !string.IsNullOrWhiteSpace(rule.PartnerCategory) ? 1 : 0)
+            .ThenByDescending(rule => new[] { rule.Branch, rule.VehicleUse,
                 rule.Coverage, rule.Package }.Count(value => !string.IsNullOrWhiteSpace(value)))
             .ThenByDescending(rule => rule.UpdatedAtUtc).FirstOrDefault();
     }
@@ -54,15 +64,21 @@ public sealed class CommissionRuleService(IApplicationDbContextFactory factory, 
         rule.Coverage = CommissionCoverageSelection.Write(
             CommissionCoverageSelection.Read(Clean(rule.Coverage, 4000)));
         rule.Package = Clean(rule.Package, 200);
+        rule.PartnerCategory = Clean(rule.PartnerCategory, 120);
+        if (rule.PartnerId is not null) rule.PartnerCategory = null;
         if (rule.OfficePercent is < 0 or > 100 || rule.PartnerPercent is < 0 or > 100 ||
             rule.PartnerPercent > rule.OfficePercent)
             throw new ArgumentException("Τα ποσοστά πρέπει να είναι από 0 έως 100 και η προμήθεια συνεργάτη να μην υπερβαίνει την προμήθεια γραφείου.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
+        if (rule.PartnerId is Guid partnerId && !await db.BusinessRecords.AnyAsync(item =>
+            item.Id == partnerId && item.SectionKey == "partners", cancellationToken))
+            throw new ArgumentException("Ο συνεργάτης δεν υπάρχει.");
         var candidates = await db.CommissionRules.AsNoTracking()
             .Where(item => item.Id != rule.Id).ToListAsync(cancellationToken);
         if (candidates.Any(item => Equal(item.Insurer, rule.Insurer) &&
             Equal(item.Branch, rule.Branch) && Equal(item.VehicleUse, rule.VehicleUse) &&
-            Equal(item.Coverage, rule.Coverage) && Equal(item.Package, rule.Package)))
+            Equal(item.Coverage, rule.Coverage) && Equal(item.Package, rule.Package) &&
+            Equal(item.PartnerCategory, rule.PartnerCategory) && item.PartnerId == rule.PartnerId))
             throw new InvalidOperationException("Υπάρχει ήδη κανόνας με αυτά τα κριτήρια.");
         var now = DateTime.UtcNow;
         if (rule.Id == Guid.Empty)
@@ -79,6 +95,8 @@ public sealed class CommissionRuleService(IApplicationDbContextFactory factory, 
             existing.VehicleUse = rule.VehicleUse;
             existing.Coverage = rule.Coverage;
             existing.Package = rule.Package;
+            existing.PartnerCategory = rule.PartnerCategory;
+            existing.PartnerId = rule.PartnerId;
             existing.OfficePercent = rule.OfficePercent;
             existing.PartnerPercent = rule.PartnerPercent;
             existing.IsActive = rule.IsActive;
