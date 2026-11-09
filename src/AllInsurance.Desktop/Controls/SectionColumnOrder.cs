@@ -48,6 +48,7 @@ internal static class SectionColumnOrder
     {
         var defaults = sectionKey switch
         {
+            "commission_recalculation" => new double[] { 70, 170, 165, 165, 115, 115, 115, 175, 175, 185, 185 },
             "reports_production" => new double[] { 190, 205, 170, 165, 125, 125, 130, 130, 195, 195, 195, 130 },
             "partners" => new double[] { 240, 140, 165, 175, 150, 160, 130 },
             "vehicles" => [180, 135, 145, 210, 140, 165, 125, 125],
@@ -107,6 +108,7 @@ internal static class SectionColumnOrder
     private static int ColumnCount(string sectionKey) => sectionKey switch
     {
         "vehicles" or "policies" => 8,
+        "commission_recalculation" => 11,
             "reports_production" => 12,
         _ => 7
     };

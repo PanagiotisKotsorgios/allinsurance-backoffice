@@ -349,6 +349,7 @@ public sealed partial class PartnerCardWindow : Window
             IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Πληκτρολογήστε για αναζήτηση" };
+        SearchSuggestions.CloseOnLostFocus(field);
         void UpdateSuggestions(bool showAll = false)
         {
             field.ItemsSource = SearchSuggestions.FirstHundred(options, showAll ? "" : field.Text);

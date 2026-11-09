@@ -1,7 +1,19 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+
 namespace AllInsurance.Desktop.Controls;
 
 internal static class SearchSuggestions
 {
+    public static void CloseOnLostFocus(AutoSuggestBox box)
+    {
+        box.LostFocus += (_, _) => box.DispatcherQueue.TryEnqueue(() =>
+        {
+            if (box.FocusState == FocusState.Unfocused)
+                box.IsSuggestionListOpen = false;
+        });
+    }
+
     public static string[] FirstHundred(IEnumerable<string> source, string? query)
     {
         var term = query?.Trim() ?? "";

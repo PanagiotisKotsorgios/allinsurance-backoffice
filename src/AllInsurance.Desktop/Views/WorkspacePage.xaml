@@ -32,6 +32,7 @@
                             <MenuFlyoutItem Text="Εορτολόγιο" Click="NameDays_Click" />
                             <MenuFlyoutSeparator />
                             <MenuFlyoutItem Text="Αναβάθμιση εφαρμογής" Click="UpdateApplication_Click" />
+                            <MenuFlyoutItem x:Name="CommissionRecalculationMenuItem" Text="Επεξεργασία προμηθειών" Click="CommissionRecalculation_Click" />
                         </MenuBarItem>
                         <MenuBarItem Title="Ρυθμίσεις">
                             <MenuFlyoutItem Text="Ρυθμίσεις συστήματος" Click="Settings_Click" />

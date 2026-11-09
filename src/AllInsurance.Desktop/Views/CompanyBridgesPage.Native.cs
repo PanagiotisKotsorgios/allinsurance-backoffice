@@ -232,6 +232,7 @@ public sealed partial class CompanyBridgesPage
             if (result.ContainsKey(code)) continue;
             var input = new AutoSuggestBox { PlaceholderText = $"Αναζήτηση ή νέο όνομα για {label}",
                 Width = 380 };
+            SearchSuggestions.CloseOnLostFocus(input);
             void Suggest() => input.ItemsSource = SearchSuggestions.FirstHundred(choices, input.Text);
             input.GotFocus += (_, _) => Suggest();
             input.TextChanged += (_, _) => Suggest();
@@ -279,6 +280,7 @@ public sealed partial class CompanyBridgesPage
             var names = partners.Select(item => item.Title).ToArray();
             var input = new AutoSuggestBox { Width = 380,
                 PlaceholderText = "Αναζήτηση συνεργάτη" };
+            SearchSuggestions.CloseOnLostFocus(input);
             input.GotFocus += (_, _) => input.ItemsSource = SearchSuggestions.FirstHundred(names, "");
             input.TextChanged += (_, _) => input.ItemsSource = SearchSuggestions.FirstHundred(names, input.Text);
             input.SuggestionChosen += (_, args) => input.Text = args.SelectedItem as string ?? input.Text;

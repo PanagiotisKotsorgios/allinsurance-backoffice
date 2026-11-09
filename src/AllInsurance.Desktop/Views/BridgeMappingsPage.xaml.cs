@@ -117,6 +117,7 @@ public sealed partial class BridgeMappingsPage : Page
         var targetInput = new AutoSuggestBox { Header = "Συνδεδεμένη τιμή *", Width = 410,
             PlaceholderText = "Αναζήτηση υπάρχουσας τιμής", Text = entry is { Kind:
                 BridgeMappingKind.Partner, PartnerId: null } ? "" : entry?.Target ?? "" };
+        SearchSuggestions.CloseOnLostFocus(targetInput);
         var createTarget = new CheckBox { Content =
             "Δημιουργία νέας τιμής στα παραμετρικά, αν δεν υπάρχει", IsChecked = false };
         var noPartner = new CheckBox { Content = "Χωρίς συνεργάτη", IsChecked =

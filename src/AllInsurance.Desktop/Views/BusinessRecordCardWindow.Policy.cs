@@ -85,6 +85,7 @@ public sealed partial class BusinessRecordCardWindow
         var search = new AutoSuggestBox { Text = (selected.SelectedItem as Choice)?.Name ?? "",
             PlaceholderText = hint, MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
+        SearchSuggestions.CloseOnLostFocus(search);
         void UpdateSuggestions(bool showAll = false)
         {
             search.ItemsSource = SearchSuggestions.FirstHundred(choices().Select(item => item.Name),
@@ -116,6 +117,7 @@ public sealed partial class BusinessRecordCardWindow
         panel.Children.Add(backing);
         var search = new AutoSuggestBox { Text = initial ?? "", PlaceholderText = "Αναζήτηση " + label,
             MinHeight = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
+        SearchSuggestions.CloseOnLostFocus(search);
         void UpdateSuggestions(bool showAll = false)
         {
             search.ItemsSource = SearchSuggestions.FirstHundred(choices(), showAll ? "" : search.Text);

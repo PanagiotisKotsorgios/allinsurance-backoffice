@@ -45,6 +45,7 @@ internal sealed class SearchablePicker<T> : StackPanel where T : class
         } };
         _search = new AutoSuggestBox { PlaceholderText = "Πληκτρολογήστε για αναζήτηση",
             MinHeight = 42, HorizontalAlignment = HorizontalAlignment.Stretch };
+        SearchSuggestions.CloseOnLostFocus(_search);
         _search.GotFocus += (_, _) => ShowSuggestions(showAll: true);
         _search.TextChanged += (_, args) =>
         {

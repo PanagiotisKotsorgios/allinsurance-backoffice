@@ -41,6 +41,7 @@ public sealed partial class WorkspacePage : Page
         BackupMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
         ErrorLogMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
         CommissionMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
+        CommissionRecalculationMenuItem.IsEnabled = _session.Current.Permissions.Contains(Permission.ManageUsers);
         if (_session.Current.Permissions.Contains(Permission.ManageUsers))
         {
             _backupScheduler = new AllInsurance.Desktop.Logging.BackupScheduler(
@@ -320,6 +321,14 @@ public sealed partial class WorkspacePage : Page
         if (!CommissionMenuItem.IsEnabled) return;
         MainNavigation.SelectedItem = null;
         SectionHost.Content = new CommissionSettingsPage();
+    }
+    private void CommissionRecalculation_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CommissionRecalculationMenuItem.IsEnabled) return;
+        AllInsurance.Desktop.Logging.UiAuditRecorder.Record("VIEW", "commission-recalculation");
+        var previousContent = SectionHost.Content;
+        MainNavigation.SelectedItem = null;
+        SectionHost.Content = new CommissionRecalculationPage(() => SectionHost.Content = previousContent);
     }
     private void ShowShortcuts() { MainNavigation.SelectedItem = null; SectionHost.Content = new ShortcutsPage(); }
 

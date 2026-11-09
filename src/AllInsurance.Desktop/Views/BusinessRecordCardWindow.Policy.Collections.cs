@@ -168,6 +168,7 @@ public sealed partial class BusinessRecordCardWindow
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var name = new AutoSuggestBox { Header = RequiredHeader.Create("Κάλυψη"),
             Text = existing?.Name ?? "", PlaceholderText = "Αναζήτηση παραμετρικής κάλυψης" };
+        SearchSuggestions.CloseOnLostFocus(name);
         name.TextChanged += (_, args) =>
         {
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)

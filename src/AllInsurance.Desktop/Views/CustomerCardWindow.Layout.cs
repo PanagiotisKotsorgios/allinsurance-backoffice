@@ -219,6 +219,7 @@ public sealed partial class CustomerCardWindow
         }
         var input = new AutoSuggestBox { Text = _customer.City ?? "", MinHeight = 38, Height = 38,
             PlaceholderText = "Αναζήτηση πόλης από τον κατάλογο" };
+        SearchSuggestions.CloseOnLostFocus(input);
         input.AllowDrop = true;
         input.DragOver += (_, args) =>
         {

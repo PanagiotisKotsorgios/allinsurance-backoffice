@@ -6,6 +6,7 @@ using AllInsurance.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using System.Globalization;
 using Windows.UI;
@@ -77,9 +78,6 @@ public sealed class CommissionSettingsPage : Page
         var delete = new ActionButton { Kind = "Delete", Label = "Διαγραφή" };
         delete.Click += async (_, _) => await DeleteAsync();
         actions.Children.Add(add); actions.Children.Add(delete);
-        var recalculate = new ActionButton { Kind = "Edit", Label = "Επανυπολογισμός παλιών ασφαλιστηρίων" };
-        recalculate.Click += (_, _) => Content = new CommissionRecalculationPage(() => Content = _root);
-        actions.Children.Add(recalculate);
         filters.Children.Add(new ScrollViewer { Content = actions,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Disabled });
@@ -401,11 +399,23 @@ public sealed class CommissionSettingsPage : Page
                 Text = existing?.PartnerPercent.ToString("N2") ?? "0" };
             var active = new CheckBox { Content = "Ενεργός κανόνας",
                 IsChecked = existing?.IsActive ?? true };
-            var form = new StackPanel { Spacing = 8, Width = 460 };
+            var form = new StackPanel { Spacing = 8, Width = 460,
+                Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)) };
             foreach (var control in new UIElement[]
                 { insurer, branch, use, coveragePanel, package, category, specificPartner,
                     office, partner, active })
                 form.Children.Add(control);
+            form.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, args) =>
+            {
+                var source = args.OriginalSource as DependencyObject;
+                while (source is not null && !ReferenceEquals(source, form))
+                {
+                    if (source is AutoSuggestBox) return;
+                    source = VisualTreeHelper.GetParent(source);
+                }
+                foreach (var box in new[] { insurer, branch, use, package, category, specificPartner })
+                    box.IsSuggestionListOpen = false;
+            }), true);
             var dialog = new ContentDialog { XamlRoot = XamlRoot,
                 Title = existing is null ? "Νέος κανόνας προμηθειών" : "Επεξεργασία κανόνα",
                 Content = new ScrollViewer { Content = form, MaxHeight = 560 },
@@ -478,6 +488,7 @@ public sealed class CommissionSettingsPage : Page
                 UpdateSuggestions();
         };
         box.SuggestionChosen += (_, args) => box.Text = args.SelectedItem as string ?? box.Text;
+        SearchSuggestions.CloseOnLostFocus(box);
         return box;
     }
 

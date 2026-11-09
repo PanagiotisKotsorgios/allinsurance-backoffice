@@ -618,6 +618,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         _insurerSuggest = new AutoSuggestBox { Text = data.Insurer ?? "",
             PlaceholderText = "Αναζήτηση ασφαλιστικής εταιρείας", MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
+        SearchSuggestions.CloseOnLostFocus(_insurerSuggest);
         void UpdateInsurerSuggestions(bool showAll = false)
         {
             _insurerSuggest.ItemsSource = SearchSuggestions.FirstHundred(insurerNames,

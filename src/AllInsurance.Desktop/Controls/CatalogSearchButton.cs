@@ -11,6 +11,7 @@ internal static class CatalogSearchButton
         var search = new AutoSuggestBox { PlaceholderText = "Αναζήτηση " + label,
             Text = target.SelectedItem as string ?? "", MinHeight = 40,
             HorizontalAlignment = HorizontalAlignment.Stretch };
+        SearchSuggestions.CloseOnLostFocus(search);
         string[] Choices() => (target.ItemsSource as System.Collections.IEnumerable)?.Cast<object>()
             .OfType<string>().Where(item => !string.IsNullOrWhiteSpace(item)).ToArray() ?? [];
         void Refresh(string query)

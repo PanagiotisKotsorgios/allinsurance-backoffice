@@ -25,6 +25,8 @@ public sealed partial class FilterOptionsPage : Page
     public FilterOptionsPage()
     {
         InitializeComponent();
+        SearchSuggestions.CloseOnLostFocus(CompanyScopeInput);
+        SearchSuggestions.CloseOnLostFocus(BranchScopeInput);
         TableExportActions.Attach(ExportHost, this, () => new TableExportData("Παραμετροποίηση δεδομένων",
             ["Κατηγορία", "Τιμή", "Εταιρεία / πρακτορείο", "Κλάδος"],
             (OptionsList.ItemsSource as IEnumerable<OptionRow> ?? [])
