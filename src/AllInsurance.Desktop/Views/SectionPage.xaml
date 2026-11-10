@@ -126,7 +126,7 @@
                                                 </Grid>
                                             </Border>
                                             <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,3">
-                                                <TextBlock Text="{Binding EventDateDisplay}" />
+                                                <TextBlock Text="{Binding EventDateDisplay}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" VerticalAlignment="Center" />
                                             </Border>
                                             <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,3" Background="{Binding CustomerCellBackground}">
                                                 <Grid>

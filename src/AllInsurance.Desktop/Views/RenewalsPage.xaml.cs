@@ -71,6 +71,7 @@ public sealed partial class RenewalsPage : Page
                     .Contains(search, StringComparison.CurrentCultureIgnoreCase)))
             .OrderBy(item => item.EndDate).ToArray();
         RenewalsList.ItemsSource = items;
+        NewRenewalButton.IsEnabled = RenewalsList.SelectedItem is RenewalRow;
         CountText.Text = $"{items.Length} προς ανανέωση";
         StatusText.Text = from > until ? "Η αρχική ημερομηνία είναι μετά την τελική." :
             $"{items.Length} ασφαλιστήρια στο επιλεγμένο διάστημα";
@@ -101,6 +102,8 @@ public sealed partial class RenewalsPage : Page
     }
 
     private RenewalRow? Selected => RenewalsList.SelectedItem as RenewalRow;
+    private void Renewals_SelectionChanged(object sender, SelectionChangedEventArgs args) =>
+        NewRenewalButton.IsEnabled = Selected is not null;
     private void Open_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs args)
     {
         var current = args.OriginalSource as DependencyObject;

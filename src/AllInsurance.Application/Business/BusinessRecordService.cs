@@ -65,7 +65,7 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
         record.DocumentType = Normalize(record.DocumentType, 40);
         record.DetailsJson = Normalize(record.DetailsJson, 100000);
         if (record.SectionKey == "policies" && record.DocumentType is not null &&
-            record.DocumentType is not ("Προσφορά" or "Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο" or "Πρόσθετη πράξη" or "Πράσινη κάρτα"))
+            record.DocumentType is not ("Προσφορά" or "Αίτηση" or "Ειδοποιητήριο" or "Ασφαλιστήριο" or "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης" or "Πράσινη κάρτα"))
             throw new ArgumentException("Μη έγκυρος τύπος εγγράφου ασφάλισης.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var previousPolicyType = record.SectionKey == "policies" && record.Id != Guid.Empty
@@ -151,9 +151,48 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                 item.CustomerId == record.CustomerId, cancellationToken))
                 throw new ArgumentException("Η ζημιά πρέπει να συνδέεται με όχημα του ίδιου πελάτη.");
         }
+        BusinessRecord? relatedParent = null;
+        PolicyCardData? relatedDetails = null;
+        PolicyCardData? previousActDetails = null;
         if (record.SectionKey == "policies")
         {
             var details = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson);
+            var isAct = record.DocumentType is "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης";
+            if (isAct)
+            {
+                if (details.RelatedPolicyId is not Guid relatedId || relatedId == record.Id)
+                    throw new ArgumentException("Επιλέξτε το αρχικό ασφαλιστήριο της πρόσθετης πράξης.");
+                relatedParent = await db.BusinessRecords.SingleOrDefaultAsync(item =>
+                    item.Id == relatedId && item.SectionKey == "policies" &&
+                    item.CustomerId == record.CustomerId &&
+                    (item.DocumentType == null || item.DocumentType == "Ασφαλιστήριο"), cancellationToken)
+                    ?? throw new ArgumentException("Το αρχικό ασφαλιστήριο πρέπει να ανήκει στον ίδιο πελάτη.");
+                relatedDetails = BusinessRecordDetails.Read<PolicyCardData>(relatedParent.DetailsJson);
+                if (relatedParent.Status == "Ακυρωμένο" && record.Id == Guid.Empty)
+                    throw new ArgumentException("Δεν καταχωρίζεται νέα πρόσθετη πράξη σε ακυρωμένο ασφαλιστήριο.");
+                if (record.Id != Guid.Empty)
+                {
+                    var previousAct = await db.BusinessRecords.AsNoTracking()
+                        .SingleOrDefaultAsync(item => item.Id == record.Id, cancellationToken);
+                    if (previousAct is null || previousAct.DocumentType != record.DocumentType)
+                        throw new ArgumentException("Ο τύπος της καταχωρημένης πρόσθετης πράξης δεν αλλάζει.");
+                    previousActDetails = BusinessRecordDetails.Read<PolicyCardData>(previousAct.DetailsJson);
+                    if (previousActDetails.RelatedPolicyId != relatedId)
+                        throw new ArgumentException("Το αρχικό ασφαλιστήριο της πράξης δεν αλλάζει.");
+                }
+                if (record.DocumentType == "Πρόσθετη πράξη ακύρωσης" &&
+                    (details.CancellationDate is null || string.IsNullOrWhiteSpace(details.CancellationReason)))
+                    throw new ArgumentException("Η πράξη ακύρωσης χρειάζεται ημερομηνία και αιτιολογία.");
+                if (record.DocumentType == "Πρόσθετη πράξη ακύρωσης" &&
+                    (details.GrossPremium is not 0m || details.NetPremium is not 0m))
+                    throw new ArgumentException("Η πράξη ακύρωσης πρέπει να μηδενίζει τα νέα ασφάλιστρα.");
+                details.BaseGrossPremium = previousActDetails?.BaseGrossPremium ?? relatedDetails.GrossPremium ?? 0m;
+                details.BaseNetPremium = previousActDetails?.BaseNetPremium ?? relatedDetails.NetPremium ?? 0m;
+                details.GrossPremiumDifference = (details.GrossPremium ?? 0m) - details.BaseGrossPremium;
+                details.NetPremiumDifference = (details.NetPremium ?? 0m) - details.BaseNetPremium;
+            }
+            else if (details.RelatedPolicyId is not null)
+                throw new ArgumentException("Η σύνδεση με αρχικό ασφαλιστήριο αφορά μόνο πρόσθετες πράξεις.");
             if (details.CompanyId is Guid insurerId)
             {
                 var insurer = await db.BusinessRecords.AsNoTracking().FirstOrDefaultAsync(item =>
@@ -475,6 +514,35 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             existing.CreatedByUserId = creator;
             existing.UpdatedAtUtc = now;
         }
+        if (relatedParent is not null && relatedDetails is not null)
+        {
+            var act = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson);
+            relatedDetails.GrossPremium = (relatedDetails.GrossPremium ?? 0m) +
+                (act.GrossPremiumDifference ?? 0m) - (previousActDetails?.GrossPremiumDifference ?? 0m);
+            relatedDetails.NetPremium = (relatedDetails.NetPremium ?? 0m) +
+                (act.NetPremiumDifference ?? 0m) - (previousActDetails?.NetPremiumDifference ?? 0m);
+            relatedDetails.Endorsements ??= [];
+            relatedDetails.Endorsements.RemoveAll(item => item.Id == record.Id);
+            relatedDetails.Endorsements.Add(new PolicyEndorsement
+            {
+                Id = record.Id, Number = record.Reference ?? record.Title,
+                Type = record.DocumentType ?? "Πρόσθετη πράξη",
+                EffectiveDate = act.CancellationDate ?? act.IssueDate,
+                PremiumDifference = act.GrossPremiumDifference,
+                Notes = act.CancellationReason ?? record.Notes
+            });
+            if (record.DocumentType == "Πρόσθετη πράξη ακύρωσης")
+            {
+                relatedParent.Status = "Ακυρωμένο";
+                relatedDetails.CancellationDate = act.CancellationDate;
+                relatedDetails.CancellationReason = act.CancellationReason;
+            }
+            relatedParent.DetailsJson = BusinessRecordDetails.Write(relatedDetails);
+            relatedParent.UpdatedAtUtc = now;
+            AddActivity(db, relatedParent.Id, "Πρόσθετη πράξη",
+                $"Καταχωρίστηκε η πράξη {record.Title} για το ασφαλιστήριο {relatedParent.Title}.",
+                session.Current!.DisplayName, now);
+        }
         await db.SaveChangesAsync(cancellationToken);
         return record.Id;
     }
@@ -524,8 +592,9 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             await db.CustomerTransactions.AnyAsync(item => item.BusinessRecordId == id, cancellationToken))
             throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένες οικονομικές κινήσεις και δεν μπορεί να διαγραφεί.");
         if (record.SectionKey == "policies" && linkedDetails.Any(item => item.SectionKey == "policies" &&
-            BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).PreviousPolicyId == id))
-            throw new InvalidOperationException("Το ασφαλιστήριο έχει επόμενη ανανέωση και δεν μπορεί να διαγραφεί.");
+            (BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).PreviousPolicyId == id ||
+             BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).RelatedPolicyId == id)))
+            throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένη ανανέωση ή πρόσθετη πράξη και δεν μπορεί να διαγραφεί.");
         if (record.SectionKey == "vehicles")
         {
             var claims = await db.BusinessRecords.AsNoTracking()
@@ -543,6 +612,27 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson).PartnerId is Guid partnerId)
             PartnerActivityLog.Add(db, partnerId, "Διαγραφή παραγωγής",
                 $"Διαγράφηκε το ασφαλιστήριο {record.Title}.", session.Current!.DisplayName);
+        if (record.SectionKey == "policies" &&
+            BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson) is { RelatedPolicyId: Guid originalId } act)
+        {
+            var original = await db.BusinessRecords.SingleOrDefaultAsync(item => item.Id == originalId,
+                cancellationToken) ?? throw new InvalidOperationException("Το αρχικό ασφαλιστήριο δεν υπάρχει.");
+            var originalData = BusinessRecordDetails.Read<PolicyCardData>(original.DetailsJson);
+            originalData.GrossPremium = (originalData.GrossPremium ?? 0m) - (act.GrossPremiumDifference ?? 0m);
+            originalData.NetPremium = (originalData.NetPremium ?? 0m) - (act.NetPremiumDifference ?? 0m);
+            originalData.Endorsements?.RemoveAll(item => item.Id == id);
+            if (record.DocumentType == "Πρόσθετη πράξη ακύρωσης")
+            {
+                original.Status = originalData.EndDate?.Date < DateTime.Today ? "Ληγμένο" : "Ενεργό";
+                originalData.CancellationDate = null;
+                originalData.CancellationReason = null;
+            }
+            original.DetailsJson = BusinessRecordDetails.Write(originalData);
+            original.UpdatedAtUtc = DateTime.UtcNow;
+            AddActivity(db, original.Id, "Διαγραφή πρόσθετης πράξης",
+                $"Διαγράφηκε η συνδεδεμένη πράξη {record.Title}.", session.Current!.DisplayName,
+                original.UpdatedAtUtc);
+        }
         if (record.CustomerId is Guid customerId)
             CustomerActivityLog.Add(db, customerId, "Διαγραφή εγγραφής",
                 $"Διαγράφηκε η εγγραφή {record.Title}.", session.Current!.DisplayName);

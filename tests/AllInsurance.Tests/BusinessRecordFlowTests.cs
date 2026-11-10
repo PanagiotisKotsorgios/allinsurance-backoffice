@@ -7,6 +7,67 @@ namespace AllInsurance.Tests;
 public sealed class BusinessRecordFlowTests
 {
     [Fact]
+    public async Task AdditionalActsAdjustOriginalPremiumAndCanBeReversed()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var customerId = await customers.SaveAsync(new Customer
+        { LastName = "Act", FirstName = "Test", TaxNumber = "100000094" });
+        var originalId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "policies", Title = "POL-ACT", CustomerId = customerId,
+            DocumentType = "Ασφαλιστήριο", Status = "Ενεργό",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            { PolicyNumber = "POL-ACT", GrossPremium = 100m, NetPremium = 80m,
+                EndDate = DateTime.Today.AddYears(1) })
+        });
+        var actId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "policies", Title = "ACT-1", CustomerId = customerId,
+            DocumentType = "Πρόσθετη πράξη", Status = "Εκδόθηκε",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            { RelatedPolicyId = originalId, GrossPremium = 120m, NetPremium = 90m })
+        });
+        var original = (await records.GetAsync(originalId))!;
+        var originalData = BusinessRecordDetails.Read<PolicyCardData>(original.DetailsJson);
+        Assert.Equal(120m, originalData.GrossPremium);
+        Assert.Equal(90m, originalData.NetPremium);
+        Assert.Contains(originalData.Endorsements, item => item.Id == actId);
+        var act = (await records.GetAsync(actId))!;
+        var actData = BusinessRecordDetails.Read<PolicyCardData>(act.DetailsJson);
+        Assert.Equal(20m, actData.GrossPremiumDifference);
+        actData.GrossPremium = 125m;
+        act.DetailsJson = BusinessRecordDetails.Write(actData);
+        await records.SaveAsync(act);
+        originalData = BusinessRecordDetails.Read<PolicyCardData>((await records.GetAsync(originalId))!.DetailsJson);
+        Assert.Equal(125m, originalData.GrossPremium);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(originalId));
+        await records.DeleteAsync(actId);
+        originalData = BusinessRecordDetails.Read<PolicyCardData>((await records.GetAsync(originalId))!.DetailsJson);
+        Assert.Equal(100m, originalData.GrossPremium);
+        Assert.Equal(80m, originalData.NetPremium);
+        Assert.DoesNotContain(originalData.Endorsements, item => item.Id == actId);
+        var cancellationId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "policies", Title = "ACT-CANCEL", CustomerId = customerId,
+            DocumentType = "Πρόσθετη πράξη ακύρωσης", Status = "Εκδόθηκε",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            { RelatedPolicyId = originalId, GrossPremium = 0m, NetPremium = 0m,
+                CancellationDate = DateTime.Today, CancellationReason = "Αίτημα πελάτη" })
+        });
+        original = (await records.GetAsync(originalId))!;
+        Assert.Equal("Ακυρωμένο", original.Status);
+        Assert.Equal(0m, BusinessRecordDetails.Read<PolicyCardData>(original.DetailsJson).GrossPremium);
+        await records.DeleteAsync(cancellationId);
+        original = (await records.GetAsync(originalId))!;
+        Assert.Equal("Ενεργό", original.Status);
+        Assert.Equal(100m, BusinessRecordDetails.Read<PolicyCardData>(original.DetailsJson).GrossPremium);
+    }
+
+    [Fact]
     public async Task PolicyRelationsCollectionsPaymentsAndPdfArePersisted()
     {
         await using var environment = new TestEnvironment();

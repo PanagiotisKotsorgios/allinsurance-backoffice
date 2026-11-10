@@ -279,8 +279,8 @@ public sealed partial class CustomerCardWindow
         var root = new StackPanel { Width = _contentWidth,
             Margin = new Thickness(18, 10, 18, 16), Spacing = 10 };
         var columns = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
-            ItemWidth = 350, ItemHeight = 450 };
-        var family = new StackPanel { Spacing = 5, Width = 330 };
+            ItemWidth = 330, ItemHeight = 390 };
+        var family = new StackPanel { Spacing = 5, Width = 310 };
         AddText(family, "Μητρώνυμο", () => _customer.MotherName, value => _customer.MotherName = value);
         AddText(family, "Διαβατήριο", () => _customer.PassportNumber,
             value => _customer.PassportNumber = value);
@@ -289,9 +289,13 @@ public sealed partial class CustomerCardWindow
         AddText(family, "Σύζυγος / σύντροφος", () => _customer.SpouseName, value => _customer.SpouseName = value);
         AddDate(family, "Ονομαστική εορτή", () => _customer.NameDay, value => _customer.NameDay = value);
         AddText(family, "Περιοχή", () => _customer.Region, value => _customer.Region = value);
+        AddBool(family, "Δικαιολογητικό έκπτωσης", () => _customer.HasDiscountDocument,
+            value => _customer.HasDiscountDocument = value);
+        AddText(family, "Περιγραφή έκπτωσης", () => _customer.DiscountDocumentDescription,
+            value => _customer.DiscountDocumentDescription = value);
         columns.Children.Add(family);
 
-        var business = new StackPanel { Spacing = 5, Width = 330 };
+        var business = new StackPanel { Spacing = 5, Width = 310 };
         AddCatalogChoice(business, "ΔΟΥ", "ΔΟΥ", () => _customer.TaxOffice,
             value => _customer.TaxOffice = value);
         AddText(business, "Ταχ. κώδικας", () => _customer.PostalCode,
@@ -306,20 +310,21 @@ public sealed partial class CustomerCardWindow
             value => _customer.BusinessPhone = value);
         AddText(business, "Email επιχείρησης", () => _customer.BusinessEmail,
             value => _customer.BusinessEmail = value);
-        var sourceChoice = AddCatalogChoice(business, "Πηγή", "Πηγές πελατών",
+        var status = new StackPanel { Spacing = 5, Width = 310 };
+        var sourceChoice = AddCatalogChoice(status, "Πηγή", "Πηγές πελατών",
             () => _customer.Source, value => _customer.Source = value);
         _referralChoice = new ComboBox { PlaceholderText = "Επιλέξτε πελάτη",
             DisplayMemberPath = "FullName", SelectedValuePath = "Id",
             IsHitTestVisible = _editing, IsTabStop = _editing,
             MinHeight = 36, Height = 36, HorizontalAlignment = HorizontalAlignment.Stretch };
         var customerReferralRow = CreateFieldRow("Σύσταση από πελάτη", _referralChoice);
-        business.Children.Add(customerReferralRow);
+        status.Children.Add(customerReferralRow);
         _ = LoadReferrersAsync();
         _referralPartnerChoice = new ComboBox { PlaceholderText = "Επιλέξτε συνεργάτη",
             MinHeight = 36, Height = 36, IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var partnerReferralRow = CreateFieldRow("Σύσταση από συνεργάτη", _referralPartnerChoice);
-        business.Children.Add(partnerReferralRow);
+        status.Children.Add(partnerReferralRow);
         _ = LoadPartnerReferrersAsync();
         void UpdateReferralRows()
         {
@@ -333,11 +338,6 @@ public sealed partial class CustomerCardWindow
         UpdateReferralRows();
         columns.Children.Add(business);
 
-        var status = new StackPanel { Spacing = 5, Width = 330 };
-        AddBool(status, "Δικαιολογητικό έκπτωσης", () => _customer.HasDiscountDocument,
-            value => _customer.HasDiscountDocument = value);
-        AddText(status, "Περιγραφή έκπτωσης", () => _customer.DiscountDocumentDescription,
-            value => _customer.DiscountDocumentDescription = value);
         var officeControl = AddBool(status, "Ανήκει στο γραφείο", () => _customer.BelongsToOffice,
             value => _customer.BelongsToOffice = value);
         if (_editing && _partnerChoice is not null)
@@ -352,7 +352,7 @@ public sealed partial class CustomerCardWindow
             $"Ενημέρωση: {_customer.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm}", FontSize = 12 });
         columns.Children.Add(status);
         root.Children.Add(columns);
-        var notes = new TextBox { Text = _customer.Notes ?? "", MinHeight = 100, Height = 120,
+        var notes = new TextBox { Text = _customer.Notes ?? "", MinHeight = 72, Height = 86,
             FontSize = 13, HorizontalAlignment = HorizontalAlignment.Stretch,
             AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, IsReadOnly = !_editing };
         root.Children.Add(CreateFieldRow("Σημειώσεις", ResizableNoteField.Wrap(notes)));

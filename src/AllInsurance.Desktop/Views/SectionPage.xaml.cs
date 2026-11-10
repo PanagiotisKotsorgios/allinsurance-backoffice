@@ -303,7 +303,7 @@ public sealed partial class SectionPage : Page
                         group.Any(item => IsActivePolicy(item.Record)) ? "Ασφαλισμένο" :
                         group.Any(item => item.Record.DocumentType is "Αίτηση" or "Ειδοποιητήριο" ||
                             item.Record.Status == "Σε εξέλιξη") ? "Σε εξέλιξη" :
-                        "Χωρίς ενεργό συμβόλαιο");
+                        "Ανασφάλιστο");
             }
             if (_section.Key == "policies")
             {

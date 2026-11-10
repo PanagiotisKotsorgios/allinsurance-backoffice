@@ -11,6 +11,11 @@ public sealed class PolicyCardData
     public string? PolicyNumber { get; set; }
     public string? RenewalNumber { get; set; }
     public Guid? PreviousPolicyId { get; set; }
+    public Guid? RelatedPolicyId { get; set; }
+    public decimal? BaseGrossPremium { get; set; }
+    public decimal? BaseNetPremium { get; set; }
+    public decimal? GrossPremiumDifference { get; set; }
+    public decimal? NetPremiumDifference { get; set; }
     public string? PreviousPolicyNumber { get; set; }
     public DateTime? RenewalDate { get; set; }
     public DateTime? CompanyRenewalDate { get; set; }

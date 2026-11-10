@@ -30,7 +30,7 @@ internal static class CardTabVisual
             Padding = new Thickness(0), Margin = new Thickness(0),
             BorderThickness = new Thickness(0), Background = new SolidColorBrush(Colors.Transparent) };
         label.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
-        button.MinWidth = Math.Max(68, Math.Ceiling(label.DesiredSize.Width + 14 + 4 + 14));
+        button.MinWidth = Math.Max(76, Math.Ceiling(label.DesiredSize.Width + 14 + 4 + 28));
         ButtonMotion.Attach(button);
         SetSelected(button, label, false, dark);
         return (button, label);
@@ -59,6 +59,15 @@ internal static class CardTabVisual
         const double rowHeight = 32;
         foreach (var button in buttons)
         {
+            // Re-measure after theme and DPI changes; the initial label width can be stale.
+            if (button.Content is Border { Child: StackPanel content } &&
+                content.Children.OfType<TextBlock>().FirstOrDefault() is { } label)
+            {
+                label.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+                var iconWidth = content.Children.OfType<Image>().FirstOrDefault()?.Width ?? 0;
+                button.MinWidth = Math.Max(button.MinWidth,
+                    Math.Ceiling(label.DesiredSize.Width + iconWidth + content.Spacing + 28));
+            }
             var width = Math.Min(availableWidth, button.MinWidth);
             if (x > 0 && x + width > availableWidth)
             {

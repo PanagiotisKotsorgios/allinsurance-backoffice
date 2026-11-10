@@ -20,6 +20,8 @@ internal static class TableRowStriping
     private static readonly SolidColorBrush WarmBase = new(Color.FromArgb(255, 235, 232, 222));
     private static readonly SolidColorBrush LightText = new(Color.FromArgb(255, 30, 43, 54));
     private static readonly SolidColorBrush DarkText = new(Color.FromArgb(255, 244, 247, 250));
+    private static readonly SolidColorBrush SelectedRow = new(Color.FromArgb(255, 55, 75, 96));
+    private static readonly SolidColorBrush SelectedText = new(Microsoft.UI.Colors.White);
 
     public static void Attach(ListView list)
     {
@@ -37,6 +39,8 @@ internal static class TableRowStriping
             list.DispatcherQueue.TryEnqueue(() => Refresh(list, true));
         };
         list.ActualThemeChanged += (_, _) => Refresh(list, true);
+        list.SelectionChanged += (_, _) =>
+            list.DispatcherQueue.TryEnqueue(() => Refresh(list, true));
         Refresh(list);
     }
 
@@ -65,7 +69,8 @@ internal static class TableRowStriping
                 if (position >= 0) Apply(item, position, list, true);
             };
         }
-        var brush = RowBrush(list, alternate);
+        var selected = item.IsSelected;
+        var brush = selected ? SelectedRow : RowBrush(list, alternate);
         if (!ReferenceEquals(item.Background, brush)) item.Background = brush;
         // WinUI visual states may replace the container background before the first hover.
         // Paint the row content itself so its stripe is visible on initial render.
@@ -75,19 +80,19 @@ internal static class TableRowStriping
             template.Background = brush;
         // Rows supplied by the card views can keep a white foreground after a theme change
         // or after WinUI recycles a container. Keep uncolored cells readable on every stripe.
-        if (item.Content is Panel contentRow) ApplyPlainCellText(contentRow, list.ActualTheme);
+        if (item.Content is Panel contentRow) ApplyPlainCellText(contentRow, list.ActualTheme, selected);
         if (item.ContentTemplateRoot is Panel templateRow && !ReferenceEquals(templateRow, item.Content))
-            ApplyPlainCellText(templateRow, list.ActualTheme);
+            ApplyPlainCellText(templateRow, list.ActualTheme, selected);
     }
 
-    private static void ApplyPlainCellText(Panel row, ElementTheme theme)
+    private static void ApplyPlainCellText(Panel row, ElementTheme theme, bool selected)
     {
-        var foreground = theme == ElementTheme.Dark ? DarkText : LightText;
+        var foreground = selected ? SelectedText : theme == ElementTheme.Dark ? DarkText : LightText;
         foreach (var child in row.Children)
         {
             if (child is not Border { Background: null, Child: TextBlock label }) continue;
             if (label.Foreground is null || ReferenceEquals(label.Foreground, LightText) ||
-                ReferenceEquals(label.Foreground, DarkText) ||
+                ReferenceEquals(label.Foreground, DarkText) || ReferenceEquals(label.Foreground, SelectedText) ||
                 label.Foreground is SolidColorBrush { Color: var color } &&
                 (color == Microsoft.UI.Colors.White && theme != ElementTheme.Dark ||
                  color == Microsoft.UI.Colors.Black && theme == ElementTheme.Dark))

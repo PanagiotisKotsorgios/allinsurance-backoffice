@@ -997,9 +997,9 @@ public sealed partial class CustomerCardWindow : Window
                 label.TextWrapping = TextWrapping.NoWrap;
                 label.MaxWidth = double.PositiveInfinity;
                 label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                button.MinWidth = Math.Max(narrow ? 64 : 68,
+                button.MinWidth = Math.Max(narrow ? 72 : 76,
                     Math.Ceiling(label.DesiredSize.Width + iconSize + content.Spacing +
-                        (narrow ? 12 : 14)));
+                        (narrow ? 26 : 28)));
             }
         }
         CardTabVisual.Layout(_tabStrip, availableWidth);

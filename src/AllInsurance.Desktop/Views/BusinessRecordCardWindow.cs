@@ -319,15 +319,12 @@ public sealed partial class BusinessRecordCardWindow : Window
             _footerReceiptButton = new ActionButton { Kind = "Receipt", Label = "Είσπραξη" };
             _footerPaymentButton = new ActionButton { Kind = "Payment", Label = "Πληρωμή" };
             _footerRenewButton = new ActionButton { Kind = "Renewals", Label = "Ανανέωση" };
-            _footerCancelButton = new ActionButton { Kind = "Deactivate", Label = "Ακύρωση" };
             _footerReceiptButton.Click += async (_, _) => await AddPolicyTransactionAsync("receipt");
             _footerPaymentButton.Click += async (_, _) => await AddPolicyTransactionAsync("payment");
             _footerRenewButton.Click += async (_, _) => await OpenNewRenewalAsync();
-            _footerCancelButton.Click += async (_, _) => await CancelPolicyAsync();
             quick.Children.Add(_footerReceiptButton);
             quick.Children.Add(_footerPaymentButton);
             quick.Children.Add(_footerRenewButton);
-            quick.Children.Add(_footerCancelButton);
             toolbar.Children.Add(quick);
             _convertButton = new ActionButton { Kind = "Edit", Label = "Έκδοση και παραλαβή συμβολαίου" };
             _convertButton.Click += async (_, _) => await ConvertAsync();
@@ -579,9 +576,25 @@ public sealed partial class BusinessRecordCardWindow : Window
             data.PolicyNumber ??= _record.Reference ?? _record.Title;
         var main = TwoColumns(out var left, out var right);
         var availableTypes = new[] { "Προσφορά", "Αίτηση", "Ειδοποιητήριο", "Ασφαλιστήριο",
-            "Πρόσθετη πράξη", "Πράσινη κάρτα" };
+            "Πρόσθετη πράξη", "Πρόσθετη πράξη ακύρωσης", "Πράσινη κάρτα" };
         _typeChoice = Choices(left, "Τύπος εγγράφου *", availableTypes,
             _record.DocumentType ?? "Αίτηση");
+        var relatedOptions = new[] { new Choice(null, "Επιλέξτε αρχικό ασφαλιστήριο") }
+            .Concat(_allPolicyRecords.Where(item => item.Id != _record.Id &&
+                item.DocumentType is null or "Ασφαλιστήριο")
+                .Select(item => new Choice(item.Id,
+                    $"{item.Reference ?? item.Title} · {item.Customer?.LastName} {item.Customer?.FirstName}")))
+            .ToArray();
+        _relatedPolicyChoice = new ComboBox { ItemsSource = relatedOptions,
+            DisplayMemberPath = nameof(Choice.Name), Visibility = Visibility.Collapsed };
+        _relatedPolicyChoice.SelectedItem = relatedOptions.FirstOrDefault(item =>
+            item.Id == data.RelatedPolicyId) ?? relatedOptions[0];
+        var relatedSearch = SearchChoice(relatedOptions, _relatedPolicyChoice,
+            "Αναζήτηση αρχικού ασφαλιστηρίου");
+        var relatedRow = CardFieldLayout.CreateRow("Αρχικό ασφαλιστήριο *", relatedSearch);
+        relatedRow.Visibility = _record.DocumentType is "Πρόσθετη πράξη" or
+            "Πρόσθετη πράξη ακύρωσης" ? Visibility.Visible : Visibility.Collapsed;
+        left.Children.Add(relatedRow);
         Text(left, "offer", "Αριθμός προσφοράς", data.OfferNumber);
         Text(left, "application", "Αριθμός αίτησης", data.ApplicationNumber);
         Text(left, "notice", "Αριθμός ειδοποιητηρίου", data.NoticeNumber);
@@ -696,6 +709,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                 "Ειδοποιητήριο" => ["Σε αναμονή πληρωμής", "Πληρωμένο", "Ακυρωμένο"],
                 "Πράσινη κάρτα" => ["Σε εξέλιξη", "Εκδόθηκε", "Παραδόθηκε", "Ακυρωμένο"],
                 "Πρόσθετη πράξη" => ["Σε εξέλιξη", "Εκδόθηκε", "Παραδόθηκε", "Ακυρωμένο"],
+                "Πρόσθετη πράξη ακύρωσης" => ["Σε εξέλιξη", "Εκδόθηκε", "Παραδόθηκε"],
                 _ => ["Ενεργό", "Ανανεωμένο", "Ληγμένο", "Ακυρωμένο", "Ανενεργό"]
             };
             if (_record.Id != Guid.Empty && !string.IsNullOrWhiteSpace(previous) &&
@@ -759,7 +773,83 @@ public sealed partial class BusinessRecordCardWindow : Window
         Text(right, "paymentcode", "Κωδικός ταχυπληρωμής / πληρωμής", data.PaymentCode);
         Text(right, "net", "Καθαρά ασφάλιστρα", data.NetPremium?.ToString("N2"));
         Text(right, "gross", "Μικτά ασφάλιστρα", data.GrossPremium?.ToString("N2"));
+        var actDifference = new TextBlock { TextWrapping = TextWrapping.Wrap,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+        var actDifferenceRow = CardFieldLayout.CreateRow("Μεταβολή πρόσθετης πράξης", actDifference);
+        right.Children.Add(actDifferenceRow);
+        void UpdateActDifference()
+        {
+            var isAct = _typeChoice?.SelectedItem is "Πρόσθετη πράξη" or
+                "Πρόσθετη πράξη ακύρωσης";
+            actDifferenceRow.Visibility = isAct ? Visibility.Visible : Visibility.Collapsed;
+            if (!isAct) return;
+            var selectedId = (_relatedPolicyChoice?.SelectedItem as Choice)?.Id;
+            var parent = _allPolicyRecords.FirstOrDefault(item => item.Id == selectedId);
+            if (parent is null)
+            {
+                actDifference.Text = "Επιλέξτε το αρχικό ασφαλιστήριο.";
+                return;
+            }
+            var baseData = BusinessRecordDetails.Read<PolicyCardData>(parent.DetailsJson);
+            var baseGross = _record.Id != Guid.Empty ? data.BaseGrossPremium ?? 0m :
+                baseData.GrossPremium ?? 0m;
+            var baseNet = _record.Id != Guid.Empty ? data.BaseNetPremium ?? 0m :
+                baseData.NetPremium ?? 0m;
+            static decimal? Amount(string value) => decimal.TryParse(value,
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.GetCultureInfo("el-GR"), out var amount)
+                ? amount : decimal.TryParse(value,
+                    System.Globalization.NumberStyles.Number,
+                    System.Globalization.CultureInfo.InvariantCulture, out amount) ? amount : null;
+            var gross = Amount(_text["gross"].Text);
+            var net = Amount(_text["net"].Text);
+            actDifference.Text = gross is null || net is null
+                ? "Συμπληρώστε νέα καθαρά και μικτά ασφάλιστρα."
+                : $"Μικτά: {baseGross:N2} → {gross:N2} ({gross - baseGross:+0.00;-0.00;0.00}) €  ·  " +
+                  $"Καθαρά: {baseNet:N2} → {net:N2} ({net - baseNet:+0.00;-0.00;0.00}) €";
+        }
+        _text["gross"].TextChanged += (_, _) => UpdateActDifference();
+        _text["net"].TextChanged += (_, _) => UpdateActDifference();
+        _relatedPolicyChoice.SelectionChanged += (_, _) => UpdateActDifference();
+        _typeChoice.SelectionChanged += (_, _) => UpdateActDifference();
+        UpdateActDifference();
         AddPolicyBalanceBadge(right, data);
+        _typeChoice.SelectionChanged += (_, _) =>
+        {
+            relatedRow.Visibility = _typeChoice.SelectedItem is "Πρόσθετη πράξη" or
+                "Πρόσθετη πράξη ακύρωσης" ? Visibility.Visible : Visibility.Collapsed;
+            if (_typeChoice.SelectedItem is "Πρόσθετη πράξη ακύρωσης")
+            {
+                _text["gross"].Text = "0";
+                _text["net"].Text = "0";
+                if (_dates.GetValueOrDefault("canceldate") is { Date: null } cancellationDate)
+                    cancellationDate.Date = new DateTimeOffset(DateTime.Today);
+            }
+            if (relatedRow.Visibility == Visibility.Visible &&
+                _relatedPolicyChoice?.SelectedItem is Choice { Id: null })
+                relatedSearch.Focus(FocusState.Programmatic);
+        };
+        _relatedPolicyChoice.SelectionChanged += (_, _) =>
+        {
+            if (_record.Id != Guid.Empty ||
+                (_relatedPolicyChoice.SelectedItem as Choice)?.Id is not Guid parentId) return;
+            var parent = _allPolicyRecords.FirstOrDefault(item => item.Id == parentId);
+            if (parent is null) return;
+            var original = BusinessRecordDetails.Read<PolicyCardData>(parent.DetailsJson);
+            _customerChoice!.SelectedItem = (_customerChoice.ItemsSource as IEnumerable<Choice>)?
+                .FirstOrDefault(item => item.Id == parent.CustomerId);
+            _insurerSuggest!.Text = original.Insurer ?? "";
+            _text["agency"].Text = original.Agency ?? "";
+            _text["branch"].Text = original.Branch ?? "";
+            _text["product"].Text = original.Product ?? "";
+            _text["previouspolicy"].Text = parent.Reference ?? parent.Title;
+            _text["gross"].Text = original.GrossPremium?.ToString("N2") ?? "";
+            _text["net"].Text = original.NetPremium?.ToString("N2") ?? "";
+            if (_typeChoice?.SelectedItem is "Πρόσθετη πράξη ακύρωσης")
+                _text["gross"].Text = _text["net"].Text = "0";
+            _dates["start"].Date = original.StartDate is DateTime start ? new DateTimeOffset(start) : null;
+            _dates["end"].Date = original.EndDate is DateTime end ? new DateTimeOffset(end) : null;
+        };
         AddTab("Καρτέλα ασφάλισης", main);
         BuildPolicyExtendedTabs(customers, vehicles, data);
     }
@@ -902,6 +992,12 @@ public sealed partial class BusinessRecordCardWindow : Window
                     OfferNumber = Value("offer"), ApplicationNumber = Value("application"), NoticeNumber = Value("notice"),
                     PolicyNumber = Value("policy"), RenewalNumber = Value("renewalnumber"),
                     PreviousPolicyId = _policyData.PreviousPolicyId,
+                    RelatedPolicyId = type is "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης"
+                        ? (_relatedPolicyChoice?.SelectedItem as Choice)?.Id : null,
+                    BaseGrossPremium = _policyData.BaseGrossPremium,
+                    BaseNetPremium = _policyData.BaseNetPremium,
+                    GrossPremiumDifference = _policyData.GrossPremiumDifference,
+                    NetPremiumDifference = _policyData.NetPremiumDifference,
                     PreviousPolicyNumber = Value("previouspolicy"),
                     HolderCustomerId = (_policyHolderChoice?.SelectedItem as Choice)?.Id,
                     Insurer = _insurerSuggest?.Text.Trim(),
@@ -961,6 +1057,15 @@ public sealed partial class BusinessRecordCardWindow : Window
                     throw new ArgumentException("Η διάρκεια επιτρέπεται έως 10 έτη, 120 μήνες ή 3650 ημέρες.");
                 if (type == "Ασφαλιστήριο" && data.RenewalDate is null)
                     throw new ArgumentException("Συμπληρώστε ημερομηνία ανανέωσης.");
+                if (type is "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης" &&
+                    data.RelatedPolicyId is null)
+                    throw new ArgumentException("Επιλέξτε το αρχικό ασφαλιστήριο της πρόσθετης πράξης.");
+                if (type is "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης" &&
+                    (data.GrossPremium is null || data.NetPremium is null))
+                    throw new ArgumentException("Συμπληρώστε τα νέα καθαρά και μικτά ασφάλιστρα της πράξης.");
+                if (type == "Πρόσθετη πράξη ακύρωσης" &&
+                    (data.CancellationDate is null || string.IsNullOrWhiteSpace(data.CancellationReason)))
+                    throw new ArgumentException("Η πράξη ακύρωσης χρειάζεται ημερομηνία και αιτιολογία.");
                 if (data.DiscountPercent is > 100)
                     throw new ArgumentException("Η έκπτωση δεν μπορεί να ξεπερνά το 100%.");
                 var number = type switch
@@ -1097,10 +1202,6 @@ public sealed partial class BusinessRecordCardWindow : Window
     {
         if (_footerRenewButton is not null)
             _footerRenewButton.IsEnabled = _record.Id != Guid.Empty &&
-                (_record.DocumentType is null or "Ασφαλιστήριο") &&
-                _record.Status != "Ακυρωμένο";
-        if (_footerCancelButton is not null)
-            _footerCancelButton.IsEnabled = _record.Id != Guid.Empty &&
                 (_record.DocumentType is null or "Ασφαλιστήριο") &&
                 _record.Status != "Ακυρωμένο";
         if (_convertButton is null) return;

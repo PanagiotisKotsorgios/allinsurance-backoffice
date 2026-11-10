@@ -342,6 +342,18 @@ public sealed partial class BusinessRecordCardWindow
             previous.Click += async (_, _) => await OpenRelatedPolicyAsync(previousId);
             links.Children.Add(previous);
         }
+        if (_policyData.RelatedPolicyId is Guid relatedId)
+        {
+            var original = new ActionButton { Kind = "Open", Label = "Αρχικό ασφαλιστήριο πρόσθετης πράξης" };
+            original.Click += async (_, _) => await OpenRelatedPolicyAsync(relatedId);
+            links.Children.Add(original);
+            panel.Children.Add(new TextBlock
+            {
+                Text = $"Διαφορά μικτών: {_policyData.GrossPremiumDifference.GetValueOrDefault():N2} €  ·  " +
+                    $"Διαφορά καθαρών: {_policyData.NetPremiumDifference.GetValueOrDefault():N2} €",
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            });
+        }
         var nextRecord = _allPolicyRecords.FirstOrDefault(item =>
             BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).PreviousPolicyId == _record.Id &&
             _record.Id != Guid.Empty);

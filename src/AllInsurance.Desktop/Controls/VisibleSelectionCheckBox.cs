@@ -51,8 +51,8 @@ public sealed class VisibleSelectionCheckBox : Grid
         Width = 32;
         Height = 32;
         _square.Child = _check;
-        Children.Add(_square);
         Children.Add(_input);
+        Children.Add(_square);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_input, "Επιλογή εγγραφής");
         _input.Checked += (_, args) => { UpdateVisual(); Checked?.Invoke(this, args); };
         _input.Unchecked += (_, args) => { UpdateVisual(); Unchecked?.Invoke(this, args); };
@@ -65,11 +65,11 @@ public sealed class VisibleSelectionCheckBox : Grid
         var selected = _input.IsChecked == true;
         var dark = ActualTheme == ElementTheme.Dark;
         _square.BorderBrush = new SolidColorBrush(dark
-            ? selected ? Color.FromArgb(255, 125, 141, 155) : Color.FromArgb(255, 115, 131, 145)
-            : selected ? Color.FromArgb(255, 79, 96, 112) : Color.FromArgb(255, 111, 129, 145));
+            ? selected ? Color.FromArgb(255, 181, 197, 209) : Color.FromArgb(255, 178, 191, 202)
+            : selected ? Color.FromArgb(255, 57, 82, 103) : Color.FromArgb(255, 83, 106, 126));
         _square.Background = selected
             ? new SolidColorBrush(dark ? Color.FromArgb(255, 101, 117, 130) : Color.FromArgb(255, 79, 96, 112))
-            : new SolidColorBrush(dark ? Color.FromArgb(255, 48, 57, 67) : Color.FromArgb(255, 224, 230, 236));
+            : new SolidColorBrush(dark ? Color.FromArgb(255, 63, 72, 82) : Color.FromArgb(255, 250, 252, 254));
         _check.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
     }
 }

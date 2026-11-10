@@ -100,7 +100,7 @@ public sealed partial class SectionPage
             statuses = statuses.Concat(["Ενεργό", "Ανενεργό"]);
         else if (_section.Key == "vehicles")
             statuses = statuses.Concat(["Ασφαλισμένο", "Σε εξέλιξη",
-                "Χωρίς ενεργό συμβόλαιο", "Ανενεργό"]);
+                "Ανασφάλιστο", "Ανενεργό"]);
         StatusFilter.SetOptions(statuses);
         if (_section.Key == "policies")
             PolicyDocumentFilter.SetOptions(records.Select(item => item.DocumentType ?? "Ασφαλιστήριο")
@@ -223,7 +223,7 @@ public sealed partial class SectionPage
 
     private string VehicleDisplayStatus(BusinessRecord item) =>
         item.Status == "Ανενεργό" ? "Ανενεργό" :
-        _vehicleInsuranceStates.GetValueOrDefault(item.Id) ?? item.Status ?? "—";
+        _vehicleInsuranceStates.GetValueOrDefault(item.Id) ?? "Ανασφάλιστο";
 
     private static string StatusKey(BusinessRecord item) =>
         string.IsNullOrWhiteSpace(item.Status) ? "Χωρίς κατάσταση" : item.Status;

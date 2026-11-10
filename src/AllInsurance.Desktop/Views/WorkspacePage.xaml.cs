@@ -63,7 +63,7 @@ public sealed partial class WorkspacePage : Page
             var label = new TextBlock
             {
                 Text = section.Title,
-                FontSize = 14,
+                FontSize = 15,
                 Opacity = 0.88,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -80,8 +80,8 @@ public sealed partial class WorkspacePage : Page
                         new Image
                         {
                             Source = new BitmapImage(new Uri(section.Icon)),
-                            Width = 27,
-                            Height = 27,
+                            Width = 30,
+                            Height = 30,
                             VerticalAlignment = VerticalAlignment.Center
                         },
                         label

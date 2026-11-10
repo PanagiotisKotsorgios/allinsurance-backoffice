@@ -19,6 +19,7 @@ public sealed partial class BusinessRecordCardWindow
     private PolicyCardData _policyData = new();
     private CustomerTransaction[] _policyTransactions = [];
     private ComboBox? _policyPartnerChoice;
+    private ComboBox? _relatedPolicyChoice;
     private readonly List<AutoSuggestBox> _policySearchFields = [];
     private FilterOption[] _policyBranchOptions = [];
     private FilterOption[] _policyPackageOptions = [];
@@ -40,7 +41,6 @@ public sealed partial class BusinessRecordCardWindow
     private ActionButton? _footerReceiptButton;
     private ActionButton? _footerPaymentButton;
     private ActionButton? _footerRenewButton;
-    private ActionButton? _footerCancelButton;
     private ListView? _policyClaimsList;
     private BusinessRecordCardWindow? _relatedPolicyCard;
     private WorkspaceRecordCardWindow? _policyClaimCard;

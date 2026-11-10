@@ -11,6 +11,7 @@ internal static class PolicyStatusColors
         "Αίτηση" => StatusPalette.Brush(StatusPalette.Caution),
         "Ειδοποιητήριο" => StatusPalette.Brush(StatusPalette.Informational),
         "Πρόσθετη πράξη" => Brush(105, 151, 122),
+        "Πρόσθετη πράξη ακύρωσης" => StatusPalette.Brush(StatusPalette.Negative),
         "Πράσινη κάρτα" => StatusPalette.Brush(StatusPalette.Positive),
         _ => Brush(76, 139, 114)
     };
