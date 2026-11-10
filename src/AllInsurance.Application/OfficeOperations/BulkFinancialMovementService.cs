@@ -18,7 +18,7 @@ public sealed class BulkFinancialMovementService(IApplicationDbContextFactory fa
         CancellationToken cancellationToken = default)
     {
         if (!session.IsAuthenticated) throw new UnauthorizedAccessException("Απαιτείται σύνδεση.");
-        if (section is not ("customers" or "partners" or "companies" or "agencies") ||
+        if (section is not ("customers" or "policies" or "partners" or "companies" or "agencies") ||
             direction is not ("receipt" or "payment"))
             throw new ArgumentException("Μη έγκυρο είδος μαζικής κίνησης.");
         if (items.Count == 0 || items.Any(item => item.TargetId == Guid.Empty ||
@@ -30,7 +30,7 @@ public sealed class BulkFinancialMovementService(IApplicationDbContextFactory fa
         description = description?.Trim();
         if (method.Length is < 1 or > 80 || reference?.Length > 100 || description?.Length > 500)
             throw new ArgumentException("Ελέγξτε τον τρόπο πληρωμής, την αναφορά και την αιτιολογία.");
-        if (direction == "receipt" && string.IsNullOrWhiteSpace(description))
+        if (section == "customers" && direction == "receipt" && string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Στη μαζική είσπραξη συμπληρώστε κοινή αιτιολογία για τις επιλεγμένες καρτέλες.");
         var batchReference = string.IsNullOrWhiteSpace(reference)
             ? "ΜΑΖ-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant() : reference;
@@ -45,7 +45,42 @@ public sealed class BulkFinancialMovementService(IApplicationDbContextFactory fa
             .Select(item => item.Value).SingleOrDefaultAsync(cancellationToken) ?? "EUR";
         if (currency != expectedCurrency)
             throw new InvalidOperationException("Το νόμισμα άλλαξε. Ανοίξτε ξανά τη μαζική καταχώριση.");
-        if (section == "customers")
+        if (section == "policies")
+        {
+            var policies = await db.BusinessRecords.AsNoTracking()
+                .Where(item => ids.Contains(item.Id) && item.SectionKey == "policies")
+                .Select(item => new { item.Id, item.CustomerId, item.Title })
+                .ToDictionaryAsync(item => item.Id, cancellationToken);
+            if (policies.Count != ids.Length || policies.Values.Any(item => item.CustomerId is null))
+                throw new InvalidOperationException("Κάποιο επιλεγμένο ασφαλιστήριο δεν υπάρχει ή δεν έχει συνδεδεμένο πελάτη.");
+            foreach (var item in items)
+            {
+                var policy = policies[item.TargetId];
+                var customerId = policy.CustomerId!.Value;
+                var movementId = Guid.NewGuid();
+                movementIds.Add(movementId);
+                db.CustomerTransactions.Add(new CustomerTransaction
+                {
+                    Id = movementId, CustomerId = customerId, BusinessRecordId = policy.Id,
+                    Type = direction, Amount = item.Amount, PaymentMethod = method,
+                    Currency = currency, Reference = batchReference, Description = description,
+                    OccurredAtUtc = occurredAt, CreatedByUserId = session.Current.UserId
+                });
+                var action = direction == "receipt" ? "Μαζική είσπραξη" : "Μαζική πληρωμή";
+                var detail = $"{item.Amount:N2} {currency} · {method} · {policy.Title} · {batchReference}";
+                db.CustomerActivities.Add(new CustomerActivity
+                {
+                    Id = Guid.NewGuid(), CustomerId = customerId, Action = action,
+                    Description = detail, ActorName = actor, OccurredAtUtc = occurredAt
+                });
+                db.BusinessRecordActivities.Add(new BusinessRecordActivity
+                {
+                    Id = Guid.NewGuid(), RecordId = policy.Id, Action = action,
+                    Description = detail, ActorName = actor, OccurredAtUtc = occurredAt
+                });
+            }
+        }
+        else if (section == "customers")
         {
             var customers = await db.Customers.AsNoTracking().Where(item => ids.Contains(item.Id))
                 .Select(item => item.Id).ToListAsync(cancellationToken);

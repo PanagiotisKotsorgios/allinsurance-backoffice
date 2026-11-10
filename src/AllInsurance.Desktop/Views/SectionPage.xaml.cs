@@ -34,6 +34,8 @@ public sealed partial class SectionPage : Page
     private Dictionary<Guid, string> _vehicleInsuranceStates = [];
     private Dictionary<Guid, string> _policyPartnerNames = [];
     private int _requestVersion;
+    private int _filterRequestVersion;
+    private bool _settingFilterOptions;
     private BusinessRecordRow[] _filtered = [];
     private readonly int[] _columnOrder = [0, 1, 2, 3, 4, 5, 6];
     private readonly double[] _columnWidths;
@@ -72,9 +74,14 @@ public sealed partial class SectionPage : Page
         _filters = App.Services.GetRequiredService<IFilterOptionService>();
         _partners = App.Services.GetRequiredService<IPartnerService>();
         InitializeComponent();
-        BulkReceiptButton.Visibility = section.Key is "partners" or "companies" or "agencies"
+        BulkReceiptButton.Visibility = section.Key is "partners" or "companies" or "agencies" or "policies"
             ? Visibility.Visible : Visibility.Collapsed;
         BulkPaymentButton.Visibility = BulkReceiptButton.Visibility;
+        if (section.Key == "policies")
+        {
+            BulkReceiptButton.Label = "Μαζική είσπραξη ανά πελάτη";
+            BulkPaymentButton.Label = "Μαζική πληρωμή ανά πελάτη";
+        }
         TableExportActions.Attach(PaginationActions, this, ExportData);
         TableRowStriping.Attach(RecordsList);
         RecordsList.AddHandler(UIElement.PointerPressedEvent,
@@ -186,13 +193,13 @@ public sealed partial class SectionPage : Page
             EventHeader.Text = "Ημερομηνία συμβάντος";
             CustomerHeader.Text = "Κατάσταση";
         }
-        StatusFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
-        CustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
-        CityFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
-        PersonTypeFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
-        PolicyCustomerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
-        PolicyPartnerFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
-        PolicyDocumentFilter.SelectionChanged += (_, _) => _ = RefreshAsync();
+        StatusFilter.SelectionChanged += (_, _) => _ = QueueFilterRefreshAsync();
+        CustomerFilter.SelectionChanged += (_, _) => _ = QueueFilterRefreshAsync();
+        CityFilter.SelectionChanged += (_, _) => _ = QueueFilterRefreshAsync();
+        PersonTypeFilter.SelectionChanged += (_, _) => _ = QueueFilterRefreshAsync();
+        PolicyCustomerFilter.SelectionChanged += (_, _) => _ = QueueFilterRefreshAsync();
+        PolicyPartnerFilter.SelectionChanged += (_, _) => _ = QueueFilterRefreshAsync();
+        PolicyDocumentFilter.SelectionChanged += (_, _) => _ = QueueFilterRefreshAsync();
         Loaded += (_, _) => UpdateResponsiveLayout(PageContent.ActualWidth);
         Loaded += async (_, _) =>
         {
@@ -304,7 +311,9 @@ public sealed partial class SectionPage : Page
                     .ToDictionary(item => item.Id, item => item.Title);
                 if (version != _requestVersion) return;
             }
-            ConfigureFilterOptions(records);
+            _settingFilterOptions = true;
+            try { ConfigureFilterOptions(records); }
+            finally { _settingFilterOptions = false; }
             IEnumerable<BusinessRecord> filtered = records;
             var term = SearchInput.Text.Trim();
             if (term.Length > 0)
@@ -401,11 +410,19 @@ public sealed partial class SectionPage : Page
         catch (Exception exception) { ShowStatus(exception.Message); }
     }
 
-    private async void Filter_Changed(object sender, TextChangedEventArgs e) => await RefreshAsync();
-    private async void DateFilter_Changed(object? sender, EventArgs args)
-    { UpdateDateRangeLabel(); await RefreshAsync(); }
-    private async void DateBasis_Changed(object sender, SelectionChangedEventArgs e)
-    { UpdateDateRangeLabel(); await RefreshAsync(); }
+    private async Task QueueFilterRefreshAsync()
+    {
+        if (_settingFilterOptions) return;
+        var version = ++_filterRequestVersion;
+        await Task.Delay(180);
+        if (version == _filterRequestVersion) await RefreshAsync();
+    }
+
+    private void Filter_Changed(object sender, TextChangedEventArgs e) => _ = QueueFilterRefreshAsync();
+    private void DateFilter_Changed(object? sender, EventArgs args)
+    { UpdateDateRangeLabel(); _ = QueueFilterRefreshAsync(); }
+    private void DateBasis_Changed(object sender, SelectionChangedEventArgs e)
+    { UpdateDateRangeLabel(); _ = QueueFilterRefreshAsync(); }
     private void ClearFilters_Click(object sender, RoutedEventArgs e)
     {
         SearchInput.Text = "";
@@ -491,6 +508,7 @@ public sealed partial class SectionPage : Page
             if (args.InRecycleQueue || args.Item is not BusinessRecordRow row || args.ItemContainer is null) return;
             args.ItemContainer.Padding = new Thickness(0);
             args.ItemContainer.Margin = new Thickness(0);
+            args.ItemContainer.MinHeight = 0;
             args.ItemContainer.Width = DisplayTableWidth;
             args.ItemContainer.Height = TableRowResizer.HeightFor(_section.Key, row.Record.Id);
             args.ItemContainer.HorizontalContentAlignment = HorizontalAlignment.Stretch;
@@ -942,7 +960,7 @@ public sealed partial class SectionPage : Page
 
     private async Task PostBulkAsync(string direction)
     {
-        if (_section.Key is not ("partners" or "companies" or "agencies")) return;
+        if (_section.Key is not ("partners" or "companies" or "agencies" or "policies")) return;
         try
         {
             var selectedIds = _checkedRecordIds.ToHashSet();
@@ -953,8 +971,17 @@ public sealed partial class SectionPage : Page
                 return;
             }
             var records = await _records.SearchAsync(_section.Key);
+            if (_section.Key == "policies" && records.Any(item =>
+                selectedIds.Contains(item.Id) && item.CustomerId is null))
+            {
+                await UiAlerts.ShowErrorAsync(XamlRoot,
+                    "Κάποιο επιλεγμένο ασφαλιστήριο δεν έχει συνδεδεμένο πελάτη.");
+                return;
+            }
             var targets = records.Where(item => selectedIds.Contains(item.Id))
-                .Select(item => new BulkFinancialTarget(item.Id, item.Title)).ToArray();
+                .Select(item => new BulkFinancialTarget(item.Id, _section.Key == "policies"
+                    ? $"{item.Customer?.LastName} {item.Customer?.FirstName} · {item.Reference ?? item.Title}"
+                    : item.Title)).ToArray();
             if (targets.Length != selectedIds.Count)
             {
                 await UiAlerts.ShowErrorAsync(XamlRoot,

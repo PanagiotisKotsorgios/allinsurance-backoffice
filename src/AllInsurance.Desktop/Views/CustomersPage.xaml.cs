@@ -378,7 +378,7 @@ public sealed partial class CustomersPage : Page
             Grid.SetColumn(cell, index + 1);
             row.Children.Add(cell);
         }
-        var result = new ListViewItem { Content = row, Tag = item, Padding = new Thickness(0),
+        var result = new ListViewItem { Content = row, Tag = item, Padding = new Thickness(0), MinHeight = 0,
             Margin = new Thickness(0), Width = TableStack.Width - 2, Height = 34,
             HorizontalContentAlignment = HorizontalAlignment.Stretch };
         TableRowResizer.Attach(row, result, "customers", item.Id);
@@ -608,12 +608,25 @@ public sealed partial class CustomersPage : Page
     private async Task PostBulkAsync(string direction)
     {
         var selected = SelectedCustomers();
-        if (await BulkFinancialMovementDialog.ShowAsync(XamlRoot, "customers", direction,
-            selected.Select(item => new BulkFinancialTarget(item.Id, item.FullName)).ToArray()))
+        if (selected.Length == 0)
         {
-            _checkedCustomerIds.Clear();
-            await RefreshAsync();
+            await UiAlerts.ShowErrorAsync(XamlRoot, "Επιλέξτε πρώτα έναν ή περισσότερους πελάτες.");
+            return;
         }
+        try
+        {
+            var customers = selected.Select(item => new BulkFinancialTarget(item.Id, item.FullName)).ToArray();
+            var policies = await BulkPolicySelectionDialog.ShowAsync(XamlRoot, customers);
+            if (policies is null) return;
+            var byPolicy = policies.Length > 0;
+            if (await BulkFinancialMovementDialog.ShowAsync(XamlRoot,
+                byPolicy ? "policies" : "customers", direction, byPolicy ? policies : customers))
+            {
+                _checkedCustomerIds.Clear();
+                await RefreshAsync();
+            }
+        }
+        catch (Exception error) { await UiAlerts.ShowErrorAsync(XamlRoot, error.Message); }
     }
 
     private async Task DeleteCustomerAsync(CustomerListItem item)

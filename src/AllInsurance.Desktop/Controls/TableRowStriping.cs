@@ -25,6 +25,7 @@ internal static class TableRowStriping
     {
         if (Attached.TryGetValue(list, out _)) return;
         Attached.Add(list, new object());
+        list.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
         list.ContainerContentChanging += (_, args) =>
         {
             if (args.ItemContainer is ListViewItem item) Apply(item, args.ItemIndex, list, false);
@@ -36,11 +37,6 @@ internal static class TableRowStriping
             list.DispatcherQueue.TryEnqueue(() => Refresh(list, true));
         };
         list.ActualThemeChanged += (_, _) => Refresh(list, true);
-        list.LayoutUpdated += (_, _) =>
-        {
-            // Directly supplied ListViewItem rows do not always raise ContainerContentChanging.
-            if (list.Items.Count <= 250) Refresh(list);
-        };
         Refresh(list);
     }
 
@@ -57,10 +53,17 @@ internal static class TableRowStriping
     {
         var alternate = index % 2 == 1;
         var state = States.GetValue(item, _ => new RowState());
+        item.MinHeight = 0;
+        item.Padding = new Thickness(0);
+        item.Margin = new Thickness(0);
         if (!state.LoadHooked)
         {
             state.LoadHooked = true;
-            item.Loaded += (_, _) => Refresh(list, true);
+            item.Loaded += (_, _) =>
+            {
+                var position = list.Items.IndexOf(item);
+                if (position >= 0) Apply(item, position, list, true);
+            };
         }
         var brush = RowBrush(list, alternate);
         if (!ReferenceEquals(item.Background, brush)) item.Background = brush;

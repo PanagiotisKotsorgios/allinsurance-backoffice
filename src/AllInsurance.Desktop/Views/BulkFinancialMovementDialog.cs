@@ -75,11 +75,20 @@ internal static class BulkFinancialMovementDialog
             UpdateTotal();
             BulkMovementItem[] validated = [];
             var dialog = new ContentDialog { XamlRoot = root,
-                Title = direction == "receipt" ? "Μαζική είσπραξη" : "Μαζική πληρωμή",
+                Title = (direction == "receipt" ? "Μαζική είσπραξη" : "Μαζική πληρωμή") +
+                    (section == "policies" ? " ανά ασφαλιστήριο" : " ανά καρτέλα"),
                 Content = new ScrollViewer { Content = form, MaxHeight = 520 },
                 PrimaryButtonText = "Καταχώριση", CloseButtonText = "Ακύρωση" };
             dialog.PrimaryButtonClick += (sender, args) =>
             {
+                if (section == "customers" && direction == "receipt" &&
+                    string.IsNullOrWhiteSpace(description.Text))
+                {
+                    error.Text = "Συμπληρώστε κοινή αιτιολογία για τη γενική είσπραξη.";
+                    error.Visibility = Visibility.Visible;
+                    args.Cancel = true;
+                    return;
+                }
                 if (method.SelectedItem is not string || fields.Any(field =>
                     !TryAmount(field.Amount.Text, out var parsedAmount)))
                 {

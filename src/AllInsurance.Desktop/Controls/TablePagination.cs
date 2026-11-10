@@ -26,6 +26,7 @@ internal sealed class TablePagination
     public TablePagination(ListView list)
     {
         _list = list;
+        _list.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
         _previous.Click += (_, _) => { _page--; Render(); };
         _next.Click += (_, _) => { _page++; Render(); };
         Bar.Children.Add(_previous);
