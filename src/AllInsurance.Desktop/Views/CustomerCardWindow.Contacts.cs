@@ -89,7 +89,7 @@ public sealed partial class CustomerCardWindow
         content.Children.Add(exportHost);
         content.Visibility = Visibility.Collapsed;
         var toggle = new Button { Content = "▸  Επικοινωνία", HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 38 };
+            HorizontalContentAlignment = HorizontalAlignment.Left, MinHeight = 36 };
         var section = new StackPanel { Spacing = 3, Margin = new Thickness(0, 8, 0, 0) };
         toggle.Click += (_, _) =>
         {
@@ -132,9 +132,9 @@ public sealed partial class CustomerCardWindow
     {
         if (!await EnsureSavedAsync()) return;
         var title = new TextBox { Header = "Τίτλος *", Text = existing?.Title ?? "",
-            IsReadOnly = existing?.SetLegacyValue is not null, MinHeight = 38 };
+            IsReadOnly = existing?.SetLegacyValue is not null, MinHeight = 36 };
         var value = new TextBox { Header = "Περιεχόμενο *", Text = existing?.Value ?? "",
-            MinHeight = 38 };
+            MinHeight = 36 };
         var form = new StackPanel { Spacing = 10, Width = 440 };
         form.Children.Add(title);
         form.Children.Add(value);

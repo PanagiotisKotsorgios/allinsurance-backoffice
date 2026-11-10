@@ -22,7 +22,7 @@ public sealed partial class CustomerCardWindow
             var destination = new SearchablePicker<CustomerListItem>("Πελάτης προορισμού *",
                 candidates, item => item.FullName);
             var amount = new TextBox { Header = $"Ποσό (έως {available:N2} {CurrencySymbol}) *",
-                PlaceholderText = "0,00", MinHeight = 40,
+                PlaceholderText = "0,00", MinHeight = 36,
                 VerticalContentAlignment = VerticalAlignment.Center };
             var noPolicy = new PolicyChoice(null, "Χωρίς σύνδεση");
             var policies = new SearchablePicker<PolicyChoice>("Ασφαλιστήριο πελάτη προορισμού",
@@ -43,7 +43,7 @@ public sealed partial class CustomerCardWindow
                 policies.SetItems(choices, noPolicy);
             };
             var reason = new TextBox { Header = "Αιτιολογία / αναφορά ακύρωσης",
-                PlaceholderText = "Προαιρετική αιτιολογία", MinHeight = 40 };
+                PlaceholderText = "Προαιρετική αιτιολογία", MinHeight = 36 };
             var form = new StackPanel { Spacing = 10, Width = 440 };
             form.Children.Add(new TextBlock { Text =
                 "Το διαθέσιμο πιστωτικό θα μεταφερθεί με δύο συνδεδεμένες κινήσεις. " +

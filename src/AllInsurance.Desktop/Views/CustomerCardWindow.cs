@@ -103,7 +103,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         _customerId = customerId;
         _editing = beginEditing || !customerId.HasValue;
-        var header = new StackPanel { Spacing = 4, Margin = new Thickness(18, 8, 18, 4) };
+        var header = new StackPanel { Spacing = 4, Margin = new Thickness(12, 6, 12, 3) };
         var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 1) };
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 22, 119, 170), Offset = 1 });
@@ -169,7 +169,7 @@ public sealed partial class CustomerCardWindow : Window
             new ColumnDefinition { Width = GridLength.Auto } },
             RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto } }, RowSpacing = 6,
-            Margin = new Thickness(20, 10, 20, 18) };
+            Margin = new Thickness(12, 6, 12, 10) };
         var leftActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         AddButton(leftActions, "Γενική είσπραξη", async () => await AddTransactionAsync("receipt"));
         AddButton(leftActions, "Γενική πληρωμή", async () => await AddTransactionAsync("payment"));
@@ -212,9 +212,9 @@ public sealed partial class CustomerCardWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
         var working = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
-        var width = Math.Min(1260, Math.Max(680, working.Width - 40));
-        var height = Math.Min(960, Math.Max(520, working.Height - 30));
-        _contentWidth = Math.Min(1100, width - 70);
+        var width = Math.Min(1160, Math.Max(660, working.Width - 32));
+        var height = Math.Min(840, Math.Max(500, working.Height - 30));
+        _contentWidth = Math.Min(1040, width - 50);
         _tabs.SizeChanged += (_, args) =>
         {
             if (_compactMain is not null)
@@ -358,18 +358,18 @@ public sealed partial class CustomerCardWindow : Window
                 "policies" => "Αναζήτηση συμβολαίου, ασφαλιστικής, κλάδου...",
                 "vehicles" => "Αναζήτηση πινακίδας, μάρκας, στοιχείων...",
                 _ => "Αναζήτηση τίτλου, αριθμού ή στοιχείων..."
-            }, Height = 38, MinHeight = 38,
+            }, Height = 36, MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch };
-        var stateFilter = new ComboBox { Width = 195, Height = 38,
+        var stateFilter = new ComboBox { Width = 195, Height = 36,
             ItemsSource = category == "policies"
                 ? new[] { "Όλα", "Σε εξέλιξη", "Ενεργά", "Αιτήσεις", "Ειδοποιητήρια",
                     "Ασφαλιστήρια", "Προσφορές", "Πρόσθετες πράξεις", "Πράσινες κάρτες" }
                 : new[] { "Όλα", "Ενεργά", "Ανενεργά" }, SelectedIndex = 0 };
-        var dateBasis = new ComboBox { Width = 195, Height = 38,
+        var dateBasis = new ComboBox { Width = 195, Height = 36,
             ItemsSource = new[] { "Ημ. έναρξης", "Ημ. έκδοσης" }, SelectedIndex = 0 };
-        var fromFilter = new EditableDateInput { Width = 195, Height = 38,
+        var fromFilter = new EditableDateInput { Width = 195, Height = 36,
             PlaceholderText = "Από ημερομηνία" };
-        var untilFilter = new EditableDateInput { Width = 195, Height = 38,
+        var untilFilter = new EditableDateInput { Width = 195, Height = 36,
             PlaceholderText = "Έως ημερομηνία" };
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 205, ItemHeight = 42 };
@@ -570,7 +570,7 @@ public sealed partial class CustomerCardWindow : Window
 
     private ListViewItem DetailListItem(string category, object source, params string?[] cells)
     {
-        var row = new Grid { ColumnSpacing = 0, Width = 980, Height = 39 };
+        var row = new Grid { ColumnSpacing = 0, Width = 980, Height = 35 };
         var widths = category == "policies"
             ? new[] { 155, 160, 140, 115, 105, 95, 105, 105 }
             : new[] { 150, 140, 220, 150, 150, 170 };
@@ -610,7 +610,7 @@ public sealed partial class CustomerCardWindow : Window
             Grid.SetColumn(cell, index);
             row.Children.Add(cell);
         }
-        var result = new ListViewItem { Content = row, Tag = source, Width = 980, Height = 39,
+        var result = new ListViewItem { Content = row, Tag = source, Width = 980, Height = 35,
             Padding = new Thickness(0), Margin = new Thickness(0),
             HorizontalContentAlignment = HorizontalAlignment.Stretch };
         var id = source switch { CustomerDetail detail => detail.Id,
@@ -983,41 +983,26 @@ public sealed partial class CustomerCardWindow : Window
         foreach (var button in _tabButtons)
         {
             button.Width = double.NaN;
-            button.MinHeight = narrow ? 32 : 34;
+            button.MinHeight = 32;
             if (button.Content is not Border { Child: StackPanel content }) continue;
             if (content is null) continue;
-            content.Margin = narrow ? new Thickness(7, 0, 7, 0) : new Thickness(10, 0, 10, 0);
-            content.Spacing = narrow ? 4 : 5;
-            var iconSize = narrow ? 14 : 16;
+            content.Margin = narrow ? new Thickness(6, 0, 6, 0) : new Thickness(7, 0, 7, 0);
+            content.Spacing = 4;
+            var iconSize = narrow ? 13 : 14;
             foreach (var icon in content.Children.OfType<Image>())
                 icon.Width = icon.Height = iconSize;
             foreach (var label in content.Children.OfType<TextBlock>())
             {
-                label.FontSize = narrow ? 11 : 12;
+                label.FontSize = narrow ? 10.5 : 11;
                 label.TextWrapping = TextWrapping.NoWrap;
                 label.MaxWidth = double.PositiveInfinity;
                 label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                button.MinWidth = Math.Max(narrow ? 72 : 84,
+                button.MinWidth = Math.Max(narrow ? 64 : 68,
                     Math.Ceiling(label.DesiredSize.Width + iconSize + content.Spacing +
-                        (narrow ? 14 : 20)));
+                        (narrow ? 12 : 14)));
             }
         }
-        var tabWidth = Math.Max(72, _tabButtons.Max(button => button.MinWidth));
-        var columns = Math.Min(_tabButtons.Count, Math.Max(1, (int)(availableWidth / (tabWidth + 2))));
-        _tabStrip.Width = availableWidth;
-        _tabStrip.ColumnDefinitions.Clear();
-        _tabStrip.RowDefinitions.Clear();
-        for (var index = 0; index < columns; index++)
-            _tabStrip.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        for (var index = 0; index < (_tabButtons.Count + columns - 1) / columns; index++)
-            _tabStrip.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        for (var index = 0; index < _tabButtons.Count; index++)
-        {
-            var button = _tabButtons[index];
-            button.HorizontalAlignment = HorizontalAlignment.Stretch;
-            Grid.SetRow(button, index / columns);
-            Grid.SetColumn(button, index % columns);
-        }
+        CardTabVisual.Layout(_tabStrip, availableWidth);
     }
 
     private void SelectTab(int index)
@@ -1105,7 +1090,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         var input = new ComboBox { ItemsSource = options,
             IsHitTestVisible = _editing, IsTabStop = _editing,
-            MinHeight = 38, Height = 38,
+            MinHeight = 36, Height = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             SelectedItem = options.Contains(getter()) ? getter() : options[0] };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
@@ -1119,7 +1104,7 @@ public sealed partial class CustomerCardWindow : Window
     {
         var selected = getter();
         var input = new ComboBox { IsHitTestVisible = _editing, IsTabStop = _editing,
-            MinHeight = 38, Height = 38,
+            MinHeight = 36, Height = 36,
             PlaceholderText = "Επιλέξτε", HorizontalAlignment = HorizontalAlignment.Stretch };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
         var host = new Grid { ColumnSpacing = 6,
@@ -1134,7 +1119,7 @@ public sealed partial class CustomerCardWindow : Window
             host.Children.Add(search);
             searchTarget = search;
             var add = new ActionButton { Kind = "Add", Label = "Προσθήκη " + label,
-                IconOnly = true, Width = 38, Height = 38 };
+                IconOnly = true, Width = 38, Height = 36 };
             ToolTipService.SetToolTip(add, "Προσθήκη νέας επιλογής: " + label);
             add.Click += async (_, _) => await AddCatalogValueAsync(input, category, label);
             Grid.SetColumn(add, 1);
@@ -1215,7 +1200,7 @@ public sealed partial class CustomerCardWindow : Window
     private EditableDateInput AddDate(StackPanel form, string label, Func<DateTime?> getter, Action<DateTime?> setter)
     {
         var input = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
-            MinHeight = 38, Height = 38,
+            MinHeight = 36, Height = 36,
             Date = getter() is DateTime value ? new DateTimeOffset(value) : null,
             IsHitTestVisible = _editing, IsTabStop = _editing };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(input, label);
@@ -1265,7 +1250,7 @@ public sealed partial class CustomerCardWindow : Window
     private static void AddButton(Panel panel, string label, Func<Task> action)
     {
         var button = new ActionButton { Label = label, Kind = ActionKind(label),
-            Width = 180, MinHeight = 38 };
+            Width = 180, MinHeight = 36 };
         button.Click += async (_, _) => await action();
         panel.Children.Add(button);
     }

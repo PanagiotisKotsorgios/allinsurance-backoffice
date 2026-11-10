@@ -132,7 +132,7 @@ public sealed partial class CommunicationsPage : Page
 
     private ListViewItem BuildRow(Candidate candidate)
     {
-        var grid = new Grid { Height = 40, ColumnDefinitions =
+        var grid = new Grid { Height = 36, ColumnDefinitions =
         {
             new ColumnDefinition { Width = new GridLength(42) },
             new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) },

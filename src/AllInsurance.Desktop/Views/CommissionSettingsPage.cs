@@ -44,7 +44,7 @@ public sealed class CommissionSettingsPage : Page
 
     public CommissionSettingsPage()
     {
-        _root = new Grid { Margin = new Thickness(16, 8, 16, 8), RowSpacing = 8,
+        _root = new Grid { Margin = new Thickness(4, 4, 6, 4), RowSpacing = 4,
             RowDefinitions = { new RowDefinition { Height = GridLength.Auto }, new RowDefinition() } };
         var filters = new StackPanel { Spacing = 8 };
         var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
@@ -255,7 +255,7 @@ public sealed class CommissionSettingsPage : Page
                     CommissionCoverageSelection.Display(rule.Coverage), rule.Package ?? "Όλα", ScopeLabel(rule),
                     $"{rule.OfficePercent:N2}%",
                     $"{rule.PartnerPercent:N2}%", rule.IsActive ? "Ενεργός" : "Ανενεργός"], false),
-                Height = 40, Width = _tableWidth, Padding = new Thickness(0),
+                Height = 36, Width = _tableWidth, Padding = new Thickness(0),
                 Background = Solid(_dark ? 38 : 235, _dark ? 43 : 240, _dark ? 49 : 245),
                 Foreground = Solid(_dark ? 241 : 30, _dark ? 245 : 45, _dark ? 249 : 62),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch });
@@ -276,7 +276,7 @@ public sealed class CommissionSettingsPage : Page
                 Content = TableRow([candidate.Organization, candidate.Branch ?? "Όλοι",
                     candidate.Use ?? "Όλες", candidate.Coverage ?? "Όλες",
                     candidate.Package ?? "Όλα", "Όλοι", "—", "—", "Χωρίς κανόνα"], false),
-                Height = 40, Width = _tableWidth, Padding = new Thickness(0),
+                Height = 36, Width = _tableWidth, Padding = new Thickness(0),
                 Foreground = Solid(_dark ? 241 : 30, _dark ? 245 : 45, _dark ? 249 : 62),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch });
         _status.Text = $"{rows.Length} κανόνες · {candidates.Length} διαθέσιμες επιλογές";
@@ -285,7 +285,7 @@ public sealed class CommissionSettingsPage : Page
     private Grid TableRow(string[] values, bool header)
     {
         var widths = new[] { 190, 115, 115, 130, 115, 180, 105, 125, 130 };
-        var grid = new Grid { Width = _tableWidth, Height = 40,
+        var grid = new Grid { Width = _tableWidth, Height = 36,
             Background = header ? new SolidColorBrush(_dark
                 ? Color.FromArgb(255, 53, 63, 75) : Color.FromArgb(255, 203, 215, 226)) : null };
         foreach (var width in widths)

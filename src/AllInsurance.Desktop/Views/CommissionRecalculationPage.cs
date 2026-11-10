@@ -57,7 +57,7 @@ public sealed class CommissionRecalculationPage : Page
     public CommissionRecalculationPage(Action back)
     {
         _back = back;
-        _root = new Grid { Margin = new Thickness(16, 8, 16, 8), RowSpacing = 8,
+        _root = new Grid { Margin = new Thickness(4, 4, 6, 4), RowSpacing = 4,
             RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
                 new RowDefinition { Height = GridLength.Auto }, new RowDefinition(),
                 new RowDefinition { Height = GridLength.Auto } } };
@@ -202,7 +202,7 @@ public sealed class CommissionRecalculationPage : Page
             _rows.Add(row);
             _rowPreviews.Add(item);
             TableRowStriping.ApplyRow(row, _rows.Count - 1, _list);
-            _list.Items.Add(new ListViewItem { Content = row, Height = 42,
+            _list.Items.Add(new ListViewItem { Content = row, Height = 36,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(0),
                 Foreground = _textBrush });
         }

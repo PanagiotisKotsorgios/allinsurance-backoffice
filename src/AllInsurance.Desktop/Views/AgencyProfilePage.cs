@@ -13,7 +13,7 @@ public sealed class AgencyProfilePage : Page
     public AgencyProfilePage()
     {
         var profile = AgencyProfileSettings.Load();
-        var panel = new StackPanel { Spacing = 12, Margin = new Thickness(24),
+        var panel = new StackPanel { Spacing = 7, Margin = new Thickness(8, 6, 8, 6),
             MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left };
         panel.Children.Add(new TextBlock { Text = "Ρυθμίσεις προφίλ πρακτορείου", FontSize = 26,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });

@@ -103,7 +103,7 @@ public sealed class ReceiptCardWindow : Window
         _root.SizeChanged += (_, args) =>
             CardTabVisual.Layout(_tabs, Math.Max(280, args.NewSize.Width - 24));
 
-        var footer = new Grid { Margin = new Thickness(20, 10, 20, 18),
+        var footer = new Grid { Margin = new Thickness(12, 6, 12, 10),
             ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
         var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         links.Children.Add(_customerButton);
@@ -128,8 +128,8 @@ public sealed class ReceiptCardWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
         var area = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
-        var width = Math.Min(1050, Math.Max(740, area.Width - 42));
-        var height = Math.Min(760, Math.Max(520, area.Height - 42));
+        var width = Math.Min(940, Math.Max(680, area.Width - 42));
+        var height = Math.Min(700, Math.Max(500, area.Height - 42));
         appWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2,
             area.Y + (area.Height - height) / 2, width, height));
         appWindow.Title = "Καρτέλα είσπραξης — AllInsurance Backoffice Software";

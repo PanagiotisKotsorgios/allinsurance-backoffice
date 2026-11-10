@@ -64,7 +64,7 @@ public sealed partial class BusinessRecordCardWindow
         var values = new[] { new Choice(null, "Χωρίς συνεργάτη") }
             .Concat(_partnerRecords.Select(item => new Choice(item.Id, item.Title))).ToArray();
         _policyPartnerChoice = new ComboBox { ItemsSource = values,
-            DisplayMemberPath = nameof(Choice.Name), Height = 40, MinHeight = 40,
+            DisplayMemberPath = nameof(Choice.Name), Height = 36, MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _policyPartnerChoice.SelectedItem = values.FirstOrDefault(item => item.Id == data.PartnerId) ?? values[0];
         panel.Children.Add(_policyPartnerChoice);
@@ -83,7 +83,7 @@ public sealed partial class BusinessRecordCardWindow
     private AutoSuggestBox SearchChoice(Func<Choice[]> choices, ComboBox selected, string hint)
     {
         var search = new AutoSuggestBox { Text = (selected.SelectedItem as Choice)?.Name ?? "",
-            PlaceholderText = hint, MinHeight = 40,
+            PlaceholderText = hint, MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         SearchSuggestions.CloseOnLostFocus(search);
         void UpdateSuggestions(bool showAll = false)
@@ -116,7 +116,7 @@ public sealed partial class BusinessRecordCardWindow
         _text[key] = backing;
         panel.Children.Add(backing);
         var search = new AutoSuggestBox { Text = initial ?? "", PlaceholderText = "Αναζήτηση " + label,
-            MinHeight = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
+            MinHeight = 36, HorizontalAlignment = HorizontalAlignment.Stretch };
         SearchSuggestions.CloseOnLostFocus(search);
         void UpdateSuggestions(bool showAll = false)
         {
@@ -154,7 +154,7 @@ public sealed partial class BusinessRecordCardWindow
         var values = new[] { new Choice(null, "Ίδιος με ασφαλισμένο") }
             .Concat(customers.Select(item => new Choice(item.Id, item.FullName))).ToArray();
         _policyHolderChoice = new ComboBox { ItemsSource = values,
-            DisplayMemberPath = nameof(Choice.Name), Height = 40, MinHeight = 40,
+            DisplayMemberPath = nameof(Choice.Name), Height = 36, MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _policyHolderChoice.SelectedItem = values.FirstOrDefault(item => item.Id == data.HolderCustomerId) ?? values[0];
         panel.Children.Add(_policyHolderChoice);
@@ -185,7 +185,7 @@ public sealed partial class BusinessRecordCardWindow
             new DurationChoice(6, "6 μήνες"), new DurationChoice(12, "12 μήνες"),
             new DurationChoice(24, "24 μήνες") };
         _policyDurationChoice = new ComboBox { ItemsSource = values,
-            DisplayMemberPath = nameof(DurationChoice.Label), Height = 40, MinHeight = 40,
+            DisplayMemberPath = nameof(DurationChoice.Label), Height = 36, MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         _policyDurationChoice.SelectedItem = values.FirstOrDefault(item => item.Months == data.CoverageDurationMonths)
             ?? values[0];
@@ -194,9 +194,9 @@ public sealed partial class BusinessRecordCardWindow
         duration.ColumnDefinitions.Add(new ColumnDefinition());
         duration.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
         _durationValue = new TextBox { Text = data.CoverageDurationValue?.ToString() ??
-            data.CoverageDurationMonths?.ToString() ?? "", PlaceholderText = "π.χ. 3M ή 15Η", MinHeight = 40 };
+            data.CoverageDurationMonths?.ToString() ?? "", PlaceholderText = "π.χ. 3M ή 15Η", MinHeight = 36 };
         _durationUnit = new ComboBox { ItemsSource = new[] { "Ημέρες", "Μήνες", "Έτη" },
-            SelectedItem = data.CoverageDurationUnit ?? "Μήνες", MinHeight = 40 };
+            SelectedItem = data.CoverageDurationUnit ?? "Μήνες", MinHeight = 36 };
         duration.Children.Add(_durationValue);
         Grid.SetColumn(_durationUnit, 1);
         duration.Children.Add(_durationUnit);

@@ -119,9 +119,9 @@ public sealed partial class BusinessRecordCardWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
         var area = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
-        var width = Math.Min(1220, Math.Max(660, area.Width - 32));
-        var height = Math.Min(900, Math.Max(560, area.Height - 32));
-        _contentWidth = Math.Min(1100, width - 70);
+        var width = Math.Min(1120, Math.Max(650, area.Width - 32));
+        var height = Math.Min(820, Math.Max(500, area.Height - 32));
+        _contentWidth = Math.Min(1040, width - 50);
         _tabContent.SizeChanged += (_, args) =>
         {
             var target = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
@@ -259,7 +259,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             EndPoint = new Windows.Foundation.Point(1, 1) };
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 13, 47, 91), Offset = 0 });
         gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(255, 22, 119, 170), Offset = 1 });
-        var banner = new Border { Margin = new Thickness(18, 8, 18, 4),
+        var banner = new Border { Margin = new Thickness(12, 6, 12, 3),
             Padding = new Thickness(24, 12, 24, 12), CornerRadius = new CornerRadius(16),
             Background = gradient };
         _heading.Text = _section == "vehicles"
@@ -305,7 +305,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         _root.Children.Add(_tabContent);
         var footer = new Grid { RowDefinitions = { new RowDefinition { Height = GridLength.Auto },
             new RowDefinition { Height = GridLength.Auto } },
-            Margin = new Thickness(18, 10, 18, 14) };
+            Margin = new Thickness(12, 6, 12, 10) };
         footer.Children.Add(_status);
         var toolbar = new Grid { MinWidth = _section == "policies" ? 970 : 0,
             ColumnDefinitions = { new ColumnDefinition(),
@@ -474,8 +474,6 @@ public sealed partial class BusinessRecordCardWindow : Window
         };
         var (button, label) = CardTabVisual.Create(title, icon, IsDarkTheme());
         button.Click += (_, _) => SelectTab(index);
-        button.HorizontalAlignment = HorizontalAlignment.Stretch;
-        button.MinWidth = 0;
         _tabs.Children.Add(button);
         _tabItems.Add((button, label, new ScrollViewer { Content = content,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -484,21 +482,7 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     private void LayoutTabs(double availableWidth)
     {
-        if (_tabItems.Count == 0 || availableWidth <= 0) return;
-        var tabWidth = Math.Max(84, _tabItems.Max(item => item.Button.MinWidth));
-        var columns = Math.Min(_tabItems.Count, Math.Max(1, (int)(availableWidth / tabWidth)));
-        _tabs.ColumnDefinitions.Clear();
-        _tabs.RowDefinitions.Clear();
-        for (var index = 0; index < columns; index++)
-            _tabs.ColumnDefinitions.Add(new ColumnDefinition {
-                Width = new GridLength(1, GridUnitType.Star) });
-        for (var index = 0; index < (_tabItems.Count + columns - 1) / columns; index++)
-            _tabs.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        for (var index = 0; index < _tabItems.Count; index++)
-        {
-            Grid.SetRow(_tabItems[index].Button, index / columns);
-            Grid.SetColumn(_tabItems[index].Button, index % columns);
-        }
+        CardTabVisual.Layout(_tabs, availableWidth);
     }
 
     private void SelectTab(int index)
@@ -522,8 +506,8 @@ public sealed partial class BusinessRecordCardWindow : Window
         var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
         if (_section == "policies")
         {
-            left.Spacing = 5;
-            right.Spacing = 5;
+            left.Spacing = 2;
+            right.Spacing = 2;
         }
         _formGrids.Add(grid);
         return grid;
@@ -546,7 +530,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     {
         var field = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 38, Height = 38,
+            MinHeight = 36, Height = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         _dates[key] = field;
@@ -556,7 +540,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     private ComboBox Choices(StackPanel panel, string label, IEnumerable<string> items, string? selected)
     {
         var field = new ComboBox { ItemsSource = items.ToArray(),
-            MinHeight = 38, Height = 38, HorizontalAlignment = HorizontalAlignment.Stretch };
+            MinHeight = 36, Height = 36, HorizontalAlignment = HorizontalAlignment.Stretch };
         field.SelectedItem = selected;
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         return field;
@@ -567,7 +551,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         var items = customers.Select(item => new Choice(item.Id, item.FullName)).ToArray();
         _customerChoice = new ComboBox { ItemsSource = items, DisplayMemberPath = nameof(Choice.Name),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            IsEnabled = _fixedCustomerId is null, MinHeight = 38, Height = 38 };
+            IsEnabled = _fixedCustomerId is null, MinHeight = 36, Height = 36 };
         _customerChoice.SelectedItem = items.FirstOrDefault(item => item.Id == _record.CustomerId);
         var search = SearchChoice(items, _customerChoice, "Αναζήτηση πελάτη ή κωδικού");
         _vehicleCustomerSearch = search;
@@ -616,7 +600,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         UpdateRequiredNumber();
         var insurerNames = companies.Select(item => item.Title).Distinct().ToArray();
         _insurerSuggest = new AutoSuggestBox { Text = data.Insurer ?? "",
-            PlaceholderText = "Αναζήτηση ασφαλιστικής εταιρείας", MinHeight = 40,
+            PlaceholderText = "Αναζήτηση ασφαλιστικής εταιρείας", MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         SearchSuggestions.CloseOnLostFocus(_insurerSuggest);
         void UpdateInsurerSuggestions(bool showAll = false)
@@ -666,7 +650,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                  .Select(item => new Choice(item.Id, item.Title))];
         var vehicleItems = VehicleItems(_record.CustomerId);
         _vehicleChoice = new ComboBox { ItemsSource = vehicleItems,
-            DisplayMemberPath = nameof(Choice.Name), MinHeight = 38, Height = 38,
+            DisplayMemberPath = nameof(Choice.Name), MinHeight = 36, Height = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _vehicleChoice.SelectedItem = vehicleItems.FirstOrDefault(item => item.Id == data.VehicleId) ?? vehicleItems[0];
         var vehicleHost = new Grid { ColumnSpacing = 4 };
@@ -683,7 +667,7 @@ public sealed partial class BusinessRecordCardWindow : Window
             if (vehicleSearch.Text != name) vehicleSearch.Text = name;
         };
         var openVehicle = new ActionButton { Kind = "Open", Label = "Άνοιγμα οχήματος",
-            IconOnly = true, Width = 38, Height = 38 };
+            IconOnly = true, Width = 38, Height = 36 };
         openVehicle.Click += async (_, _) =>
         {
             if ((_vehicleChoice.SelectedItem as Choice)?.Id is Guid selectedVehicleId)
@@ -795,11 +779,11 @@ public sealed partial class BusinessRecordCardWindow : Window
             if (data.Make is null && data.Model is null) data.Make = _record.Reference;
         }
         var main = TwoColumns(out var left, out var right);
-        left.Spacing = 5;
-        right.Spacing = 5;
+        left.Spacing = 2;
+        right.Spacing = 2;
         var extra = TwoColumns(out var extraLeft, out var extraRight);
-        extraLeft.Spacing = 5;
-        extraRight.Spacing = 5;
+        extraLeft.Spacing = 2;
+        extraRight.Spacing = 2;
         CustomerChoice(left, customers);
         var registration = Text(left, "registration", "Αριθμός κυκλοφορίας *", data.Registration);
         var plateWarningOpen = false;
@@ -1167,7 +1151,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         var number = new TextBox { Header = "Αριθμός ασφαλιστηρίου *",
             PlaceholderText = "Συμπληρώστε τον αριθμό που εκδόθηκε" };
         var renewal = new EditableDateInput { Date = _dates.GetValueOrDefault("renewal")?.Date ??
-            (_dates.GetValueOrDefault("end")?.Date), MinHeight = 40 };
+            (_dates.GetValueOrDefault("end")?.Date), MinHeight = 36 };
         var form = new StackPanel { Spacing = 10, Width = 400 };
         form.Children.Add(number);
         form.Children.Add(new TextBlock { Text = "Ημερομηνία ανανέωσης *" });

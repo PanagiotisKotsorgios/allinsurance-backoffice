@@ -56,7 +56,7 @@ public sealed partial class BusinessRecordCardWindow
             list.Items.Clear();
             foreach (var item in items)
             {
-                var row = new Grid { Width = total, Height = 38 };
+                var row = new Grid { Width = total, Height = 36 };
                 foreach (var _ in headers)
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 var values = cells(item);
@@ -80,7 +80,7 @@ public sealed partial class BusinessRecordCardWindow
                     Grid.SetColumn(cell, index); row.Children.Add(cell);
                 }
                 list.Items.Add(new ListViewItem { Content = row, Tag = item,
-                    Height = 38, Width = total, Padding = new Thickness(0), Margin = new Thickness(0) });
+                    Height = 36, Width = total, Padding = new Thickness(0), Margin = new Thickness(0) });
             }
             pager.Capture();
         }

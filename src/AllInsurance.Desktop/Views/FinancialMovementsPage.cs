@@ -16,12 +16,12 @@ public sealed class FinancialMovementsPage : Page
     private readonly bool _receipts;
     private readonly FinancialMovementService _service = App.Services.GetRequiredService<FinancialMovementService>();
     private readonly TextBox _search = new() { PlaceholderText = "Αναζήτηση προσώπου, ασφαλιστηρίου, αιτιολογίας ή αναφοράς…",
-        Height = 42, MinHeight = 42, VerticalContentAlignment = VerticalAlignment.Center };
+        Height = 36, MinHeight = 36, VerticalContentAlignment = VerticalAlignment.Center };
     private readonly ComboBox _party = new() { Width = 185, MinHeight = 66 };
     private readonly ComboBox _method = new() { Width = 185, MinHeight = 66 };
     private readonly ComboBox _source = new() { Width = 200, MinHeight = 66 };
-    private readonly EditableDateInput _from = new() { Width = 155, Height = 38, PlaceholderText = "Από" };
-    private readonly EditableDateInput _until = new() { Width = 155, Height = 38, PlaceholderText = "Έως" };
+    private readonly EditableDateInput _from = new() { Width = 155, Height = 36, PlaceholderText = "Από" };
+    private readonly EditableDateInput _until = new() { Width = 155, Height = 36, PlaceholderText = "Έως" };
     private readonly ListView _list = new() { SelectionMode = ListViewSelectionMode.Single,
         HorizontalAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(0) };
     private readonly TextBlock _count = new() { VerticalAlignment = VerticalAlignment.Center };
@@ -47,7 +47,7 @@ public sealed class FinancialMovementsPage : Page
 
     private void BuildUi()
     {
-        var root = new Grid { Margin = new Thickness(10, 6, 10, 6), RowSpacing = 7 };
+        var root = new Grid { Margin = new Thickness(4, 4, 6, 4), RowSpacing = 4 };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -82,7 +82,7 @@ public sealed class FinancialMovementsPage : Page
         filterRow.Children.Add(_source);
         filterRow.Children.Add(new StackPanel { Children = { new TextBlock { Text = "Από ημερομηνία" }, _from } });
         filterRow.Children.Add(new StackPanel { Children = { new TextBlock { Text = "Έως ημερομηνία" }, _until } });
-        var clear = new ActionButton { Kind = "Clear", Label = "Καθαρισμός φίλτρων", Height = 38,
+        var clear = new ActionButton { Kind = "Clear", Label = "Καθαρισμός φίλτρων", Height = 36,
             VerticalAlignment = VerticalAlignment.Bottom };
         clear.Click += (_, _) =>
         {
@@ -102,7 +102,7 @@ public sealed class FinancialMovementsPage : Page
         Grid.SetRow(summary, 2); root.Children.Add(summary);
 
         var tableWidth = _widths.Sum();
-        var header = new Grid { Width = tableWidth, Height = 40,
+        var header = new Grid { Width = tableWidth, Height = 36,
             Background = Brush("TableHeaderBackgroundBrush") };
         for (var i = 0; i < Headers.Length; i++)
         {
@@ -124,7 +124,7 @@ public sealed class FinancialMovementsPage : Page
         table.Children.Add(viewport);
         Grid.SetRow(_pager.Bar, 1); table.Children.Add(_pager.Bar);
         var card = new Border { Background = Brush("CardBackgroundBrush"),
-            CornerRadius = new CornerRadius(12), Padding = new Thickness(10), Child = table };
+            CornerRadius = new CornerRadius(12), Padding = new Thickness(4, 4, 6, 4), Child = table };
         Grid.SetRow(card, 3); root.Children.Add(card);
         _applyColumns = TableInteractions.Attach(header, _list, viewport, 2);
         _search.TextChanged += (_, _) => Render();
@@ -215,7 +215,7 @@ public sealed class FinancialMovementsPage : Page
         _list.Items.Clear();
         foreach (var item in _shown)
         {
-            var row = new Grid { Width = _widths.Sum(), Height = 40 };
+            var row = new Grid { Width = _widths.Sum(), Height = 36 };
             var values = Values(item);
             for (var index = 0; index < values.Length; index++)
             {
@@ -226,7 +226,7 @@ public sealed class FinancialMovementsPage : Page
             }
             var listItem = new ListViewItem { Content = row, Tag = item,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0),
-                Padding = new Thickness(0), Height = 40, MinHeight = 40 };
+                Padding = new Thickness(0), Height = 36, MinHeight = 36 };
             var menu = new MenuFlyout();
             var details = new MenuFlyoutItem { Text = "Προβολή κίνησης" };
             details.Click += (_, _) => ShowDetails(item);

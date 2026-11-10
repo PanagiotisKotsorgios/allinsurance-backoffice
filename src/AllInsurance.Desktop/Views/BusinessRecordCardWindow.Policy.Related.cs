@@ -352,7 +352,7 @@ public sealed partial class BusinessRecordCardWindow
             links.Children.Add(next);
         }
         panel.Children.Add(links);
-        _policyHistorySearch = new TextBox { PlaceholderText = "Αναζήτηση στο ιστορικό", MinHeight = 40 };
+        _policyHistorySearch = new TextBox { PlaceholderText = "Αναζήτηση στο ιστορικό", MinHeight = 36 };
         _policyHistoryAction = new ComboBox { Header = "Ενέργεια", MinWidth = 180 };
         _policyHistorySearch.TextChanged += (_, _) => RenderPolicyHistory();
         _policyHistoryAction.SelectionChanged += (_, _) => RenderPolicyHistory();
@@ -458,9 +458,9 @@ public sealed partial class BusinessRecordCardWindow
     {
         if (_record.Id == Guid.Empty || _record.DocumentType is not (null or "Ασφαλιστήριο") ||
             _record.Status == "Ακυρωμένο") return;
-        var date = new EditableDateInput { Date = DateTimeOffset.Now, MinHeight = 40 };
+        var date = new EditableDateInput { Date = DateTimeOffset.Now, MinHeight = 36 };
         var endorsementNumber = new TextBox { Header = "Αριθμός πρόσθετης πράξης (αν έχει εκδοθεί)",
-            MinHeight = 40 };
+            MinHeight = 36 };
         var reason = new TextBox { Header = "Αιτιολογία ακύρωσης *", AcceptsReturn = true,
             TextWrapping = TextWrapping.Wrap, MinHeight = 90 };
         var form = new StackPanel { Spacing = 9, Width = 420,

@@ -92,9 +92,9 @@ public sealed partial class PartnerCardWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
         var area = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
-        var width = Math.Min(1260, Math.Max(650, area.Width - 32));
-        var height = Math.Min(940, Math.Max(540, area.Height - 32));
-        _contentWidth = Math.Min(1100, width - 70);
+        var width = Math.Min(1140, Math.Max(650, area.Width - 32));
+        var height = Math.Min(830, Math.Max(500, area.Height - 32));
+        _contentWidth = Math.Min(1040, width - 50);
         _tabContent.SizeChanged += (_, args) =>
         {
             var target = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
@@ -184,7 +184,7 @@ public sealed partial class PartnerCardWindow : Window
         Grid.SetColumn(_headerState, 2); identity.Children.Add(_headerState);
         Grid.SetColumn(_headerCode, 3); identity.Children.Add(_headerCode);
         _root.Children.Add(new Border { Background = gradient, CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(18, 9, 18, 9), Margin = new Thickness(18, 8, 18, 4),
+            Padding = new Thickness(18, 9, 18, 9), Margin = new Thickness(12, 6, 12, 3),
             Child = identity });
         UpdateHeader();
         var strip = new ScrollViewer { Content = _tabStrip, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -192,7 +192,7 @@ public sealed partial class PartnerCardWindow : Window
         Grid.SetRow(strip, 1); _root.Children.Add(strip);
         Grid.SetRow(_tabContent, 2); _root.Children.Add(_tabContent);
         var footer = new Grid { ColumnDefinitions = { new ColumnDefinition(),
-            new ColumnDefinition { Width = GridLength.Auto } }, Margin = new Thickness(18, 9, 18, 14) };
+            new ColumnDefinition { Width = GridLength.Auto } }, Margin = new Thickness(12, 6, 12, 10) };
         var leftFooter = new StackPanel { Spacing = 5 };
         leftFooter.Children.Add(_status);
         var moneyActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
@@ -270,8 +270,8 @@ public sealed partial class PartnerCardWindow : Window
     private Grid TwoColumns(out StackPanel left, out StackPanel right)
     {
         var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
-        left.Spacing = 3;
-        right.Spacing = 3;
+        left.Spacing = 2;
+        right.Spacing = 2;
         _formGrids.Add(grid);
         return grid;
     }
@@ -294,7 +294,7 @@ public sealed partial class PartnerCardWindow : Window
         var choices = options.Prepend("").Concat(value is null ? [] : [value])
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var field = new ComboBox { ItemsSource = choices,
-            SelectedItem = value ?? "", MinHeight = 38, Height = 38,
+            SelectedItem = value ?? "", MinHeight = 36, Height = 36,
             IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var host = new Grid { ColumnSpacing = 6,
@@ -315,7 +315,7 @@ public sealed partial class PartnerCardWindow : Window
     {
         var field = new EditableDateInput {
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 38, Height = 38, IsHitTestVisible = _editing, IsTabStop = _editing,
+            MinHeight = 36, Height = 36, IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _date[key] = field;
         return field;
@@ -323,7 +323,7 @@ public sealed partial class PartnerCardWindow : Window
 
     private CheckBox Check(StackPanel panel, string key, string label, bool value)
     {
-        var field = new CheckBox { IsChecked = value, MinHeight = 38, Height = 38, IsEnabled = _editing };
+        var field = new CheckBox { IsChecked = value, MinHeight = 36, Height = 36, IsEnabled = _editing };
         if (_editing) panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         else
         {
@@ -347,7 +347,7 @@ public sealed partial class PartnerCardWindow : Window
     private AutoSuggestBox Suggest(StackPanel panel, string key, string label,
         string? value, string[] options)
     {
-        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 38, Height = 38,
+        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 36, Height = 36,
             IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Πληκτρολογήστε για αναζήτηση" };

@@ -30,7 +30,7 @@ public sealed partial class BusinessRecordCardWindow
     }
     private CheckBox VehicleCheck(StackPanel panel, string key, string label, bool value)
     {
-        var field = new CheckBox { IsChecked = value, Height = 40, MinHeight = 40 };
+        var field = new CheckBox { IsChecked = value, Height = 36, MinHeight = 36 };
         var badge = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(4),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
@@ -435,7 +435,7 @@ public sealed partial class BusinessRecordCardWindow
             HorizontalAlignment = HorizontalAlignment.Left,
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1) });
-        var list = new ListView { Width = total + 2, Height = 420,
+        var list = new ListView { Width = total + 2, Height = 360,
             HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(0),
             BorderBrush = new SolidColorBrush(Color.FromArgb(255, 130, 149, 168)),
             BorderThickness = new Thickness(1, 0, 1, 1) };
@@ -455,7 +455,7 @@ public sealed partial class BusinessRecordCardWindow
         for (var rowIndex = 0; rowIndex < rows.Length; rowIndex++)
         {
             var id = ids is null ? (Guid?)null : ids[rowIndex];
-            var grid = new Grid { Width = total, Height = 42 };
+            var grid = new Grid { Width = total, Height = 36 };
             foreach (var width in widths) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
             for (var column = 0; column < rows[rowIndex].Length; column++)
             {
@@ -485,7 +485,7 @@ public sealed partial class BusinessRecordCardWindow
                 Grid.SetColumn(border, column); grid.Children.Add(border);
             }
             list.Items.Add(new ListViewItem { Content = grid, Tag = id,
-                Width = total, Height = 42, Padding = new Thickness(0), Margin = new Thickness(0),
+                Width = total, Height = 36, Padding = new Thickness(0), Margin = new Thickness(0),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch });
         }
         (list.Tag as TablePagination)?.Capture();

@@ -19,7 +19,7 @@ public sealed partial class CustomerCardWindow
     private Button PartnerLinkButton()
     {
         var button = new ActionButton { Kind = "Open", Label = "Άνοιγμα συνεργάτη",
-            IconOnly = true, Width = 38, Height = 38 };
+            IconOnly = true, Width = 38, Height = 36 };
         button.Click += async (_, _) =>
         {
             try
@@ -56,8 +56,8 @@ public sealed partial class CustomerCardWindow
     {
         var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth,
             preserveColumns: true);
-        left.Spacing = 5;
-        right.Spacing = 3;
+        left.Spacing = 2;
+        right.Spacing = 2;
         grid.MinWidth = 580;
         if (_tabs.ActualWidth > 0)
             grid.Width = Math.Min(1100, Math.Max(580, _tabs.ActualWidth - 50));
@@ -96,7 +96,7 @@ public sealed partial class CustomerCardWindow
         AddCitySuggest(left);
         if (_editing)
         {
-            _partnerChoice = new ComboBox { MinHeight = 40, Height = 40,
+            _partnerChoice = new ComboBox { MinHeight = 36, Height = 36,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 IsEnabled = !_customer.BelongsToOffice };
             AddPartnerRow(left, _partnerChoice);
@@ -104,7 +104,7 @@ public sealed partial class CustomerCardWindow
             _ = LoadPartnerChoicesAsync();
         }
         else AddPartnerRow(left, new TextBox { Text = _customer.PartnerName ?? "",
-            IsReadOnly = true, MinHeight = 40, VerticalContentAlignment = VerticalAlignment.Center });
+            IsReadOnly = true, MinHeight = 36, VerticalContentAlignment = VerticalAlignment.Center });
         _mainBalanceText = new TextBlock { FontSize = 14,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
         _mainBalanceBadge = new Border { Child = _mainBalanceText,
@@ -204,7 +204,7 @@ public sealed partial class CustomerCardWindow
 
     private static TextBox AddReadOnly(StackPanel panel, string label, string value)
     {
-        var field = new TextBox { Text = value, IsReadOnly = true, MinHeight = 38, Height = 38,
+        var field = new TextBox { Text = value, IsReadOnly = true, MinHeight = 36, Height = 36,
             FontSize = 13, VerticalContentAlignment = VerticalAlignment.Center };
         panel.Children.Add(CreateFieldRow(label, field));
         return field;
@@ -217,7 +217,7 @@ public sealed partial class CustomerCardWindow
             AddText(panel, "Πόλη", () => _customer.City, value => _customer.City = value);
             return;
         }
-        var input = new AutoSuggestBox { Text = _customer.City ?? "", MinHeight = 38, Height = 38,
+        var input = new AutoSuggestBox { Text = _customer.City ?? "", MinHeight = 36, Height = 36,
             PlaceholderText = "Αναζήτηση πόλης από τον κατάλογο" };
         SearchSuggestions.CloseOnLostFocus(input);
         input.AllowDrop = true;
@@ -311,12 +311,12 @@ public sealed partial class CustomerCardWindow
         _referralChoice = new ComboBox { PlaceholderText = "Επιλέξτε πελάτη",
             DisplayMemberPath = "FullName", SelectedValuePath = "Id",
             IsHitTestVisible = _editing, IsTabStop = _editing,
-            MinHeight = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
+            MinHeight = 36, Height = 36, HorizontalAlignment = HorizontalAlignment.Stretch };
         var customerReferralRow = CreateFieldRow("Σύσταση από πελάτη", _referralChoice);
         business.Children.Add(customerReferralRow);
         _ = LoadReferrersAsync();
         _referralPartnerChoice = new ComboBox { PlaceholderText = "Επιλέξτε συνεργάτη",
-            MinHeight = 40, Height = 40, IsHitTestVisible = _editing, IsTabStop = _editing,
+            MinHeight = 36, Height = 36, IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var partnerReferralRow = CreateFieldRow("Σύσταση από συνεργάτη", _referralPartnerChoice);
         business.Children.Add(partnerReferralRow);
@@ -394,15 +394,15 @@ public sealed partial class CustomerCardWindow
         UpdateOpeningStyle();
         root.Children.Add(new TextBlock { Text = "Οικονομικές κινήσεις", FontSize = 17,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        var search = new TextBox { Height = 38, MinHeight = 38,
+        var search = new TextBox { Height = 36, MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Αναζήτηση κίνησης..." };
         root.Children.Add(SearchFieldVisual.Wrap(search));
-        var kind = new ComboBox { Width = 170, Height = 38,
+        var kind = new ComboBox { Width = 170, Height = 36,
             ItemsSource = new[] { "Όλες οι κινήσεις", "Εισπράξεις", "Πληρωμές", "Μεταφορές πιστωτικού" }, SelectedIndex = 0 };
-        var from = new EditableDateInput { Width = 170, Height = 38,
+        var from = new EditableDateInput { Width = 170, Height = 36,
             PlaceholderText = "Από ημερομηνία" };
-        var until = new EditableDateInput { Width = 170, Height = 38,
+        var until = new EditableDateInput { Width = 170, Height = 36,
             PlaceholderText = "Έως ημερομηνία" };
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 210, ItemHeight = 42 };
@@ -474,7 +474,7 @@ public sealed partial class CustomerCardWindow
                     item.Reference?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true ||
                     item.Amount.ToString("N2").Contains(term, StringComparison.CurrentCultureIgnoreCase)))
             {
-                var row = new Grid { ColumnSpacing = 0, Width = 940, Height = 39 };
+                var row = new Grid { ColumnSpacing = 0, Width = 940, Height = 35 };
                 foreach (var width in new[] { 180, 150, 130, 480 })
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 var values = new[] { item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
@@ -510,7 +510,7 @@ public sealed partial class CustomerCardWindow
                     Grid.SetColumn(cell, index);
                     row.Children.Add(cell);
                 }
-                var listItem = new ListViewItem { Content = row, Tag = item, Width = 940, Height = 39,
+                var listItem = new ListViewItem { Content = row, Tag = item, Width = 940, Height = 35,
                     Padding = new Thickness(0), Margin = new Thickness(0),
                     HorizontalContentAlignment = HorizontalAlignment.Stretch };
                 TableRowResizer.Attach(row, listItem, "customer-transactions", item.Id);

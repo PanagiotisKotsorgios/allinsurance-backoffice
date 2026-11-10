@@ -57,7 +57,7 @@ public sealed partial class BusinessRecordCardWindow
     private static Button LinkedCardButton(string description)
     {
         var button = new ActionButton { Kind = "Open", Label = description,
-            IconOnly = true, Width = 38, Height = 38 };
+            IconOnly = true, Width = 38, Height = 36 };
         ToolTipService.SetToolTip(button, description);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, description);
         return button;

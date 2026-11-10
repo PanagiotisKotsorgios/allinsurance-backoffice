@@ -97,9 +97,9 @@ public sealed partial class WorkspaceRecordCardWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
         var area = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
-        var width = Math.Min(1260, Math.Max(650, area.Width - 32));
-        var height = Math.Min(930, Math.Max(540, area.Height - 32));
-        _contentWidth = Math.Min(1100, width - 70);
+        var width = Math.Min(1140, Math.Max(650, area.Width - 32));
+        var height = Math.Min(830, Math.Max(500, area.Height - 32));
+        _contentWidth = Math.Min(1040, width - 50);
         appWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2,
             area.Y + (area.Height - height) / 2, width, height));
         appWindow.Title = $"Καρτέλα {Singular()} — AllInsurance Backoffice Software";
@@ -176,7 +176,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
         Grid.SetColumn(_headerCode, 3); identity.Children.Add(_headerCode);
         _root.Children.Add(new Border { Child = identity, Background = gradient,
             CornerRadius = new CornerRadius(16), Padding = new Thickness(18, 9, 18, 9),
-            Margin = new Thickness(18, 8, 18, 4) });
+            Margin = new Thickness(12, 6, 12, 3) });
         UpdateHeader();
         var tabScroll = new ScrollViewer { Content = _tabStrip,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -186,7 +186,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
         Grid.SetRow(_tabContent, 2); _root.Children.Add(_tabContent);
         var footer = new Grid { ColumnDefinitions = { new ColumnDefinition(),
             new ColumnDefinition { Width = GridLength.Auto } },
-            Margin = new Thickness(18, 9, 18, 14) };
+            Margin = new Thickness(12, 6, 12, 10) };
         var footerLeft = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         footerLeft.Children.Add(_status);
         if (_section.Key is "companies" or "agencies")

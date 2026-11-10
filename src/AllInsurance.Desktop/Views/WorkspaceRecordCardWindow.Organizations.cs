@@ -52,7 +52,7 @@ public sealed partial class WorkspaceRecordCardWindow
         actions.Children.Add(add); actions.Children.Add(edit); actions.Children.Add(delete);
         panel.Children.Add(actions);
         var search = new TextBox { PlaceholderText = "Αναζήτηση προσώπου, email ή τηλεφώνου",
-            MinHeight = 40, Height = 40 };
+            MinHeight = 36, Height = 36 };
         panel.Children.Add(SearchFieldVisual.Wrap(search));
         var list = new ListView { Height = 156, SelectionMode = ListViewSelectionMode.Single };
         TableRowStriping.Attach(list);
@@ -118,7 +118,7 @@ public sealed partial class WorkspaceRecordCardWindow
         })
         {
             var field = new TextBox { Header = label, Text = value ?? "", IsReadOnly = true,
-                MinHeight = 40, VerticalContentAlignment = VerticalAlignment.Center };
+                MinHeight = 36, VerticalContentAlignment = VerticalAlignment.Center };
             form.Children.Add(field);
         }
         await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = _root.XamlRoot,

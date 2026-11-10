@@ -3,7 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:controls="using:AllInsurance.Desktop.Controls"
       Background="{ThemeResource PageBackgroundBrush}">
-    <Grid Margin="16,8" RowDefinitions="Auto,*" RowSpacing="8">
+    <Grid Margin="4,4,6,4" RowDefinitions="Auto,*" RowSpacing="8">
         <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,8">
             <StackPanel Spacing="8">
                 <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">

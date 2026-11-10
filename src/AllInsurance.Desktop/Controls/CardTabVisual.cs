@@ -11,26 +11,26 @@ internal static class CardTabVisual
 {
     public static (Button Button, TextBlock Label) Create(string title, string icon, bool dark)
     {
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5,
-            Margin = new Thickness(10, 0, 10, 0),
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4,
+            Margin = new Thickness(7, 0, 7, 0),
             VerticalAlignment = VerticalAlignment.Center };
         content.Children.Add(new Image { Source = new SvgImageSource(new Uri(
-            $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 16, Height = 16 });
-        var label = new TextBlock { Text = title, FontSize = 12,
+            $"ms-appx:///Assets/Icons/tab-{icon}.svg")), Width = 14, Height = 14 });
+        var label = new TextBlock { Text = title, FontSize = 11,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             TextWrapping = TextWrapping.NoWrap,
             VerticalAlignment = VerticalAlignment.Center };
         content.Children.Add(label);
-        var surface = new Border { Child = content, MinHeight = 34,
-            CornerRadius = new CornerRadius(4),
+        var surface = new Border { Child = content, MinHeight = 32,
+            CornerRadius = new CornerRadius(3),
             BorderThickness = new Thickness(1),
             BorderBrush = new SolidColorBrush(dark
                 ? Color.FromArgb(255, 99, 106, 115) : Color.FromArgb(255, 145, 153, 162)) };
-        var button = new Button { Content = surface, MinHeight = 34, MinWidth = 0,
-            Padding = new Thickness(0), Margin = new Thickness(0, 0, 2, 0),
+        var button = new Button { Content = surface, MinHeight = 32, MinWidth = 0,
+            Padding = new Thickness(0), Margin = new Thickness(0),
             BorderThickness = new Thickness(0), Background = new SolidColorBrush(Colors.Transparent) };
         label.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
-        button.MinWidth = Math.Max(84, Math.Ceiling(label.DesiredSize.Width + 16 + 5 + 20));
+        button.MinWidth = Math.Max(68, Math.Ceiling(label.DesiredSize.Width + 14 + 4 + 14));
         ButtonMotion.Attach(button);
         SetSelected(button, label, false, dark);
         return (button, label);
@@ -51,20 +51,28 @@ internal static class CardTabVisual
     {
         var buttons = strip.Children.OfType<Button>().ToArray();
         if (buttons.Length == 0 || availableWidth <= 0) return;
-        var width = Math.Max(84, buttons.Max(button => button.MinWidth) + 2);
-        var columns = Math.Min(buttons.Length, Math.Max(1, (int)(availableWidth / width)));
         strip.Width = availableWidth;
         strip.ColumnDefinitions.Clear();
         strip.RowDefinitions.Clear();
-        for (var index = 0; index < columns; index++)
-            strip.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        for (var index = 0; index < (buttons.Length + columns - 1) / columns; index++)
-            strip.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        for (var index = 0; index < buttons.Length; index++)
+        var x = 0d;
+        var y = 0d;
+        const double rowHeight = 32;
+        foreach (var button in buttons)
         {
-            buttons[index].HorizontalAlignment = HorizontalAlignment.Stretch;
-            Grid.SetRow(buttons[index], index / columns);
-            Grid.SetColumn(buttons[index], index % columns);
+            var width = Math.Min(availableWidth, button.MinWidth);
+            if (x > 0 && x + width > availableWidth)
+            {
+                x = 0;
+                y += rowHeight;
+            }
+            button.Width = width;
+            button.HorizontalAlignment = HorizontalAlignment.Left;
+            button.VerticalAlignment = VerticalAlignment.Top;
+            button.Margin = new Thickness(x, y, 0, 0);
+            Grid.SetRow(button, 0);
+            Grid.SetColumn(button, 0);
+            x += width;
         }
+        strip.Height = y + rowHeight;
     }
 }

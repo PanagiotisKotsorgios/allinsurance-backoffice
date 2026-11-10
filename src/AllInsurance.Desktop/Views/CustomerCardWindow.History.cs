@@ -13,17 +13,17 @@ public sealed partial class CustomerCardWindow
     private void BuildActivityHistoryTab()
     {
         var root = new StackPanel { Margin = new Thickness(20, 12, 20, 16), Spacing = 8 };
-        var search = new TextBox { Height = 40, MinHeight = 40,
+        var search = new TextBox { Height = 36, MinHeight = 36,
             PlaceholderText = "Αναζήτηση ενέργειας, περιγραφής ή χρήστη...",
             HorizontalAlignment = HorizontalAlignment.Stretch };
         root.Children.Add(SearchFieldVisual.Wrap(search));
         var filters = new VariableSizedWrapGrid { Orientation = Orientation.Horizontal,
             ItemWidth = 205, ItemHeight = 46 };
-        var action = new ComboBox { Width = 195, Height = 40, SelectedIndex = 0 };
+        var action = new ComboBox { Width = 195, Height = 36, SelectedIndex = 0 };
         action.Items.Add("Όλες οι ενέργειες");
-        var from = new EditableDateInput { Width = 195, Height = 40,
+        var from = new EditableDateInput { Width = 195, Height = 36,
             PlaceholderText = "Από ημερομηνία" };
-        var until = new EditableDateInput { Width = 195, Height = 40,
+        var until = new EditableDateInput { Width = 195, Height = 36,
             PlaceholderText = "Έως ημερομηνία" };
         filters.Children.Add(action);
         filters.Children.Add(from);
@@ -86,7 +86,7 @@ public sealed partial class CustomerCardWindow
                 .ToArray();
             foreach (var item in entries)
             {
-                var row = new Grid { Width = 1120, Height = 39 };
+                var row = new Grid { Width = 1120, Height = 35 };
                 foreach (var width in new[] { 170, 190, 590, 170 })
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 var values = new[] { item.OccurredAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
@@ -101,7 +101,7 @@ public sealed partial class CustomerCardWindow
                     Grid.SetColumn(cell, index);
                     row.Children.Add(cell);
                 }
-                var container = new ListViewItem { Content = row, Tag = item, Height = 39, Width = 1120,
+                var container = new ListViewItem { Content = row, Tag = item, Height = 35, Width = 1120,
                     Padding = new Thickness(0), Margin = new Thickness(0),
                     HorizontalContentAlignment = HorizontalAlignment.Stretch };
                 TableRowResizer.Attach(row, container, "customer-activity", item.Id);

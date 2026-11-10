@@ -402,7 +402,7 @@ public sealed partial class PartnerCardWindow
         Action<PartnerTableRow[]>? onFiltered = null)
     {
         var panel = new StackPanel { Spacing = 0 };
-        var search = new TextBox { PlaceholderText = hint, Height = 40, MinHeight = 40,
+        var search = new TextBox { PlaceholderText = hint, Height = 36, MinHeight = 36,
             HorizontalAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 8) };
         ComboBox? movementFilter = null;
         EditableDateInput? fromDate = null;
@@ -418,7 +418,7 @@ public sealed partial class PartnerCardWindow
             var searchHost = SearchFieldVisual.Wrap(search);
             searchHost.VerticalAlignment = VerticalAlignment.Bottom;
             filters.Children.Add(searchHost);
-            movementFilter = new ComboBox { Header = "Κίνηση", MinHeight = 40,
+            movementFilter = new ComboBox { Header = "Κίνηση", MinHeight = 36,
                 ItemsSource = new[] { "Όλες", "Προμήθεια", "Πληρωμή", "Είσπραξη" }, SelectedIndex = 0 };
             Grid.SetColumn(movementFilter, 1); filters.Children.Add(movementFilter);
             fromDate = new EditableDateInput { Height = 42, PlaceholderText = "Από ημερομηνία" };
@@ -481,7 +481,7 @@ public sealed partial class PartnerCardWindow
             page = Math.Clamp(page, 1, pages);
             foreach (var entry in matching.Skip((page - 1) * 25).Take(25))
             {
-                var grid = new Grid { Width = total, Height = 40 };
+                var grid = new Grid { Width = total, Height = 36 };
                 foreach (var width in widths) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 for (var i = 0; i < entry.Cells.Length; i++)
                 {
@@ -504,7 +504,7 @@ public sealed partial class PartnerCardWindow
                     Grid.SetColumn(border, i); grid.Children.Add(border);
                 }
                 list.Items.Add(new ListViewItem { Content = grid, Tag = entry.RecordId,
-                    Width = total, Height = 40, Padding = new Thickness(0), Margin = new Thickness(0),
+                    Width = total, Height = 36, Padding = new Thickness(0), Margin = new Thickness(0),
                     HorizontalContentAlignment = HorizontalAlignment.Stretch });
             }
             count.Text = $"{matching.Length} εγγραφές · Σελίδα {page}/{pages}";

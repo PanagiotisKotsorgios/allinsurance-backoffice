@@ -23,7 +23,7 @@ internal static class TableRowResizer
     private static readonly Dictionary<string, double> Heights = Load();
 
     public static double HeightFor(string table, Guid id) =>
-        Heights.TryGetValue($"{table}:{id:N}", out var height) ? height : 36;
+        Heights.TryGetValue($"{table}:{id:N}", out var height) ? height : 34;
 
     public static void Attach(Grid row, ListViewItem item, string table, Guid id)
     {
@@ -45,7 +45,7 @@ internal static class TableRowResizer
         row.Children.Add(grip);
         var dragging = false;
         var startY = 0d;
-        var startHeight = 36d;
+        var startHeight = 34d;
         void EndDrag()
         {
             if (!dragging) return;

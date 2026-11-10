@@ -112,8 +112,8 @@ internal sealed class FinancialMovementCardWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(WindowNative.GetWindowHandle(this));
         var appWindow = AppWindow.GetFromWindowId(windowId);
         var area = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary).WorkArea;
-        var width = Math.Min(980, Math.Max(720, area.Width - 42));
-        var height = Math.Min(720, Math.Max(520, area.Height - 42));
+        var width = Math.Min(900, Math.Max(680, area.Width - 42));
+        var height = Math.Min(680, Math.Max(500, area.Height - 42));
         appWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2,
             area.Y + (area.Height - height) / 2, width, height));
         appWindow.Title = title + " — AllInsurance Backoffice Software";

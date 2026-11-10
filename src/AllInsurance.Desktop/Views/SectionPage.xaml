@@ -4,9 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:AllInsurance.Desktop.Controls"
     Background="{ThemeResource PageBackgroundBrush}">
-    <Grid x:Name="PageContent" Margin="10,6,10,6" RowDefinitions="Auto,*" RowSpacing="6"
+    <Grid x:Name="PageContent" Margin="4,4,6,4" RowDefinitions="Auto,*" RowSpacing="4"
           SizeChanged="PageContent_SizeChanged">
-            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="10,6">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="8,5">
                 <StackPanel Spacing="5">
                     <StackPanel Orientation="Horizontal" Spacing="10" Height="26" VerticalAlignment="Center">
                         <TextBlock Text="Φίλτρα" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -70,8 +70,8 @@
                     </Grid>
                 </StackPanel>
             </Border>
-            <Grid Grid.Row="1" RowDefinitions="*,Auto" RowSpacing="7">
-            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="10,7">
+            <Grid Grid.Row="1" RowDefinitions="*,Auto" RowSpacing="4">
+            <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="8,5">
                 <Grid RowDefinitions="Auto,*,Auto" RowSpacing="0">
                     <TextBlock x:Name="StatusText" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,8"
                                AutomationProperties.LiveSetting="Assertive" />
@@ -88,14 +88,14 @@
                                               Checked="SelectAllRecords_Changed" Unchecked="SelectAllRecords_Changed" />
                                 <Grid x:Name="RecordsHeader" Grid.Column="1" ColumnDefinitions="240,140,190,130,130,240,100,0"
                                       ColumnSpacing="0">
-                                    <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,6"><TextBlock x:Name="TitleHeader" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,6"><TextBlock x:Name="CodeHeader" Text="Κωδικός" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,6"><TextBlock x:Name="PartyHeader" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,6"><TextBlock x:Name="StatusHeader" Text="Κατάσταση" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,6"><TextBlock x:Name="EventHeader" Text="Ημερομηνία" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,6"><TextBlock x:Name="CustomerHeader" Text="Πελάτης" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="10,6"><TextBlock x:Name="CreatedHeader" Text="Εγγραφή" FontWeight="SemiBold" /></Border>
-                                    <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="10,6" Visibility="Collapsed"><TextBlock x:Name="ExtraHeader" FontWeight="SemiBold" /></Border>
+                                    <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="8,5"><TextBlock x:Name="TitleHeader" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="8,5"><TextBlock x:Name="CodeHeader" Text="Κωδικός" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="8,5"><TextBlock x:Name="PartyHeader" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="8,5"><TextBlock x:Name="StatusHeader" Text="Κατάσταση" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="8,5"><TextBlock x:Name="EventHeader" Text="Ημερομηνία" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="8,5"><TextBlock x:Name="CustomerHeader" Text="Πελάτης" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="8,5"><TextBlock x:Name="CreatedHeader" Text="Εγγραφή" FontWeight="SemiBold" /></Border>
+                                    <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0" Padding="8,5" Visibility="Collapsed"><TextBlock x:Name="ExtraHeader" FontWeight="SemiBold" /></Border>
                                 </Grid>
                                 </Grid>
                             </Border>
@@ -105,42 +105,42 @@
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
                                         <Grid ColumnDefinitions="40,240,140,190,130,130,240,100,0" Loaded="RecordRow_Loaded" Unloaded="RecordRow_Unloaded"
-                                              ColumnSpacing="0" Width="1210" Height="36">
+                                              ColumnSpacing="0" Width="1210" Height="34">
                                             <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1">
                                                 <controls:VisibleSelectionCheckBox Tag="{Binding Record.Id}" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                           Checked="RecordCheck_Changed" Unchecked="RecordCheck_Changed" />
                                             </Border>
-                                            <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
+                                            <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,3">
                                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                             </Border>
-                                            <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
+                                            <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,3">
                                                 <TextBlock Text="{Binding Reference}" />
                                             </Border>
-                                            <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
+                                            <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,3">
                                                 <TextBlock Text="{Binding RelatedParty}" TextTrimming="CharacterEllipsis" />
                                             </Border>
-                                            <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5" Background="{Binding StatusCellBackground}">
+                                            <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,3" Background="{Binding StatusCellBackground}">
                                                 <Grid>
                                                     <TextBlock Text="{Binding Status}" Foreground="{ThemeResource TableCellTextBrush}" Visibility="{Binding StatusCellPlainVisibility}" />
                                                     <TextBlock Text="{Binding Status}" Foreground="White" Visibility="{Binding StatusCellHighlightVisibility}" />
                                                 </Grid>
                                             </Border>
-                                            <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
+                                            <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,3">
                                                 <TextBlock Text="{Binding EventDateDisplay}" />
                                             </Border>
-                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5" Background="{Binding CustomerCellBackground}">
+                                            <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="8,3" Background="{Binding CustomerCellBackground}">
                                                 <Grid>
                                                     <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TableCellTextBrush}" Visibility="{Binding CustomerCellPlainVisibility}" />
                                                     <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" Foreground="White" Visibility="{Binding CustomerCellHighlightVisibility}" />
                                                 </Grid>
                                             </Border>
-                                            <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Background="{Binding CreatedCellBackground}">
+                                            <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="8,3" Background="{Binding CreatedCellBackground}">
                                                 <Grid>
                                                     <TextBlock Text="{Binding CreatedDisplay}" Foreground="{ThemeResource TableCellTextBrush}" Visibility="{Binding CreatedCellPlainVisibility}" />
                                                     <TextBlock Text="{Binding CreatedDisplay}" Foreground="White" Visibility="{Binding CreatedCellHighlightVisibility}" />
                                                 </Grid>
                                             </Border>
-                                            <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Visibility="Collapsed" Background="{Binding ExtraCellBackground}">
+                                            <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="8,3" Visibility="Collapsed" Background="{Binding ExtraCellBackground}">
                                                 <Grid>
                                                     <TextBlock Text="{Binding ExtraDisplay}" Foreground="{ThemeResource TableCellTextBrush}" Visibility="{Binding ExtraCellPlainVisibility}" />
                                                     <TextBlock Text="{Binding ExtraDisplay}" Foreground="White" Visibility="{Binding ExtraCellHighlightVisibility}" />
@@ -152,7 +152,7 @@
                             </ListView>
                         </StackPanel>
                     </ScrollViewer>
-                    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12" Margin="0,8,0,0">
+                    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12" Margin="0,5,0,0">
                         <TextBlock x:Name="PageText" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                             <controls:ActionButton x:Name="BulkReceiptButton" Kind="BulkReceipt" Label="Μαζική είσπραξη"

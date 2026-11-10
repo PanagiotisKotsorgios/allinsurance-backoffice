@@ -18,13 +18,13 @@ public sealed partial class OfficeOperationsPage : Page
     private readonly bool _overcommissions;
     private readonly OfficeOperationService _service = App.Services.GetRequiredService<OfficeOperationService>();
     private readonly IBusinessRecordService _records = App.Services.GetRequiredService<IBusinessRecordService>();
-    private readonly Grid _root = new() { RowSpacing = 7, Margin = new Thickness(10) };
+    private readonly Grid _root = new() { RowSpacing = 4, Margin = new Thickness(4, 4, 6, 4) };
     private readonly TextBox _search = new() { PlaceholderText = "Αναζήτηση περιγραφής, κατηγορίας ή αναφοράς…",
-        Height = 42, MinHeight = 42, VerticalContentAlignment = VerticalAlignment.Center };
-    private readonly ComboBox _firstFilter = new() { MinWidth = 170, Height = 38 };
-    private readonly ComboBox _secondFilter = new() { MinWidth = 170, Height = 38 };
-    private readonly EditableDateInput _from = new() { Width = 155, Height = 38, PlaceholderText = "Από" };
-    private readonly EditableDateInput _until = new() { Width = 155, Height = 38, PlaceholderText = "Έως" };
+        Height = 36, MinHeight = 36, VerticalContentAlignment = VerticalAlignment.Center };
+    private readonly ComboBox _firstFilter = new() { MinWidth = 170, Height = 36 };
+    private readonly ComboBox _secondFilter = new() { MinWidth = 170, Height = 36 };
+    private readonly EditableDateInput _from = new() { Width = 155, Height = 36, PlaceholderText = "Από" };
+    private readonly EditableDateInput _until = new() { Width = 155, Height = 36, PlaceholderText = "Έως" };
     private readonly ListView _list = new() { SelectionMode = ListViewSelectionMode.Single,
         Padding = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly TextBlock _count = new() { VerticalAlignment = VerticalAlignment.Center };
@@ -73,7 +73,7 @@ public sealed partial class OfficeOperationsPage : Page
         filters.Children.Add(_secondFilter);
         filters.Children.Add(_from);
         filters.Children.Add(_until);
-        var clear = new ActionButton { Kind = "Clear", Label = "Καθαρισμός φίλτρων", Height = 38 };
+        var clear = new ActionButton { Kind = "Clear", Label = "Καθαρισμός φίλτρων", Height = 36 };
         clear.Click += (_, _) =>
         {
             _search.Text = ""; _firstFilter.SelectedIndex = 0; _secondFilter.SelectedIndex = 0;
@@ -81,10 +81,10 @@ public sealed partial class OfficeOperationsPage : Page
         };
         filters.Children.Add(clear);
         var add = new ActionButton { Kind = "Add", Label = _overcommissions
-            ? "Προσθήκη υπερπρομήθειας" : "Νέα κίνηση", Height = 38 };
+            ? "Προσθήκη υπερπρομήθειας" : "Νέα κίνηση", Height = 36 };
         add.Click += async (_, _) => await EditAsync(null);
         filters.Children.Add(add);
-        var delete = new ActionButton { Kind = "Delete", Label = "Διαγραφή", Height = 38 };
+        var delete = new ActionButton { Kind = "Delete", Label = "Διαγραφή", Height = 36 };
         delete.Click += async (_, _) => await DeleteSelectedAsync();
         filters.Children.Add(delete);
         var filterWrap = new ScrollViewer { Content = filters,
@@ -108,7 +108,7 @@ public sealed partial class OfficeOperationsPage : Page
         var widths = _overcommissions ? new[] { 120d, 185, 185, 120, 120, 145, 145 } :
             new[] { 120d, 110, 160, 265, 120, 160, 145 };
         _columnWidths = widths;
-        var tableHeader = new Grid { Width = widths.Sum(), Height = 40 };
+        var tableHeader = new Grid { Width = widths.Sum(), Height = 36 };
         for (var index = 0; index < headings.Length; index++)
         {
             tableHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(widths[index]) });
@@ -252,7 +252,7 @@ public sealed partial class OfficeOperationsPage : Page
                 : new[] { item.OccurredOn.ToString("dd/MM/yyyy"),
                     item.Kind == "income" ? "Έσοδο" : "Έξοδο", item.Category ?? "—",
                     item.Description, Money(item.Amount), item.PaymentMethod ?? "—", item.Reference ?? "—" };
-            var grid = new Grid { Height = 40 };
+            var grid = new Grid { Height = 36 };
             for (var index = 0; index < cells.Length; index++)
             {
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_columnWidths[index]) });
@@ -266,7 +266,7 @@ public sealed partial class OfficeOperationsPage : Page
             }
             var row = new ListViewItem { Content = grid, Tag = item, Width = _columnWidths.Sum(),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                Margin = new Thickness(0), Padding = new Thickness(0), Height = 40, MinHeight = 40 };
+                Margin = new Thickness(0), Padding = new Thickness(0), Height = 36, MinHeight = 36 };
             var menu = new MenuFlyout();
             var edit = new MenuFlyoutItem { Text = "Επεξεργασία" };
             edit.Click += async (_, _) => await EditAsync(item);

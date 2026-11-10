@@ -84,7 +84,7 @@ public sealed partial class WorkspaceRecordCardWindow
         var source = _all.GetValueOrDefault(section) ?? [];
         var rows = source.Where(predicate).ToArray();
         var search = new TextBox { PlaceholderText = "Αναζήτηση αριθμού, τίτλου ή κατάστασης...",
-            Height = 38, MinHeight = 38, HorizontalAlignment = HorizontalAlignment.Stretch };
+            Height = 36, MinHeight = 36, HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(SearchFieldVisual.Wrap(search));
         var widths = section == "policies"
             ? new[] { 190, 170, 205, 185, 120, 120, 150 }
@@ -137,7 +137,7 @@ public sealed partial class WorkspaceRecordCardWindow
                         _customers.FirstOrDefault(item => item.Id == record.CustomerId)?.FullName ?? "—",
                         policy.Insurer ?? "—", policy.StartDate?.ToString("dd/MM/yyyy") ?? "—",
                         policy.EndDate?.ToString("dd/MM/yyyy") ?? "—", record.Status ?? "—" };
-                var grid = new Grid { Width = total, Height = 40 };
+                var grid = new Grid { Width = total, Height = 36 };
                 foreach (var width in widths) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
                 for (var column = 0; column < values.Length; column++)
                 {
@@ -160,7 +160,7 @@ public sealed partial class WorkspaceRecordCardWindow
                     Grid.SetColumn(cell, column); grid.Children.Add(cell);
                 }
                 var row = new ListViewItem { Content = grid, Tag = record.Id,
-                    Width = total, Height = 40, Padding = new Thickness(0), Margin = new Thickness(0),
+                    Width = total, Height = 36, Padding = new Thickness(0), Margin = new Thickness(0),
                     HorizontalContentAlignment = HorizontalAlignment.Stretch };
                 var menu = new MenuFlyout();
                 var openItem = new MenuFlyoutItem { Text = "Άνοιγμα καρτέλας" };
@@ -195,7 +195,7 @@ public sealed partial class WorkspaceRecordCardWindow
             panel.Children.Add(new TextBlock { Text = $"Ενεργοί: {_customers.Count(item => item.IsActive)} · " +
                 $"Ανενεργοί: {_customers.Count(item => !item.IsActive)}" });
             var search = new TextBox { PlaceholderText = "Αναζήτηση ονόματος ή ΑΦΜ...",
-                Height = 38, MinHeight = 38 };
+                Height = 36, MinHeight = 36 };
             panel.Children.Add(SearchFieldVisual.Wrap(search));
             var list = new ListView { Height = 320 };
             TableRowStriping.Attach(list);
@@ -235,7 +235,7 @@ public sealed partial class WorkspaceRecordCardWindow
     private void BuildHistoryTab()
     {
         var panel = RelatedPanel();
-        var search = new TextBox { PlaceholderText = "Αναζήτηση στο ιστορικό", MinHeight = 40 };
+        var search = new TextBox { PlaceholderText = "Αναζήτηση στο ιστορικό", MinHeight = 36 };
         var action = new ComboBox { Header = "Ενέργεια", MinWidth = 180 };
         panel.Children.Add(search);
         panel.Children.Add(action);
