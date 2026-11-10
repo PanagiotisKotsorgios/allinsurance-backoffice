@@ -24,6 +24,7 @@ public sealed partial class RenewalsPage : Page
                 .Select(item => new[] { item.Number, item.Customer, item.Insurer, item.Branch,
                     item.Expiry, item.DaysLeft, item.Premium }).ToArray()));
         TableRowStriping.Attach(RenewalsList);
+        TableRowStriping.UseStrongSelection(RenewalsList);
         Loaded += async (_, _) =>
         {
             FromDate.Date = new DateTimeOffset(DateTime.Today);

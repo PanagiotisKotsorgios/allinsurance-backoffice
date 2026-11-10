@@ -63,8 +63,8 @@ public sealed partial class WorkspacePage : Page
             var label = new TextBlock
             {
                 Text = section.Title,
-                FontSize = 15,
-                Opacity = 0.88,
+                FontSize = 16.5,
+                Opacity = 0.96,
                 VerticalAlignment = VerticalAlignment.Center
             };
             _sidebarLabels.Add(label);
@@ -73,15 +73,15 @@ public sealed partial class WorkspacePage : Page
                 Content = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
-                    Spacing = 5,
+                    Spacing = 4,
                     VerticalAlignment = VerticalAlignment.Center,
                     Children =
                     {
                         new Image
                         {
                             Source = new BitmapImage(new Uri(section.Icon)),
-                            Width = 30,
-                            Height = 30,
+                            Width = 32,
+                            Height = 32,
                             VerticalAlignment = VerticalAlignment.Center
                         },
                         label

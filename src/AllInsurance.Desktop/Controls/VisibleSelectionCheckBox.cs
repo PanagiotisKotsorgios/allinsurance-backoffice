@@ -1,30 +1,21 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 
 namespace AllInsurance.Desktop.Controls;
 
-public sealed class VisibleSelectionCheckBox : Grid
+public sealed class VisibleSelectionCheckBox : ToggleButton
 {
-    private readonly CheckBox _input = new()
-    {
-        Width = 30,
-        Height = 30,
-        Opacity = 0,
-        UseSystemFocusVisuals = false,
-        HorizontalAlignment = HorizontalAlignment.Center,
-        VerticalAlignment = VerticalAlignment.Center
-    };
     private readonly Border _square = new()
     {
-        Width = 24,
-        Height = 24,
-        CornerRadius = new CornerRadius(5),
-        BorderThickness = new Thickness(1.5),
+        Width = 22,
+        Height = 22,
+        CornerRadius = new CornerRadius(4),
+        BorderThickness = new Thickness(2),
         HorizontalAlignment = HorizontalAlignment.Center,
-        VerticalAlignment = VerticalAlignment.Center,
-        IsHitTestVisible = false
+        VerticalAlignment = VerticalAlignment.Center
     };
     private readonly TextBlock _check = new()
     {
@@ -37,39 +28,38 @@ public sealed class VisibleSelectionCheckBox : Grid
         Visibility = Visibility.Collapsed
     };
 
-    public event RoutedEventHandler? Checked;
-    public event RoutedEventHandler? Unchecked;
-
-    public bool? IsChecked
-    {
-        get => _input.IsChecked;
-        set => _input.IsChecked = value;
-    }
-
     public VisibleSelectionCheckBox()
     {
         Width = 32;
         Height = 32;
+        MinWidth = 32;
+        MinHeight = 32;
+        Padding = new Thickness(0);
+        BorderThickness = new Thickness(0);
+        Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        HorizontalContentAlignment = HorizontalAlignment.Center;
+        VerticalContentAlignment = VerticalAlignment.Center;
+        UseSystemFocusVisuals = false;
         _square.Child = _check;
-        Children.Add(_input);
-        Children.Add(_square);
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_input, "Επιλογή εγγραφής");
-        _input.Checked += (_, args) => { UpdateVisual(); Checked?.Invoke(this, args); };
-        _input.Unchecked += (_, args) => { UpdateVisual(); Unchecked?.Invoke(this, args); };
+        Content = _square;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(this, "Επιλογή εγγραφής");
+        Checked += (_, _) => UpdateVisual();
+        Unchecked += (_, _) => UpdateVisual();
         ActualThemeChanged += (_, _) => UpdateVisual();
+        Loaded += (_, _) => UpdateVisual();
         UpdateVisual();
     }
 
     private void UpdateVisual()
     {
-        var selected = _input.IsChecked == true;
+        var selected = IsChecked == true;
         var dark = ActualTheme == ElementTheme.Dark;
         _square.BorderBrush = new SolidColorBrush(dark
-            ? selected ? Color.FromArgb(255, 181, 197, 209) : Color.FromArgb(255, 178, 191, 202)
-            : selected ? Color.FromArgb(255, 57, 82, 103) : Color.FromArgb(255, 83, 106, 126));
+            ? selected ? Color.FromArgb(255, 205, 218, 226) : Color.FromArgb(255, 188, 202, 213)
+            : selected ? Color.FromArgb(255, 45, 70, 91) : Color.FromArgb(255, 58, 86, 110));
         _square.Background = selected
-            ? new SolidColorBrush(dark ? Color.FromArgb(255, 101, 117, 130) : Color.FromArgb(255, 79, 96, 112))
-            : new SolidColorBrush(dark ? Color.FromArgb(255, 63, 72, 82) : Color.FromArgb(255, 250, 252, 254));
+            ? new SolidColorBrush(dark ? Color.FromArgb(255, 88, 108, 124) : Color.FromArgb(255, 62, 88, 110))
+            : new SolidColorBrush(dark ? Color.FromArgb(255, 42, 51, 61) : Color.FromArgb(255, 255, 255, 255));
         _check.Visibility = selected ? Visibility.Visible : Visibility.Collapsed;
     }
 }

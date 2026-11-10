@@ -974,7 +974,7 @@ public sealed partial class CustomerCardWindow : Window
                     row.ColumnDefinitions.Count >= 2 && row.Children.Count >= 2))
                 {
                     row.ColumnDefinitions[0].Width = new GridLength(captionWidth);
-                    if (row.Children[0] is StackPanel caption)
+                    if (row.Children[0] is Grid caption)
                         foreach (var text in caption.Children.OfType<TextBlock>())
                             text.FontSize = narrow ? 11 : 12;
                     if (row.Children[1] is Control control)
@@ -983,21 +983,21 @@ public sealed partial class CustomerCardWindow : Window
         foreach (var button in _tabButtons)
         {
             button.Width = double.NaN;
-            button.MinHeight = 32;
+            button.MinHeight = 36;
             if (button.Content is not Border { Child: StackPanel content }) continue;
             if (content is null) continue;
             content.Margin = narrow ? new Thickness(6, 0, 6, 0) : new Thickness(7, 0, 7, 0);
             content.Spacing = 4;
-            var iconSize = narrow ? 13 : 14;
+            var iconSize = narrow ? 15 : 16;
             foreach (var icon in content.Children.OfType<Image>())
                 icon.Width = icon.Height = iconSize;
             foreach (var label in content.Children.OfType<TextBlock>())
             {
-                label.FontSize = narrow ? 10.5 : 11;
+                label.FontSize = narrow ? 11.5 : 12.5;
                 label.TextWrapping = TextWrapping.NoWrap;
                 label.MaxWidth = double.PositiveInfinity;
                 label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                button.MinWidth = Math.Max(narrow ? 72 : 76,
+                button.MinWidth = Math.Max(narrow ? 76 : 80,
                     Math.Ceiling(label.DesiredSize.Width + iconSize + content.Spacing +
                         (narrow ? 26 : 28)));
             }

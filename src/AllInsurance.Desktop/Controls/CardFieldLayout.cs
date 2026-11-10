@@ -42,12 +42,19 @@ internal static class CardFieldLayout
         var row = new Grid { ColumnSpacing = 6, MinHeight = compactCheck ? 26 : 34 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(126) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var caption = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2,
-            VerticalAlignment = VerticalAlignment.Center };
-        caption.Children.Add(new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap });
-        caption.Children.Add(new TextBlock { Text = "*", FontSize = 14,
+        var caption = new Grid { ColumnSpacing = 2, VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ColumnDefinitions = { new ColumnDefinition(),
+                new ColumnDefinition { Width = GridLength.Auto } } };
+        caption.Children.Add(new TextBlock { FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center });
+        var requiredMark = new TextBlock { Text = "*", FontSize = 14,
             FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 38, 38)) });
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 38, 38)) };
+        Grid.SetColumn(requiredMark, 1);
+        caption.Children.Add(requiredMark);
         row.Children.Add(caption);
         Grid.SetColumn(input, 1);
         if (input is Control control)
@@ -63,7 +70,7 @@ internal static class CardFieldLayout
 
     public static void SetRequired(Grid row, string label, bool required)
     {
-        if (row.Children[0] is not StackPanel caption || caption.Children.Count < 2) return;
+        if (row.Children[0] is not Grid caption || caption.Children.Count < 2) return;
         if (caption.Children[0] is TextBlock text) text.Text = label;
         caption.Children[1].Visibility = required ? Visibility.Visible : Visibility.Collapsed;
     }

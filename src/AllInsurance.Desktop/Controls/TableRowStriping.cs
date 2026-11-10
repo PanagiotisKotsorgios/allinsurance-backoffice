@@ -11,6 +11,7 @@ namespace AllInsurance.Desktop.Controls;
 internal static class TableRowStriping
 {
     private static readonly ConditionalWeakTable<ListView, object> Attached = new();
+    private static readonly ConditionalWeakTable<ListView, object> StrongSelection = new();
     private static readonly ConditionalWeakTable<ListViewItem, RowState> States = new();
     private static readonly SolidColorBrush LightAlternate = new(Color.FromArgb(255, 222, 231, 239));
     private static readonly SolidColorBrush LightBase = new(Color.FromArgb(255, 235, 241, 246));
@@ -22,6 +23,12 @@ internal static class TableRowStriping
     private static readonly SolidColorBrush DarkText = new(Color.FromArgb(255, 244, 247, 250));
     private static readonly SolidColorBrush SelectedRow = new(Color.FromArgb(255, 55, 75, 96));
     private static readonly SolidColorBrush SelectedText = new(Microsoft.UI.Colors.White);
+
+    public static void UseStrongSelection(ListView list)
+    {
+        if (!StrongSelection.TryGetValue(list, out _)) StrongSelection.Add(list, new object());
+        Refresh(list, true);
+    }
 
     public static void Attach(ListView list)
     {
@@ -40,7 +47,10 @@ internal static class TableRowStriping
         };
         list.ActualThemeChanged += (_, _) => Refresh(list, true);
         list.SelectionChanged += (_, _) =>
-            list.DispatcherQueue.TryEnqueue(() => Refresh(list, true));
+        {
+            if (StrongSelection.TryGetValue(list, out _))
+                list.DispatcherQueue.TryEnqueue(() => Refresh(list, true));
+        };
         Refresh(list);
     }
 
@@ -69,7 +79,7 @@ internal static class TableRowStriping
                 if (position >= 0) Apply(item, position, list, true);
             };
         }
-        var selected = item.IsSelected;
+        var selected = StrongSelection.TryGetValue(list, out _) && item.IsSelected;
         var brush = selected ? SelectedRow : RowBrush(list, alternate);
         if (!ReferenceEquals(item.Background, brush)) item.Background = brush;
         // WinUI visual states may replace the container background before the first hover.
