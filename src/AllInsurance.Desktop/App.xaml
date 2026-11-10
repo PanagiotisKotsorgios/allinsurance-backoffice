@@ -14,6 +14,7 @@
                     <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FFD3DEE9" />
                     <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#FFCBD8E5" />
                     <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF5B6472" />
+                    <SolidColorBrush x:Key="TableCellTextBrush" Color="#FF1E2B36" />
                     <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB42318" />
                     <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF1769AA" />
                     <SolidColorBrush x:Key="ButtonAccentBrush" Color="#FF1769AA" />
@@ -52,6 +53,7 @@
                     <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FF2C2C2C" />
                     <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#FF202730" />
                     <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FFBBBBBB" />
+                    <SolidColorBrush x:Key="TableCellTextBrush" Color="#FFF4F7FA" />
                     <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFFF8A80" />
                     <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF66B8FF" />
                     <SolidColorBrush x:Key="ButtonAccentBrush" Color="#FF005A9E" />
@@ -64,6 +66,7 @@
                     <SolidColorBrush x:Key="ChromeBackgroundBrush" Color="#FFD3DEE9" />
                     <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#FFCBD8E5" />
                     <SolidColorBrush x:Key="SecondaryTextBrush" Color="#FF5B6472" />
+                    <SolidColorBrush x:Key="TableCellTextBrush" Color="#FF1E2B36" />
                     <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB42318" />
                     <SolidColorBrush x:Key="BrandAccentBrush" Color="#FF1769AA" />
                     <SolidColorBrush x:Key="ButtonAccentBrush" Color="#FF1769AA" />

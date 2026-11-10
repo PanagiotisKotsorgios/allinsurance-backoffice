@@ -18,6 +18,8 @@ internal static class TableRowStriping
     private static readonly SolidColorBrush DarkBase = new(Color.FromArgb(255, 43, 49, 57));
     private static readonly SolidColorBrush WarmAlternate = new(Color.FromArgb(255, 219, 216, 205));
     private static readonly SolidColorBrush WarmBase = new(Color.FromArgb(255, 235, 232, 222));
+    private static readonly SolidColorBrush LightText = new(Color.FromArgb(255, 30, 43, 54));
+    private static readonly SolidColorBrush DarkText = new(Color.FromArgb(255, 244, 247, 250));
 
     public static void Attach(ListView list)
     {
@@ -68,6 +70,26 @@ internal static class TableRowStriping
             content.Background = brush;
         if (item.ContentTemplateRoot is Panel template && !ReferenceEquals(template.Background, brush))
             template.Background = brush;
+        // Rows supplied by the card views can keep a white foreground after a theme change
+        // or after WinUI recycles a container. Keep uncolored cells readable on every stripe.
+        if (item.Content is Panel contentRow) ApplyPlainCellText(contentRow, list.ActualTheme);
+        if (item.ContentTemplateRoot is Panel templateRow && !ReferenceEquals(templateRow, item.Content))
+            ApplyPlainCellText(templateRow, list.ActualTheme);
+    }
+
+    private static void ApplyPlainCellText(Panel row, ElementTheme theme)
+    {
+        var foreground = theme == ElementTheme.Dark ? DarkText : LightText;
+        foreach (var child in row.Children)
+        {
+            if (child is not Border { Background: null, Child: TextBlock label }) continue;
+            if (label.Foreground is null || ReferenceEquals(label.Foreground, LightText) ||
+                ReferenceEquals(label.Foreground, DarkText) ||
+                label.Foreground is SolidColorBrush { Color: var color } &&
+                (color == Microsoft.UI.Colors.White && theme != ElementTheme.Dark ||
+                 color == Microsoft.UI.Colors.Black && theme == ElementTheme.Dark))
+                label.Foreground = foreground;
+        }
     }
 
     public static void ApplyRow(Panel row, int index, ListView list)

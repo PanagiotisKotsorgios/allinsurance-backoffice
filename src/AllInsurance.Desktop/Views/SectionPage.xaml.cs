@@ -1080,20 +1080,24 @@ public sealed partial class SectionPage : Page
         public SolidColorBrush? StatusCellBackground => Record.SectionKey is
             "partners" or "vehicles" or "companies" or "agencies" or "claims" or "policies"
             ? null : StatusBackground(Record.Status);
-        public SolidColorBrush? StatusCellForeground => Contrast(StatusCellBackground);
+        public Visibility StatusCellPlainVisibility => Plain(StatusCellBackground);
+        public Visibility StatusCellHighlightVisibility => Highlight(StatusCellBackground);
         public SolidColorBrush? CustomerCellBackground => Record.SectionKey switch
         {
-            "partners" when PartnerBalance.GetValueOrDefault() != 0m =>
-                StatusPalette.Brush(StatusPalette.Negative),
-            "companies" or "agencies" when OrganizationBalance.GetValueOrDefault() != 0m =>
-                StatusPalette.Brush(StatusPalette.Negative),
+            "partners" => StatusPalette.Brush(PartnerBalance.GetValueOrDefault() == 0m
+                ? StatusPalette.Neutral : StatusPalette.Negative),
+            "companies" or "agencies" => StatusPalette.Brush(
+                OrganizationBalance.GetValueOrDefault() == 0m
+                    ? StatusPalette.Neutral : StatusPalette.Negative),
             "claims" => StatusBackground(Record.Status),
             _ => null
         };
-        public SolidColorBrush? CustomerCellForeground => Contrast(CustomerCellBackground);
+        public Visibility CustomerCellPlainVisibility => Plain(CustomerCellBackground);
+        public Visibility CustomerCellHighlightVisibility => Highlight(CustomerCellBackground);
         public SolidColorBrush? CreatedCellBackground => Record.SectionKey is
             "partners" or "companies" or "agencies" ? StatusBackground(Record.Status) : null;
-        public SolidColorBrush? CreatedCellForeground => Contrast(CreatedCellBackground);
+        public Visibility CreatedCellPlainVisibility => Plain(CreatedCellBackground);
+        public Visibility CreatedCellHighlightVisibility => Highlight(CreatedCellBackground);
         public SolidColorBrush? ExtraCellBackground => Record.SectionKey switch
         {
             "policies" => PolicyStatusColors.Background(Record.DocumentType, Record.Status,
@@ -1101,16 +1105,30 @@ public sealed partial class SectionPage : Page
             "vehicles" => StatusBackground(VehicleInsuranceState ?? Record.Status),
             _ => null
         };
-        public SolidColorBrush? ExtraCellForeground => Contrast(ExtraCellBackground);
-        private static SolidColorBrush? Contrast(SolidColorBrush? background) => background is null
-            ? null : new SolidColorBrush(Microsoft.UI.Colors.White);
-        private static SolidColorBrush? StatusBackground(string? status) => status switch
+        public Visibility ExtraCellPlainVisibility => Plain(ExtraCellBackground);
+        public Visibility ExtraCellHighlightVisibility => Highlight(ExtraCellBackground);
+        private static Visibility Plain(SolidColorBrush? background) => background is null
+            ? Visibility.Visible : Visibility.Collapsed;
+        private static Visibility Highlight(SolidColorBrush? background) => background is null
+            ? Visibility.Collapsed : Visibility.Visible;
+        private static SolidColorBrush? StatusBackground(string? status)
         {
-            "Ενεργό" or "Ενεργός" or "Ασφαλισμένο" =>
-                StatusPalette.Brush(StatusPalette.Positive),
-            "Σε εξέλιξη" or "Πιθανός" => StatusPalette.Brush(StatusPalette.Caution),
-            _ => null
-        };
+            var value = status?.Trim();
+            if (string.IsNullOrEmpty(value)) return null;
+            if (ContainsAny(value, "ανενεργ", "ανασφάλ", "χωρίς ασφαλισ", "ακυρ",
+                    "έληξ", "ληγ", "απορρί"))
+                return StatusPalette.Brush(StatusPalette.Negative);
+            if (ContainsAny(value, "σε εξέλιξη", "πιθαν", "εκκρεμ", "αναμον",
+                    "δηλωμ", "προσωριν"))
+                return StatusPalette.Brush(StatusPalette.Caution);
+            if (ContainsAny(value, "ενεργ", "ασφαλισ", "εγκρί", "πληρωμ", "κλειστ"))
+                return StatusPalette.Brush(StatusPalette.Positive);
+            return null;
+        }
+        private static bool ContainsAny(string value, params string[] tokens) =>
+            tokens.Any(token => System.Globalization.CultureInfo.GetCultureInfo("el-GR")
+                .CompareInfo.IndexOf(value, token, System.Globalization.CompareOptions.IgnoreCase |
+                    System.Globalization.CompareOptions.IgnoreNonSpace) >= 0);
         private string CustomerLabel => Record.Customer is null ? "—" :
             $"{Record.Customer.LastName} {Record.Customer.FirstName}".Trim();
         public override string ToString() => Record.Title;

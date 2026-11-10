@@ -120,19 +120,31 @@
                                                 <TextBlock Text="{Binding RelatedParty}" TextTrimming="CharacterEllipsis" />
                                             </Border>
                                             <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5" Background="{Binding StatusCellBackground}">
-                                                <TextBlock Text="{Binding Status}" Foreground="{Binding StatusCellForeground}" />
+                                                <Grid>
+                                                    <TextBlock Text="{Binding Status}" Foreground="{ThemeResource TableCellTextBrush}" Visibility="{Binding StatusCellPlainVisibility}" />
+                                                    <TextBlock Text="{Binding Status}" Foreground="White" Visibility="{Binding StatusCellHighlightVisibility}" />
+                                                </Grid>
                                             </Border>
                                             <Border Grid.Column="5" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5">
                                                 <TextBlock Text="{Binding EventDateDisplay}" />
                                             </Border>
                                             <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,5" Background="{Binding CustomerCellBackground}">
-                                                <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" Foreground="{Binding CustomerCellForeground}" />
+                                                <Grid>
+                                                    <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TableCellTextBrush}" Visibility="{Binding CustomerCellPlainVisibility}" />
+                                                    <TextBlock Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" Foreground="White" Visibility="{Binding CustomerCellHighlightVisibility}" />
+                                                </Grid>
                                             </Border>
                                             <Border Grid.Column="7" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Background="{Binding CreatedCellBackground}">
-                                                <TextBlock Text="{Binding CreatedDisplay}" Foreground="{Binding CreatedCellForeground}" />
+                                                <Grid>
+                                                    <TextBlock Text="{Binding CreatedDisplay}" Foreground="{ThemeResource TableCellTextBrush}" Visibility="{Binding CreatedCellPlainVisibility}" />
+                                                    <TextBlock Text="{Binding CreatedDisplay}" Foreground="White" Visibility="{Binding CreatedCellHighlightVisibility}" />
+                                                </Grid>
                                             </Border>
                                             <Border Grid.Column="8" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,5" Visibility="Collapsed" Background="{Binding ExtraCellBackground}">
-                                                <TextBlock Text="{Binding ExtraDisplay}" Foreground="{Binding ExtraCellForeground}" />
+                                                <Grid>
+                                                    <TextBlock Text="{Binding ExtraDisplay}" Foreground="{ThemeResource TableCellTextBrush}" Visibility="{Binding ExtraCellPlainVisibility}" />
+                                                    <TextBlock Text="{Binding ExtraDisplay}" Foreground="White" Visibility="{Binding ExtraCellHighlightVisibility}" />
+                                                </Grid>
                                             </Border>
                                         </Grid>
                                     </DataTemplate>
