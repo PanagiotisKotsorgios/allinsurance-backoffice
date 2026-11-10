@@ -51,7 +51,7 @@ public sealed partial class PartnerCardWindow : Window
         new RowDefinition(),
         new RowDefinition { Height = GridLength.Auto }
     } };
-    private readonly StackPanel _tabStrip = new() { Orientation = Orientation.Horizontal, Spacing = 0 };
+    private readonly Grid _tabStrip = new();
     private readonly ContentControl _tabContent = new();
     private readonly List<(Button Button, TextBlock Label, UIElement Content)> _tabs = [];
     private readonly Dictionary<string, TextBox> _text = [];
@@ -99,6 +99,7 @@ public sealed partial class PartnerCardWindow : Window
         {
             var target = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
             foreach (var grid in _formGrids) grid.Width = target;
+            CardTabVisual.Layout(_tabStrip, Math.Max(280, args.NewSize.Width - 36));
         };
         appWindow.MoveAndResize(new RectInt32(area.X + (area.Width - width) / 2,
             area.Y + (area.Height - height) / 2, width, height));
@@ -250,6 +251,7 @@ public sealed partial class PartnerCardWindow : Window
         _tabs.Add((button, title, new ScrollViewer { Content = content,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto }));
+        CardTabVisual.Layout(_tabStrip, _contentWidth);
     }
 
     private void SelectTab(int index)
@@ -268,16 +270,16 @@ public sealed partial class PartnerCardWindow : Window
     private Grid TwoColumns(out StackPanel left, out StackPanel right)
     {
         var grid = CardFieldLayout.TwoColumns(out left, out right, _contentWidth);
-        left.Spacing = 5;
-        right.Spacing = 5;
+        left.Spacing = 3;
+        right.Spacing = 3;
         _formGrids.Add(grid);
         return grid;
     }
 
     private TextBox Text(StackPanel panel, string key, string label, string? value, bool multiline = false)
     {
-        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 80 : 40,
-            Height = multiline ? 96 : 40, FontSize = 13, IsReadOnly = !_editing,
+        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 80 : 38,
+            Height = multiline ? 96 : 38, FontSize = 13, IsReadOnly = !_editing,
             VerticalContentAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         if (multiline) { field.AcceptsReturn = true; field.TextWrapping = TextWrapping.Wrap; field.Height = 96; }
@@ -292,7 +294,7 @@ public sealed partial class PartnerCardWindow : Window
         var choices = options.Prepend("").Concat(value is null ? [] : [value])
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToArray();
         var field = new ComboBox { ItemsSource = choices,
-            SelectedItem = value ?? "", MinHeight = 40, Height = 40,
+            SelectedItem = value ?? "", MinHeight = 38, Height = 38,
             IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         var host = new Grid { ColumnSpacing = 6,
@@ -313,7 +315,7 @@ public sealed partial class PartnerCardWindow : Window
     {
         var field = new EditableDateInput {
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 40, Height = 40, IsHitTestVisible = _editing, IsTabStop = _editing,
+            MinHeight = 38, Height = 38, IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field)); _date[key] = field;
         return field;
@@ -321,7 +323,7 @@ public sealed partial class PartnerCardWindow : Window
 
     private CheckBox Check(StackPanel panel, string key, string label, bool value)
     {
-        var field = new CheckBox { IsChecked = value, MinHeight = 40, Height = 40, IsEnabled = _editing };
+        var field = new CheckBox { IsChecked = value, MinHeight = 38, Height = 38, IsEnabled = _editing };
         if (_editing) panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         else
         {
@@ -345,7 +347,7 @@ public sealed partial class PartnerCardWindow : Window
     private AutoSuggestBox Suggest(StackPanel panel, string key, string label,
         string? value, string[] options)
     {
-        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 40, Height = 40,
+        var field = new AutoSuggestBox { Text = value ?? "", MinHeight = 38, Height = 38,
             IsHitTestVisible = _editing, IsTabStop = _editing,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             PlaceholderText = "Πληκτρολογήστε για αναζήτηση" };

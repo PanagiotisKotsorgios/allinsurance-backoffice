@@ -29,6 +29,7 @@ public sealed partial class WorkspaceRecordCardWindow
         _tabs.Add((button, label, new ScrollViewer { Content = content,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto }));
+        CardTabVisual.Layout(_tabStrip, _contentWidth);
     }
 
     private void SelectTab(int index)

@@ -47,7 +47,7 @@ public sealed class FinancialMovementsPage : Page
 
     private void BuildUi()
     {
-        var root = new Grid { Margin = new Thickness(16, 12, 16, 12), RowSpacing = 10 };
+        var root = new Grid { Margin = new Thickness(10, 6, 10, 6), RowSpacing = 7 };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });

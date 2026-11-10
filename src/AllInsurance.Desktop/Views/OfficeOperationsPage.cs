@@ -18,7 +18,7 @@ public sealed partial class OfficeOperationsPage : Page
     private readonly bool _overcommissions;
     private readonly OfficeOperationService _service = App.Services.GetRequiredService<OfficeOperationService>();
     private readonly IBusinessRecordService _records = App.Services.GetRequiredService<IBusinessRecordService>();
-    private readonly Grid _root = new() { RowSpacing = 10, Margin = new Thickness(16) };
+    private readonly Grid _root = new() { RowSpacing = 7, Margin = new Thickness(10) };
     private readonly TextBox _search = new() { PlaceholderText = "Αναζήτηση περιγραφής, κατηγορίας ή αναφοράς…",
         Height = 42, MinHeight = 42, VerticalContentAlignment = VerticalAlignment.Center };
     private readonly ComboBox _firstFilter = new() { MinWidth = 170, Height = 38 };

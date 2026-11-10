@@ -3,18 +3,18 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:controls="using:AllInsurance.Desktop.Controls"
       Background="{ThemeResource PageBackgroundBrush}">
-    <Grid Margin="16,8" RowDefinitions="Auto,*" RowSpacing="8">
-        <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,10">
-            <StackPanel Spacing="9">
+    <Grid Margin="10,6" RowDefinitions="Auto,*" RowSpacing="6">
+        <Border Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="10,7">
+            <StackPanel Spacing="6">
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <TextBlock Text="Ανανεώσεις ασφαλιστηρίων" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="Ανανεώσεις ασφαλιστηρίων" FontSize="16" FontWeight="SemiBold" />
                     <TextBlock x:Name="CountText" VerticalAlignment="Center"
                                Foreground="{ThemeResource SecondaryTextBrush}" />
                 </StackPanel>
-                <Border Height="46" CornerRadius="9" BorderBrush="{ThemeResource TableBorderBrush}"
+                <Border Height="44" CornerRadius="8" BorderBrush="{ThemeResource TableBorderBrush}"
                         BorderThickness="1.5" Padding="1">
                     <Grid>
-                        <TextBox x:Name="SearchInput" Height="42" BorderThickness="0"
+                        <TextBox x:Name="SearchInput" Height="40" BorderThickness="0"
                                  Padding="42,7,12,7" VerticalContentAlignment="Center"
                                  PlaceholderText="Αριθμός ασφαλιστηρίου, πελάτης ή εταιρεία"
                                  TextChanged="Search_Changed" />
@@ -43,7 +43,7 @@
                 </ScrollViewer>
             </StackPanel>
         </Border>
-        <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="16" Padding="12,10">
+        <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="10,7">
             <Grid RowDefinitions="*,Auto" RowSpacing="8">
                 <ListView x:Name="RenewalsList" SelectionMode="Single" Padding="0"
                           DoubleTapped="Open_DoubleTapped" BorderBrush="{ThemeResource TableBorderBrush}"
@@ -51,7 +51,7 @@
                     <ListView.Header>
                     <Border Background="{ThemeResource TableHeaderBackgroundBrush}"
                             BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1">
-                    <Grid x:Name="RenewalsHeaderGrid" ColumnDefinitions="1.6*,1.9*,1.7*,1.3*,1.2*,1.4*,1.2*" Height="40">
+                    <Grid x:Name="RenewalsHeaderGrid" ColumnDefinitions="1.6*,1.9*,1.7*,1.3*,1.2*,1.4*,1.2*" Height="36">
                         <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,0"><TextBlock Text="Αριθμός συμβολαίου" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                         <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,0"><TextBlock Text="Πελάτης" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
                         <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" Padding="10,0"><TextBlock Text="Εταιρεία" VerticalAlignment="Center" FontWeight="SemiBold" /></Border>
@@ -65,14 +65,14 @@
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="MinHeight" Value="40" />
+                            <Setter Property="MinHeight" Value="36" />
                             <Setter Property="Padding" Value="0" />
                             <Setter Property="Margin" Value="0" />
                         </Style>
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="1.6*,1.9*,1.7*,1.3*,1.2*,1.4*,1.2*" Height="40"
+                            <Grid ColumnDefinitions="1.6*,1.9*,1.7*,1.3*,1.2*,1.4*,1.2*" Height="36"
                                   SizeChanged="RenewalRow_SizeChanged">
                                 <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,0">
                                     <TextBlock Text="{Binding Number}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />

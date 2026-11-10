@@ -40,8 +40,7 @@ public sealed class ReceiptCardWindow : Window
         new RowDefinition(),
         new RowDefinition { Height = GridLength.Auto }
     } };
-    private readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal,
-        Margin = new Thickness(20, 0, 20, 0) };
+    private readonly Grid _tabs = new() { Margin = new Thickness(12, 0, 12, 0) };
     private readonly ContentControl _tabContent = new();
     private readonly TextBlock _title = new() { FontSize = 24,
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
@@ -101,6 +100,8 @@ public sealed class ReceiptCardWindow : Window
         _root.Children.Add(_tabs);
         Grid.SetRow(_tabContent, 2);
         _root.Children.Add(_tabContent);
+        _root.SizeChanged += (_, args) =>
+            CardTabVisual.Layout(_tabs, Math.Max(280, args.NewSize.Width - 24));
 
         var footer = new Grid { Margin = new Thickness(20, 10, 20, 18),
             ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
@@ -229,6 +230,7 @@ public sealed class ReceiptCardWindow : Window
         var (button, label) = CardTabVisual.Create(title, icon, _root.ActualTheme == ElementTheme.Dark);
         button.Click += (_, _) => SelectTab(index);
         _tabs.Children.Add(button);
+        CardTabVisual.Layout(_tabs, Math.Max(280, _root.ActualWidth - 24));
         _tabItems.Add((button, label, new ScrollViewer { Content = content,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto }));

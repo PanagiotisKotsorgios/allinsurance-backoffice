@@ -85,8 +85,8 @@ public class ActionButton : Button
         if (_iconOnly)
         {
             MinHeight = 28;
-            MinWidth = 40;
-            Padding = new Thickness(7, 3, 7, 3);
+            MinWidth = 34;
+            Padding = new Thickness(6, 3, 6, 3);
         }
         else
         {
@@ -97,7 +97,7 @@ public class ActionButton : Button
         var image = new Image
         {
             Source = new SvgImageSource(new Uri($"ms-appx:///Assets/Icons/action-{icon}.svg")),
-            Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center
+            Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center
         };
         if (_iconOnly)
         {
@@ -106,20 +106,21 @@ public class ActionButton : Button
             ToolTipService.SetToolTip(this, Label);
             return;
         }
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8,
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center };
         content.Children.Add(image);
         var label = new TextBlock
         {
             Text = Label, Foreground = new SolidColorBrush(Colors.White),
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center
         };
         content.Children.Add(label);
         if (this is not MultiSelectFilter)
         {
             label.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
-            MinWidth = Math.Ceiling(label.DesiredSize.Width + 56);
+            MinWidth = Math.Ceiling(label.DesiredSize.Width + 44);
         }
         Content = content;
         AutomationProperties.SetName(this, Label);

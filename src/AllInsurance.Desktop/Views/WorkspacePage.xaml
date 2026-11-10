@@ -56,7 +56,7 @@
         <NavigationView x:Name="MainNavigation" Grid.Row="1" PaneDisplayMode="Auto"
                         Background="{ThemeResource PageBackgroundBrush}"
                         IsBackButtonVisible="Collapsed" IsSettingsVisible="False" AlwaysShowHeader="False"
-                        OpenPaneLength="310" CompactPaneLength="68" SelectionChanged="Navigation_SelectionChanged">
+                        OpenPaneLength="252" CompactPaneLength="56" SelectionChanged="Navigation_SelectionChanged">
             <ContentControl x:Name="SectionHost" HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
         </NavigationView>

@@ -336,7 +336,7 @@ public sealed partial class CustomersPage : Page
 
     private ListViewItem CustomerRow(CustomerListItem item)
     {
-        var row = new Grid { ColumnSpacing = 0, Width = TableStack.Width - 2, Height = 39 };
+        var row = new Grid { ColumnSpacing = 0, Width = TableStack.Width - 2, Height = 36 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
         var check = new VisibleSelectionCheckBox { Tag = item.Id,
             IsChecked = _checkedCustomerIds.Contains(item.Id),
@@ -379,7 +379,7 @@ public sealed partial class CustomersPage : Page
             row.Children.Add(cell);
         }
         var result = new ListViewItem { Content = row, Tag = item, Padding = new Thickness(0),
-            Margin = new Thickness(0), Width = TableStack.Width - 2, Height = 39,
+            Margin = new Thickness(0), Width = TableStack.Width - 2, Height = 36,
             HorizontalContentAlignment = HorizontalAlignment.Stretch };
         TableRowResizer.Attach(row, result, "customers", item.Id);
         return result;

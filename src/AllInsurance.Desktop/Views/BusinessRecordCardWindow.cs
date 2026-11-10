@@ -485,7 +485,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     private void LayoutTabs(double availableWidth)
     {
         if (_tabItems.Count == 0 || availableWidth <= 0) return;
-        var tabWidth = Math.Max(128, _tabItems.Max(item => item.Button.MinWidth));
+        var tabWidth = Math.Max(84, _tabItems.Max(item => item.Button.MinWidth));
         var columns = Math.Min(_tabItems.Count, Math.Max(1, (int)(availableWidth / tabWidth)));
         _tabs.ColumnDefinitions.Clear();
         _tabs.RowDefinitions.Clear();
@@ -531,8 +531,8 @@ public sealed partial class BusinessRecordCardWindow : Window
 
     private TextBox Text(StackPanel panel, string key, string label, string? value = null, bool multiline = false)
     {
-        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 80 : 40,
-            Height = multiline ? 150 : 40, AcceptsReturn = multiline,
+        var field = new TextBox { Text = value ?? "", MinHeight = multiline ? 80 : 38,
+            Height = multiline ? 150 : 38, AcceptsReturn = multiline,
             VerticalContentAlignment = VerticalAlignment.Center,
             TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
             FontSize = 13, HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -546,7 +546,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     {
         var field = new EditableDateInput { PlaceholderText = "ηη/μμ/εεεε",
             Date = value is DateTime date ? new DateTimeOffset(date) : null,
-            MinHeight = 40, Height = 40,
+            MinHeight = 38, Height = 38,
             HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         _dates[key] = field;
@@ -556,7 +556,7 @@ public sealed partial class BusinessRecordCardWindow : Window
     private ComboBox Choices(StackPanel panel, string label, IEnumerable<string> items, string? selected)
     {
         var field = new ComboBox { ItemsSource = items.ToArray(),
-            MinHeight = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
+            MinHeight = 38, Height = 38, HorizontalAlignment = HorizontalAlignment.Stretch };
         field.SelectedItem = selected;
         panel.Children.Add(CardFieldLayout.CreateRow(label, field));
         return field;
@@ -567,7 +567,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         var items = customers.Select(item => new Choice(item.Id, item.FullName)).ToArray();
         _customerChoice = new ComboBox { ItemsSource = items, DisplayMemberPath = nameof(Choice.Name),
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            IsEnabled = _fixedCustomerId is null, MinHeight = 40, Height = 40 };
+            IsEnabled = _fixedCustomerId is null, MinHeight = 38, Height = 38 };
         _customerChoice.SelectedItem = items.FirstOrDefault(item => item.Id == _record.CustomerId);
         var search = SearchChoice(items, _customerChoice, "Αναζήτηση πελάτη ή κωδικού");
         _vehicleCustomerSearch = search;
@@ -666,7 +666,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                  .Select(item => new Choice(item.Id, item.Title))];
         var vehicleItems = VehicleItems(_record.CustomerId);
         _vehicleChoice = new ComboBox { ItemsSource = vehicleItems,
-            DisplayMemberPath = nameof(Choice.Name), MinHeight = 40, Height = 40,
+            DisplayMemberPath = nameof(Choice.Name), MinHeight = 38, Height = 38,
             HorizontalAlignment = HorizontalAlignment.Stretch, Visibility = Visibility.Collapsed };
         _vehicleChoice.SelectedItem = vehicleItems.FirstOrDefault(item => item.Id == data.VehicleId) ?? vehicleItems[0];
         var vehicleHost = new Grid { ColumnSpacing = 4 };

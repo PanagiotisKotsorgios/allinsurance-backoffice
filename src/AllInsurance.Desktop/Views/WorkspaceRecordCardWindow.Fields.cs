@@ -224,7 +224,7 @@ public sealed partial class WorkspaceRecordCardWindow
         FrameworkElement display;
         if (spec.Kind == "link")
         {
-            var combo = new ComboBox { MinHeight = 40, Height = 40,
+            var combo = new ComboBox { MinHeight = 38, Height = 38,
                 DisplayMemberPath = nameof(RecordOption.Name),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 ItemsSource = OptionsFor(spec.Key) };
@@ -252,7 +252,7 @@ public sealed partial class WorkspaceRecordCardWindow
                 DateTime.TryParse(GetText(spec.Key), out var parsed) ? parsed : null;
             var picker = new EditableDateInput { Date = value is DateTime date ?
                     new DateTimeOffset(date) : null,
-                MinHeight = 40, Height = 40, PlaceholderText = "Επιλέξτε ημερομηνία",
+                MinHeight = 38, Height = 38, PlaceholderText = "Επιλέξτε ημερομηνία",
                 HorizontalAlignment = HorizontalAlignment.Stretch };
             control = picker; display = picker;
         }
@@ -263,13 +263,13 @@ public sealed partial class WorkspaceRecordCardWindow
             var values = options.Concat(string.IsNullOrWhiteSpace(selected) ? [] : [selected])
                 .Distinct().ToArray();
             var combo = new ComboBox { ItemsSource = values, SelectedItem = selected,
-                MinHeight = 40, Height = 40, HorizontalAlignment = HorizontalAlignment.Stretch };
+                MinHeight = 38, Height = 38, HorizontalAlignment = HorizontalAlignment.Stretch };
             control = combo; display = combo;
         }
         else if (spec.Kind == "bool")
         {
             var box = new CheckBox { IsChecked = GetText(spec.Key) == "true",
-                MinHeight = 40, Height = 40 };
+                MinHeight = 38, Height = 38 };
             var badge = new Border { Width = 22, Height = 22,
                 CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center,

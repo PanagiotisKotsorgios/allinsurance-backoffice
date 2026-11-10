@@ -8,8 +8,10 @@ internal sealed class TablePagination
 {
     private readonly ListView _list;
     private readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center };
-    private readonly Button _previous = new() { Content = "‹ Προηγούμενη" };
-    private readonly Button _next = new() { Content = "Επόμενη ›" };
+    private readonly Button _previous = new() { Content = "‹ Προηγούμενη", MinHeight = 30,
+        Padding = new Thickness(8, 3, 8, 3), FontSize = 12 };
+    private readonly Button _next = new() { Content = "Επόμενη ›", MinHeight = 30,
+        Padding = new Thickness(8, 3, 8, 3), FontSize = 12 };
     private object[] _items = [];
     private Func<TableExportData>? _exportProvider;
     private int _page = 1;
@@ -18,8 +20,8 @@ internal sealed class TablePagination
     public int PageOffset => (_page - 1) * Size;
     public IReadOnlyList<object> CapturedItems => _items;
     public event Action? PageRendered;
-    public StackPanel Bar { get; } = new() { Orientation = Orientation.Horizontal, Spacing = 10,
-        Margin = new Thickness(0, 8, 0, 4) };
+    public StackPanel Bar { get; } = new() { Orientation = Orientation.Horizontal, Spacing = 7,
+        Margin = new Thickness(0, 5, 0, 2) };
 
     public TablePagination(ListView list)
     {

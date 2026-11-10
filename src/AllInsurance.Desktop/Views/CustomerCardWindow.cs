@@ -983,27 +983,26 @@ public sealed partial class CustomerCardWindow : Window
         foreach (var button in _tabButtons)
         {
             button.Width = double.NaN;
-            button.MinHeight = narrow ? 36 : 40;
-            if (button.Content is not Grid surface) continue;
-            var content = surface.Children.OfType<StackPanel>().FirstOrDefault();
+            button.MinHeight = narrow ? 32 : 34;
+            if (button.Content is not Border { Child: StackPanel content }) continue;
             if (content is null) continue;
-            content.Margin = narrow ? new Thickness(12, 0, 12, 0) : new Thickness(16, 0, 16, 0);
-            content.Spacing = narrow ? 4 : 6;
-            var iconSize = narrow ? 15 : 19;
+            content.Margin = narrow ? new Thickness(7, 0, 7, 0) : new Thickness(10, 0, 10, 0);
+            content.Spacing = narrow ? 4 : 5;
+            var iconSize = narrow ? 14 : 16;
             foreach (var icon in content.Children.OfType<Image>())
                 icon.Width = icon.Height = iconSize;
             foreach (var label in content.Children.OfType<TextBlock>())
             {
-                label.FontSize = narrow ? 11 : 13;
+                label.FontSize = narrow ? 11 : 12;
                 label.TextWrapping = TextWrapping.NoWrap;
                 label.MaxWidth = double.PositiveInfinity;
                 label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                button.MinWidth = Math.Max(narrow ? 102 : 124,
+                button.MinWidth = Math.Max(narrow ? 72 : 84,
                     Math.Ceiling(label.DesiredSize.Width + iconSize + content.Spacing +
-                        (narrow ? 24 : 32)));
+                        (narrow ? 14 : 20)));
             }
         }
-        var tabWidth = Math.Max(102, _tabButtons.Max(button => button.MinWidth));
+        var tabWidth = Math.Max(72, _tabButtons.Max(button => button.MinWidth));
         var columns = Math.Min(_tabButtons.Count, Math.Max(1, (int)(availableWidth / (tabWidth + 2))));
         _tabStrip.Width = availableWidth;
         _tabStrip.ColumnDefinitions.Clear();

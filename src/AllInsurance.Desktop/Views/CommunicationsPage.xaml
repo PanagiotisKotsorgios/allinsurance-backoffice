@@ -5,10 +5,10 @@
       Background="{ThemeResource PageBackgroundBrush}">
     <ScrollViewer VerticalScrollBarVisibility="Auto" VerticalScrollMode="Enabled"
                   HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled">
-    <Grid Margin="16,12" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="10">
+    <Grid Margin="10,6" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="7">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <StackPanel Spacing="3">
-                <TextBlock Text="Ενημέρωση" FontSize="28" FontWeight="SemiBold" />
+                <TextBlock Text="Ενημέρωση" FontSize="23" FontWeight="SemiBold" />
                 <TextBlock Text="Επιλογή παραληπτών από ασφαλιστήρια που λήγουν και σύνταξη μηνυμάτων"
                            Foreground="{ThemeResource SecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
@@ -19,8 +19,8 @@
                 <controls:ActionButton Kind="Edit" Label="Ρυθμίσεις αποστολής" Click="Settings_Click" />
             </StackPanel>
         </Grid>
-        <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="14">
-            <StackPanel Spacing="9">
+        <Border Grid.Row="1" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="10">
+            <StackPanel Spacing="6">
                 <TextBox x:Name="SearchInput" Header="Αναζήτηση" PlaceholderText="Πελάτης, αριθμός, εταιρεία ή κλάδος"
                          TextChanged="FiltersChanged" />
                 <VariableSizedWrapGrid Orientation="Horizontal" ItemWidth="205" ItemHeight="76">
@@ -34,7 +34,7 @@
                 </VariableSizedWrapGrid>
             </StackPanel>
         </Border>
-        <Border Grid.Row="2" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="14" Padding="12" MinHeight="510">
+        <Border Grid.Row="2" Background="{ThemeResource CardBackgroundBrush}" CornerRadius="12" Padding="10" MinHeight="510">
             <Grid RowDefinitions="Auto,*,Auto">
                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">

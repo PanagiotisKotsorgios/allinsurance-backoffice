@@ -63,7 +63,7 @@ public sealed partial class WorkspacePage : Page
             var label = new TextBlock
             {
                 Text = section.Title,
-                FontSize = 18,
+                FontSize = 15,
                 Opacity = 0.88,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -73,22 +73,22 @@ public sealed partial class WorkspacePage : Page
                 Content = new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
-                    Spacing = 8,
+                    Spacing = 6,
                     VerticalAlignment = VerticalAlignment.Center,
                     Children =
                     {
                         new Image
                         {
                             Source = new BitmapImage(new Uri(section.Icon)),
-                            Width = 38,
-                            Height = 38,
+                            Width = 30,
+                            Height = 30,
                             VerticalAlignment = VerticalAlignment.Center
                         },
                         label
                     }
                 },
                 Tag = section.Key,
-                MinHeight = 62
+                MinHeight = 50
             };
             var tooltip = new ToolTip
             {

@@ -47,7 +47,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
         new RowDefinition(),
         new RowDefinition { Height = GridLength.Auto }
     } };
-    private readonly StackPanel _tabStrip = new() { Orientation = Orientation.Horizontal };
+    private readonly Grid _tabStrip = new();
     private readonly ContentControl _tabContent = new();
     private readonly List<(Button Button, TextBlock Label, UIElement Content)> _tabs = [];
     private readonly Dictionary<string, FrameworkElement> _inputs = [];
@@ -108,6 +108,7 @@ public sealed partial class WorkspaceRecordCardWindow : Window
         {
             var target = Math.Min(1100, Math.Max(280, args.NewSize.Width - 50));
             foreach (var form in _forms) form.Width = target;
+            CardTabVisual.Layout(_tabStrip, Math.Max(280, args.NewSize.Width - 36));
         };
         _root.Children.Add(new TextBlock { Text = "Φόρτωση καρτέλας...", Margin = new Thickness(24) });
         _ = LoadAsync();
