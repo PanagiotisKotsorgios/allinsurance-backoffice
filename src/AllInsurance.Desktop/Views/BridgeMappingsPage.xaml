@@ -51,16 +51,18 @@
                 CornerRadius="12" Padding="10" BorderBrush="{ThemeResource TableBorderBrush}"
                 BorderThickness="1">
             <Grid RowDefinitions="Auto,*,Auto">
-                <Grid ColumnDefinitions="150,185,115,*,130" Height="40"
+                <Grid ColumnDefinitions="42,150,185,115,*,130" Height="40"
                       Background="{ThemeResource TableHeaderBackgroundBrush}"
                       BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="1">
-                    <TextBlock Text="Εταιρεία" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1" Text="Παραμετρικό" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2" Text="Κωδικός" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="3" Text="Συνδεδεμένη τιμή" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="4" Text="Κατάσταση" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,0" />
+                    <TextBlock Grid.Column="1" Text="Εταιρεία" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="Παραμετρικό" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="Κωδικός" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="Συνδεδεμένη τιμή" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="Κατάσταση" Margin="10,0" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </Grid>
                 <ListView x:Name="MappingsList" Grid.Row="1" SelectionMode="Single"
+                          SelectionChanged="Mappings_SelectionChanged"
                           DoubleTapped="Mappings_DoubleTapped"
                           BorderBrush="{ThemeResource TableBorderBrush}"
                           BorderThickness="1,0,1,1">
@@ -71,18 +73,25 @@
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="150,185,115,*,130" MinHeight="40"
+                            <Grid ColumnDefinitions="42,150,185,115,*,130" MinHeight="40"
                                   BorderBrush="{ThemeResource TableBorderBrush}"
                                   BorderThickness="0,0,0,1">
-                                <TextBlock Text="{Binding Company}" Grid.Column="0" Margin="10,0"
+                                <Border BorderBrush="{ThemeResource TableBorderBrush}"
+                                        BorderThickness="0,0,1,0">
+                                    <controls:VisibleSelectionCheckBox
+                                        IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                        Click="MappingCheck_Click"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="{Binding Company}" Grid.Column="1" Margin="10,0"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Kind}" Grid.Column="1" Margin="10,0"
+                                <TextBlock Text="{Binding Kind}" Grid.Column="2" Margin="10,0"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Code}" Grid.Column="2" Margin="10,0"
+                                <TextBlock Text="{Binding Code}" Grid.Column="3" Margin="10,0"
                                            VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding Target}" Grid.Column="3" Margin="10,0"
+                                <TextBlock Text="{Binding Target}" Grid.Column="4" Margin="10,0"
                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Validity}" Grid.Column="4" Margin="10,0"
+                                <TextBlock Text="{Binding Validity}" Grid.Column="5" Margin="10,0"
                                            VerticalAlignment="Center" />
                             </Grid>
                         </DataTemplate>

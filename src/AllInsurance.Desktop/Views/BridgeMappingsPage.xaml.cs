@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System.Globalization;
+using System.ComponentModel;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -57,6 +58,19 @@ public sealed partial class BridgeMappingsPage : Page
 
     private void Search_Changed(object sender, TextChangedEventArgs e) => ApplyFilters();
     private void Choice_Changed(object sender, SelectionChangedEventArgs e) => ApplyFilters();
+
+    private void Mappings_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        foreach (var row in e.RemovedItems.OfType<MappingRow>()) row.IsSelected = false;
+        foreach (var row in e.AddedItems.OfType<MappingRow>()) row.IsSelected = true;
+    }
+
+    private void MappingCheck_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not VisibleSelectionCheckBox { DataContext: MappingRow row } check) return;
+        if (check.IsChecked == true) MappingsList.SelectedItem = row;
+        else if (ReferenceEquals(MappingsList.SelectedItem, row)) MappingsList.SelectedItem = null;
+    }
 
     private void ApplyFilters(Guid? selectedId = null)
     {
@@ -215,8 +229,21 @@ public sealed partial class BridgeMappingsPage : Page
         catch (Exception error) { await UiAlerts.ShowErrorAsync(XamlRoot, error.Message); }
     }
 
-    private sealed record MappingRow(BridgeMappingEntry Entry)
+    private sealed class MappingRow(BridgeMappingEntry entry) : INotifyPropertyChanged
     {
+        private bool _isSelected;
+        public event PropertyChangedEventHandler? PropertyChanged;
+        public BridgeMappingEntry Entry { get; } = entry;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected == value) return;
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
         public string Company => BridgeMappingStore.Company(Entry.Source);
         public string Kind => BridgeMappingStore.Label(Entry.Kind);
         public string Code => Entry.Code;
