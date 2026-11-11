@@ -629,8 +629,10 @@ public sealed partial class BusinessRecordCardWindow : Window
         {
             _insurerSuggest.ItemsSource = SearchSuggestions.FirstHundred(insurerNames,
                 showAll ? "" : _insurerSuggest.Text);
-            _insurerSuggest.IsSuggestionListOpen =
-                _insurerSuggest.ItemsSource is string[] { Length: > 0 };
+            if (_insurerSuggest.XamlRoot is not null && _insurerSuggest.IsLoaded &&
+                _insurerSuggest.FocusState != FocusState.Unfocused)
+                _insurerSuggest.IsSuggestionListOpen =
+                    _insurerSuggest.ItemsSource is string[] { Length: > 0 };
         }
         _insurerSuggest.GotFocus += (_, _) => UpdateInsurerSuggestions(showAll: true);
         _insurerSuggest.TextChanged += (_, args) =>
@@ -840,9 +842,6 @@ public sealed partial class BusinessRecordCardWindow : Window
                 if (_dates.GetValueOrDefault("canceldate") is { Date: null } cancellationDate)
                     cancellationDate.Date = new DateTimeOffset(DateTime.Today);
             }
-            if (relatedRow.Visibility == Visibility.Visible &&
-                _relatedPolicyChoice?.SelectedItem is Choice { Id: null })
-                relatedSearch.Focus(FocusState.Programmatic);
         };
         _relatedPolicyChoice.SelectionChanged += (_, _) =>
         {
@@ -903,16 +902,23 @@ public sealed partial class BusinessRecordCardWindow : Window
                 }
             }
             foreach (var row in left.Children.Concat(right.Children))
-                row.Visibility = !special || keep.Contains(row)
+            {
+                var visibility = !special || keep.Contains(row)
                     ? defaultRows[row] : Visibility.Collapsed;
-            relatedRow.Visibility = special ? Visibility.Visible : Visibility.Collapsed;
-            actDifferenceRow.Visibility = isAct ? Visibility.Visible : Visibility.Collapsed;
+                if (row.Visibility != visibility) row.Visibility = visibility;
+            }
+            var relatedVisibility = special ? Visibility.Visible : Visibility.Collapsed;
+            if (relatedRow.Visibility != relatedVisibility) relatedRow.Visibility = relatedVisibility;
+            var differenceVisibility = isAct ? Visibility.Visible : Visibility.Collapsed;
+            if (actDifferenceRow.Visibility != differenceVisibility)
+                actDifferenceRow.Visibility = differenceVisibility;
             foreach (var key in new[] { "actnumber", "greennumber", "greencountries", "actdate",
                 "canceldate", "cancelreason", "greenstart", "greenend" })
             {
                 var control = _text.TryGetValue(key, out var textField) ? (UIElement)textField : _dates[key];
                 var row = Row(control);
-                if (!special || !keep.Contains(row)) row.Visibility = Visibility.Collapsed;
+                if ((!special || !keep.Contains(row)) && row.Visibility != Visibility.Collapsed)
+                    row.Visibility = Visibility.Collapsed;
             }
         }
         UIElement Row(UIElement control) => left.Children.Concat(right.Children)

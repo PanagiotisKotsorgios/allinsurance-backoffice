@@ -90,7 +90,9 @@ public sealed partial class BusinessRecordCardWindow
         {
             search.ItemsSource = SearchSuggestions.FirstHundred(choices().Select(item => item.Name),
                 showAll ? "" : search.Text);
-            search.IsSuggestionListOpen = search.ItemsSource is string[] { Length: > 0 };
+            if (search.XamlRoot is not null && search.IsLoaded &&
+                search.FocusState != FocusState.Unfocused)
+                search.IsSuggestionListOpen = search.ItemsSource is string[] { Length: > 0 };
         }
         search.GotFocus += (_, _) => UpdateSuggestions(showAll: true);
         search.TextChanged += (_, args) =>
@@ -121,7 +123,9 @@ public sealed partial class BusinessRecordCardWindow
         void UpdateSuggestions(bool showAll = false)
         {
             search.ItemsSource = SearchSuggestions.FirstHundred(choices(), showAll ? "" : search.Text);
-            search.IsSuggestionListOpen = search.ItemsSource is string[] { Length: > 0 };
+            if (search.XamlRoot is not null && search.IsLoaded &&
+                search.FocusState != FocusState.Unfocused)
+                search.IsSuggestionListOpen = search.ItemsSource is string[] { Length: > 0 };
         }
         search.GotFocus += (_, _) => UpdateSuggestions(showAll: true);
         search.TextChanged += (_, args) =>

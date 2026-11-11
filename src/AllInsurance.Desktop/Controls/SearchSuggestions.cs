@@ -9,7 +9,8 @@ internal static class SearchSuggestions
     {
         box.LostFocus += (_, _) => box.DispatcherQueue.TryEnqueue(() =>
         {
-            if (box.FocusState == FocusState.Unfocused)
+            if (box.FocusState == FocusState.Unfocused && box.XamlRoot is not null &&
+                box.IsLoaded && box.IsSuggestionListOpen)
                 box.IsSuggestionListOpen = false;
         });
     }
