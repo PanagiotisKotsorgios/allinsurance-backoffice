@@ -76,26 +76,26 @@
                             <Grid ColumnDefinitions="1.6*,1.9*,1.7*,1.3*,1.2*,1.4*,1.2*" Height="34"
                                   SizeChanged="RenewalRow_SizeChanged">
                                 <Border BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,0">
-                                    <TextBlock Text="{Binding Number}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Number}" Foreground="{Binding RowForeground}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                 </Border>
                                 <Border Grid.Column="1" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,0">
-                                    <TextBlock Text="{Binding Customer}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Customer}" Foreground="{Binding RowForeground}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                 </Border>
                                 <Border Grid.Column="2" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,0">
-                                    <TextBlock Text="{Binding Insurer}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Insurer}" Foreground="{Binding RowForeground}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                 </Border>
                                 <Border Grid.Column="3" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,0">
-                                    <TextBlock Text="{Binding Branch}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Branch}" Foreground="{Binding RowForeground}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                 </Border>
                                 <Border Grid.Column="4" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,0">
-                                    <TextBlock Text="{Binding Expiry}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Expiry}" Foreground="{Binding RowForeground}" VerticalAlignment="Center" />
                                 </Border>
                                 <Border Grid.Column="5" Background="{Binding ExpiryBackground}"
                                         BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,1,1" Padding="10,0">
                                     <TextBlock Text="{Binding DaysLeft}" Foreground="{Binding ExpiryForeground}" FontWeight="Bold" VerticalAlignment="Center" />
                                 </Border>
                                 <Border Grid.Column="6" BorderBrush="{ThemeResource TableBorderBrush}" BorderThickness="0,0,0,1" Padding="10,0">
-                                    <TextBlock Text="{Binding Premium}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding Premium}" Foreground="{Binding RowForeground}" VerticalAlignment="Center" />
                                 </Border>
                             </Grid>
                         </DataTemplate>

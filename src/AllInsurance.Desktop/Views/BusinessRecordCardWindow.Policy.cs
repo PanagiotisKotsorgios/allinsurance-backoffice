@@ -286,8 +286,6 @@ public sealed partial class BusinessRecordCardWindow
         Text(extraLeft, "discountamount", "Έκπτωση (€)", data.DiscountAmount?.ToString("N2"));
         Text(extraLeft, "discountreason", "Αιτιολογία έκπτωσης", data.DiscountReason);
         Text(extraLeft, "previousinsurer", "Προηγούμενη ασφαλιστική", data.PreviousInsurer);
-        Date(extraLeft, "canceldate", "Ημερομηνία ακύρωσης", data.CancellationDate);
-        Text(extraLeft, "cancelreason", "Αιτιολογία ακύρωσης", data.CancellationReason);
         Date(extraRight, "renewal", "Ημερομηνία ανανέωσης *", data.RenewalDate);
         Date(extraRight, "companyrenewal", "Ανανέωση από εταιρεία", data.CompanyRenewalDate);
         Text(extraRight, "renewalnotes", "Σημειώσεις ανανέωσης", data.RenewalNotes, multiline: true);

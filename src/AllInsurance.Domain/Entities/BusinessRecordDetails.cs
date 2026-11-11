@@ -10,6 +10,12 @@ public sealed class PolicyCardData
     public string? NoticeNumber { get; set; }
     public string? PolicyNumber { get; set; }
     public string? RenewalNumber { get; set; }
+    public string? ActNumber { get; set; }
+    public string? GreenCardNumber { get; set; }
+    public Guid? GreenCardPolicyId { get; set; }
+    public DateTime? GreenCardStartDate { get; set; }
+    public DateTime? GreenCardEndDate { get; set; }
+    public string? GreenCardCountries { get; set; }
     public Guid? PreviousPolicyId { get; set; }
     public Guid? RelatedPolicyId { get; set; }
     public decimal? BaseGrossPremium { get; set; }

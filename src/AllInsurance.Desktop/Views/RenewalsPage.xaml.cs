@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System.Globalization;
+using System.ComponentModel;
 
 namespace AllInsurance.Desktop.Views;
 
@@ -103,8 +104,12 @@ public sealed partial class RenewalsPage : Page
     }
 
     private RenewalRow? Selected => RenewalsList.SelectedItem as RenewalRow;
-    private void Renewals_SelectionChanged(object sender, SelectionChangedEventArgs args) =>
+    private void Renewals_SelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        foreach (var row in args.RemovedItems.OfType<RenewalRow>()) row.IsSelected = false;
+        foreach (var row in args.AddedItems.OfType<RenewalRow>()) row.IsSelected = true;
         NewRenewalButton.IsEnabled = Selected is not null;
+    }
     private void Open_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs args)
     {
         var current = args.OriginalSource as DependencyObject;
@@ -141,8 +146,24 @@ public sealed partial class RenewalsPage : Page
         _card.BringToFront();
     }
 
-    public sealed class RenewalRow(BusinessRecord record, PolicyCardData data, string partner)
+    public sealed class RenewalRow(BusinessRecord record, PolicyCardData data, string partner) : INotifyPropertyChanged
     {
+        private bool _isSelected;
+        public event PropertyChangedEventHandler? PropertyChanged;
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected == value) return;
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new(nameof(RowForeground)));
+                PropertyChanged?.Invoke(this, new(nameof(ExpiryBackground)));
+                PropertyChanged?.Invoke(this, new(nameof(ExpiryForeground)));
+            }
+        }
+        public Microsoft.UI.Xaml.Media.Brush? RowForeground => IsSelected
+            ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) : null;
         public BusinessRecord Record { get; } = record;
         public PolicyCardData Data { get; } = data;
         public DateTime EndDate { get; } = data.EndDate!.Value;
@@ -157,14 +178,16 @@ public sealed partial class RenewalsPage : Page
         public string Premium => Data.GrossPremium is decimal amount
             ? amount.ToString("N2", CultureInfo.GetCultureInfo("el-GR")) + " €" : "—";
         public Microsoft.UI.Xaml.Media.SolidColorBrush ExpiryBackground =>
-            new((EndDate.Date - DateTime.Today).Days switch
+            new(IsSelected ? Windows.UI.Color.FromArgb(255, 55, 75, 96) :
+                (EndDate.Date - DateTime.Today).Days switch
             {
                 <= 7 => StatusPalette.Negative,
                 <= 30 => Windows.UI.Color.FromArgb(255, 245, 211, 77),
                 _ => StatusPalette.Positive
             });
         public Microsoft.UI.Xaml.Media.SolidColorBrush ExpiryForeground =>
-            new((EndDate.Date - DateTime.Today).Days is > 7 and <= 30
+            new(IsSelected ? Microsoft.UI.Colors.White :
+                (EndDate.Date - DateTime.Today).Days is > 7 and <= 30
                 ? Windows.UI.Color.FromArgb(255, 47, 41, 24) : Microsoft.UI.Colors.White);
     }
 }

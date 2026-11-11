@@ -7,6 +7,45 @@ namespace AllInsurance.Tests;
 public sealed class BusinessRecordFlowTests
 {
     [Fact]
+    public async Task GreenCardLinksToPolicyWithoutChangingPremiums()
+    {
+        await using var environment = new TestEnvironment();
+        await environment.CreateAdministratorAsync();
+        await environment.AuthenticationService.SignInAsync("first.admin", "A strong passphrase 2026!");
+        var customers = new CustomerService(environment.ContextFactory, environment.Session);
+        var records = new BusinessRecordService(environment.ContextFactory, environment.Session);
+        var customerId = await customers.SaveAsync(new Customer
+            { LastName = "Green", FirstName = "Card", TaxNumber = "100000096" });
+        var originalId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "policies", Title = "POL-GREEN", CustomerId = customerId,
+            DocumentType = "Ασφαλιστήριο", Status = "Ενεργό",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+                { PolicyNumber = "POL-GREEN", GrossPremium = 150m, NetPremium = 110m })
+        });
+        var cardId = await records.SaveAsync(new BusinessRecord
+        {
+            SectionKey = "policies", Title = "GC-1", CustomerId = customerId,
+            DocumentType = "Πράσινη κάρτα", Status = "Εκδόθηκε",
+            DetailsJson = BusinessRecordDetails.Write(new PolicyCardData
+            {
+                GreenCardPolicyId = originalId, GreenCardNumber = "GC-1",
+                GreenCardStartDate = DateTime.Today,
+                GreenCardEndDate = DateTime.Today.AddMonths(1), GreenCardCountries = "Ελλάδα"
+            })
+        });
+        var original = (await records.GetAsync(originalId))!;
+        var details = BusinessRecordDetails.Read<PolicyCardData>(original.DetailsJson);
+        Assert.Equal(150m, details.GrossPremium);
+        Assert.Equal(110m, details.NetPremium);
+        Assert.Contains(details.GreenCards, item => item.Id == cardId && item.Number == "GC-1");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => records.DeleteAsync(originalId));
+        await records.DeleteAsync(cardId);
+        details = BusinessRecordDetails.Read<PolicyCardData>((await records.GetAsync(originalId))!.DetailsJson);
+        Assert.Empty(details.GreenCards);
+    }
+
+    [Fact]
     public async Task AdditionalActsAdjustOriginalPremiumAndCanBeReversed()
     {
         await using var environment = new TestEnvironment();

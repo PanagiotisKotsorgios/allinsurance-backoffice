@@ -588,7 +588,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         _relatedPolicyChoice = new ComboBox { ItemsSource = relatedOptions,
             DisplayMemberPath = nameof(Choice.Name), Visibility = Visibility.Collapsed };
         _relatedPolicyChoice.SelectedItem = relatedOptions.FirstOrDefault(item =>
-            item.Id == data.RelatedPolicyId) ?? relatedOptions[0];
+            item.Id == (data.RelatedPolicyId ?? data.GreenCardPolicyId)) ?? relatedOptions[0];
         var relatedSearch = SearchChoice(relatedOptions, _relatedPolicyChoice,
             "Αναζήτηση αρχικού ασφαλιστηρίου");
         var relatedRow = CardFieldLayout.CreateRow("Αρχικό ασφαλιστήριο *", relatedSearch);
@@ -601,6 +601,11 @@ public sealed partial class BusinessRecordCardWindow : Window
         Text(left, "policy", "Αριθμός ασφαλιστηρίου", data.PolicyNumber);
         Text(left, "renewalnumber", "Αριθμός ανανεωτηρίου", data.RenewalNumber);
         Text(left, "previouspolicy", "Προηγούμενο ασφαλιστήριο", data.PreviousPolicyNumber);
+        Text(left, "actnumber", "Αριθμός πρόσθετης πράξης", data.ActNumber ??
+            (_record.DocumentType is "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης" ? _record.Reference : null));
+        Text(left, "greennumber", "Αριθμός πράσινης κάρτας", data.GreenCardNumber ??
+            (_record.DocumentType == "Πράσινη κάρτα" ? _record.Reference : null));
+        Text(left, "greencountries", "Χώρες ισχύος", data.GreenCardCountries);
         void UpdateRequiredNumber()
         {
             var type = _typeChoice?.SelectedItem as string;
@@ -608,6 +613,10 @@ public sealed partial class BusinessRecordCardWindow : Window
             CardFieldLayout.SetRequired(left, _text["application"], "Αριθμός αίτησης", type == "Αίτηση");
             CardFieldLayout.SetRequired(left, _text["notice"], "Αριθμός ειδοποιητηρίου", type == "Ειδοποιητήριο");
             CardFieldLayout.SetRequired(left, _text["policy"], "Αριθμός ασφαλιστηρίου", type == "Ασφαλιστήριο");
+            CardFieldLayout.SetRequired(left, _text["actnumber"], "Αριθμός πρόσθετης πράξης",
+                type is "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης");
+            CardFieldLayout.SetRequired(left, _text["greennumber"], "Αριθμός πράσινης κάρτας",
+                type == "Πράσινη κάρτα");
         }
         _typeChoice.SelectionChanged += (_, _) => UpdateRequiredNumber();
         UpdateRequiredNumber();
@@ -656,6 +665,7 @@ public sealed partial class BusinessRecordCardWindow : Window
                 CatalogChoices(_policyPackageOptions, _insurerSuggest.Text,
                     _text.GetValueOrDefault("branch")?.Text))));
         PolicyCustomerChoice(right, customers);
+        var customerRow = right.Children.Last();
         AddPolicyHolderChoice(right, customers, data);
         Choice[] VehicleItems(Guid? customerId) =>
             [new Choice(null, "Χωρίς όχημα"),
@@ -724,6 +734,11 @@ public sealed partial class BusinessRecordCardWindow : Window
         AddPolicyDurationChoice(right, data);
         Date(right, "end", "Λήξη κάλυψης", data.EndDate);
         Date(right, "companydue", "Πληρωμή προς ασφαλιστική έως", data.CompanyPaymentDueDate);
+        Date(right, "actdate", "Ημερομηνία ισχύος πράξης", data.IssueDate);
+        Date(right, "canceldate", "Ημερομηνία ακύρωσης", data.CancellationDate);
+        Text(right, "cancelreason", "Αιτιολογία ακύρωσης", data.CancellationReason, multiline: true);
+        Date(right, "greenstart", "Έναρξη πράσινης κάρτας", data.GreenCardStartDate);
+        Date(right, "greenend", "Λήξη πράσινης κάρτας", data.GreenCardEndDate);
         DateTimeOffset? calculatedDue = null;
         void ApplyCompanyPaymentTerms()
         {
@@ -817,7 +832,7 @@ public sealed partial class BusinessRecordCardWindow : Window
         _typeChoice.SelectionChanged += (_, _) =>
         {
             relatedRow.Visibility = _typeChoice.SelectedItem is "Πρόσθετη πράξη" or
-                "Πρόσθετη πράξη ακύρωσης" ? Visibility.Visible : Visibility.Collapsed;
+                "Πρόσθετη πράξη ακύρωσης" or "Πράσινη κάρτα" ? Visibility.Visible : Visibility.Collapsed;
             if (_typeChoice.SelectedItem is "Πρόσθετη πράξη ακύρωσης")
             {
                 _text["gross"].Text = "0";
@@ -852,6 +867,66 @@ public sealed partial class BusinessRecordCardWindow : Window
         };
         AddTab("Καρτέλα ασφάλισης", main);
         BuildPolicyExtendedTabs(customers, vehicles, data);
+        var defaultRows = left.Children.Concat(right.Children)
+            .ToDictionary(row => row, row => row.Visibility);
+        void UpdateDocumentFields()
+        {
+            var kind = _typeChoice.SelectedItem as string;
+            var special = kind is "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης" or "Πράσινη κάρτα";
+            var isAct = kind == "Πρόσθετη πράξη";
+            var cancellation = kind == "Πρόσθετη πράξη ακύρωσης";
+            var green = kind == "Πράσινη κάρτα";
+            var keep = new HashSet<UIElement> { Row(_typeChoice), customerRow,
+                Row(_statusChoice!), Row(_insurerSuggest!), relatedRow };
+            if (special)
+            {
+                keep.Add(Row(_text[green ? "greennumber" : "actnumber"]));
+                keep.Add(Row(_text["previouspolicy"]));
+                keep.Add(Row(_vehicleChoice!));
+                if (isAct)
+                {
+                    keep.Add(Row(_dates["actdate"]));
+                    keep.Add(Row(_text["net"]));
+                    keep.Add(Row(_text["gross"]));
+                    keep.Add(actDifferenceRow);
+                }
+                if (cancellation)
+                {
+                    keep.Add(Row(_dates["canceldate"]));
+                    keep.Add(Row(_text["cancelreason"]));
+                }
+                if (green)
+                {
+                    keep.Add(Row(_text["greencountries"]));
+                    keep.Add(Row(_dates["greenstart"]));
+                    keep.Add(Row(_dates["greenend"]));
+                }
+            }
+            foreach (var row in left.Children.Concat(right.Children))
+                row.Visibility = !special || keep.Contains(row)
+                    ? defaultRows[row] : Visibility.Collapsed;
+            relatedRow.Visibility = special ? Visibility.Visible : Visibility.Collapsed;
+            actDifferenceRow.Visibility = isAct ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var key in new[] { "actnumber", "greennumber", "greencountries", "actdate",
+                "canceldate", "cancelreason", "greenstart", "greenend" })
+            {
+                var control = _text.TryGetValue(key, out var textField) ? (UIElement)textField : _dates[key];
+                var row = Row(control);
+                if (!special || !keep.Contains(row)) row.Visibility = Visibility.Collapsed;
+            }
+        }
+        UIElement Row(UIElement control) => left.Children.Concat(right.Children)
+            .First(row => Contains(row, control));
+        static bool Contains(UIElement parent, UIElement target)
+        {
+            if (ReferenceEquals(parent, target)) return true;
+            if (parent is Panel panel) return panel.Children.Any(child => Contains(child, target));
+            if (parent is Border { Child: UIElement child }) return Contains(child, target);
+            if (parent is ContentControl { Content: UIElement content }) return Contains(content, target);
+            return false;
+        }
+        _typeChoice.SelectionChanged += (_, _) => UpdateDocumentFields();
+        UpdateDocumentFields();
     }
 
     private void BuildVehicleTabs(IReadOnlyList<CustomerListItem> customers,
@@ -991,6 +1066,11 @@ public sealed partial class BusinessRecordCardWindow : Window
                     CommissionRuleId = _policyData.CommissionRuleId,
                     OfferNumber = Value("offer"), ApplicationNumber = Value("application"), NoticeNumber = Value("notice"),
                     PolicyNumber = Value("policy"), RenewalNumber = Value("renewalnumber"),
+                    ActNumber = Value("actnumber"), GreenCardNumber = Value("greennumber"),
+                    GreenCardCountries = Value("greencountries"),
+                    GreenCardStartDate = DateValue("greenstart"), GreenCardEndDate = DateValue("greenend"),
+                    GreenCardPolicyId = type == "Πράσινη κάρτα"
+                        ? (_relatedPolicyChoice?.SelectedItem as Choice)?.Id : null,
                     PreviousPolicyId = _policyData.PreviousPolicyId,
                     RelatedPolicyId = type is "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης"
                         ? (_relatedPolicyChoice?.SelectedItem as Choice)?.Id : null,
@@ -1003,7 +1083,8 @@ public sealed partial class BusinessRecordCardWindow : Window
                     Insurer = _insurerSuggest?.Text.Trim(),
                     Agency = Value("agency"), Branch = Value("branch"), Product = Value("product"),
                     VehicleId = (_vehicleChoice?.SelectedItem as Choice)?.Id,
-                    IssueDate = DateValue("issue"), StartDate = DateValue("start"), EndDate = DateValue("end"),
+                    IssueDate = type == "Πρόσθετη πράξη" ? DateValue("actdate") : DateValue("issue"),
+                    StartDate = DateValue("start"), EndDate = DateValue("end"),
                     RenewalDate = DateValue("renewal"), CompanyRenewalDate = DateValue("companyrenewal"),
                     CoverageDurationMonths = _durationUnit?.SelectedItem as string == "Μήνες" &&
                         int.TryParse(_durationValue?.Text, out var months) ? months : null,
@@ -1017,8 +1098,10 @@ public sealed partial class BusinessRecordCardWindow : Window
                     CustomerReceivedAt = _policyData.CustomerReceivedAt,
                     CancellationDate = DateValue("canceldate"),
                     CancellationReason = Value("cancelreason"),
-                    GrossPremium = DecimalValue(Value("gross"), "Μικτά ασφάλιστρα"),
-                    NetPremium = DecimalValue(Value("net"), "Καθαρά ασφάλιστρα"),
+                    GrossPremium = type == "Πράσινη κάρτα" ? null :
+                        type == "Πρόσθετη πράξη ακύρωσης" ? 0m : DecimalValue(Value("gross"), "Μικτά ασφάλιστρα"),
+                    NetPremium = type == "Πράσινη κάρτα" ? null :
+                        type == "Πρόσθετη πράξη ακύρωσης" ? 0m : DecimalValue(Value("net"), "Καθαρά ασφάλιστρα"),
                     InsuredValue = DecimalValue(Value("insuredvalue"), "Ασφαλιστική αξία"),
                     DiscountPercent = DecimalValue(Value("discountpercent"), "Έκπτωση (%)"),
                     DiscountAmount = DecimalValue(Value("discountamount"), "Έκπτωση (€)"),
@@ -1066,6 +1149,10 @@ public sealed partial class BusinessRecordCardWindow : Window
                 if (type == "Πρόσθετη πράξη ακύρωσης" &&
                     (data.CancellationDate is null || string.IsNullOrWhiteSpace(data.CancellationReason)))
                     throw new ArgumentException("Η πράξη ακύρωσης χρειάζεται ημερομηνία και αιτιολογία.");
+                if (type == "Πράσινη κάρτα" && (data.GreenCardPolicyId is null ||
+                    data.GreenCardStartDate is null || data.GreenCardEndDate is null ||
+                    data.GreenCardStartDate > data.GreenCardEndDate))
+                    throw new ArgumentException("Επιλέξτε αρχικό ασφαλιστήριο και έγκυρες ημερομηνίες πράσινης κάρτας.");
                 if (data.DiscountPercent is > 100)
                     throw new ArgumentException("Η έκπτωση δεν μπορεί να ξεπερνά το 100%.");
                 var number = type switch
@@ -1074,6 +1161,8 @@ public sealed partial class BusinessRecordCardWindow : Window
                     "Αίτηση" => data.ApplicationNumber,
                     "Ειδοποιητήριο" => data.NoticeNumber,
                     "Ασφαλιστήριο" => data.PolicyNumber,
+                    "Πρόσθετη πράξη" or "Πρόσθετη πράξη ακύρωσης" => data.ActNumber,
+                    "Πράσινη κάρτα" => data.GreenCardNumber,
                     _ => data.RenewalNumber ?? data.PolicyNumber
                 };
                 if (string.IsNullOrWhiteSpace(number))
@@ -1082,7 +1171,13 @@ public sealed partial class BusinessRecordCardWindow : Window
                 _record.Reference = number;
                 _record.DocumentType = type;
                 _record.RelatedParty = data.Insurer;
-                _record.EventDate = data.StartDate;
+                _record.EventDate = type switch
+                {
+                    "Πρόσθετη πράξη ακύρωσης" => data.CancellationDate,
+                    "Πρόσθετη πράξη" => data.IssueDate,
+                    "Πράσινη κάρτα" => data.GreenCardStartDate,
+                    _ => data.StartDate
+                };
                 _record.Notes = Value("notes");
                 _record.DetailsJson = BusinessRecordDetails.Write(data);
             }

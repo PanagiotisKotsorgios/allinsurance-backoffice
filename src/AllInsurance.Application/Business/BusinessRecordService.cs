@@ -193,6 +193,31 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             }
             else if (details.RelatedPolicyId is not null)
                 throw new ArgumentException("Η σύνδεση με αρχικό ασφαλιστήριο αφορά μόνο πρόσθετες πράξεις.");
+            if (record.DocumentType == "Πράσινη κάρτα")
+            {
+                if (details.GreenCardPolicyId is not Guid greenPolicyId || greenPolicyId == record.Id ||
+                    !await db.BusinessRecords.AnyAsync(item => item.Id == greenPolicyId &&
+                        item.SectionKey == "policies" && item.CustomerId == record.CustomerId &&
+                        (item.DocumentType == null || item.DocumentType == "Ασφαλιστήριο"), cancellationToken))
+                    throw new ArgumentException("Η πράσινη κάρτα πρέπει να συνδέεται με ασφαλιστήριο του ίδιου πελάτη.");
+                if (string.IsNullOrWhiteSpace(details.GreenCardNumber) ||
+                    details.GreenCardStartDate is null || details.GreenCardEndDate is null ||
+                    details.GreenCardStartDate > details.GreenCardEndDate)
+                    throw new ArgumentException("Συμπληρώστε αριθμό και έγκυρες ημερομηνίες πράσινης κάρτας.");
+                if (details.GrossPremium is not null || details.NetPremium is not null)
+                    throw new ArgumentException("Η πράσινη κάρτα δεν δημιουργεί νέα χρέωση ασφαλίστρων.");
+                if (record.Id != Guid.Empty)
+                {
+                    var previousGreen = await db.BusinessRecords.AsNoTracking()
+                        .SingleOrDefaultAsync(item => item.Id == record.Id, cancellationToken);
+                    if (previousGreen is null || previousGreen.DocumentType != "Πράσινη κάρτα" ||
+                        BusinessRecordDetails.Read<PolicyCardData>(previousGreen.DetailsJson)
+                            .GreenCardPolicyId != greenPolicyId)
+                        throw new ArgumentException("Το αρχικό ασφαλιστήριο της πράσινης κάρτας δεν αλλάζει.");
+                }
+            }
+            else if (details.GreenCardPolicyId is not null)
+                throw new ArgumentException("Η σύνδεση πράσινης κάρτας αφορά μόνο πράσινες κάρτες.");
             if (details.CompanyId is Guid insurerId)
             {
                 var insurer = await db.BusinessRecords.AsNoTracking().FirstOrDefaultAsync(item =>
@@ -543,6 +568,23 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
                 $"Καταχωρίστηκε η πράξη {record.Title} για το ασφαλιστήριο {relatedParent.Title}.",
                 session.Current!.DisplayName, now);
         }
+        if (record.SectionKey == "policies" && record.DocumentType == "Πράσινη κάρτα")
+        {
+            var card = BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson);
+            var parent = await db.BusinessRecords.SingleAsync(item =>
+                item.Id == card.GreenCardPolicyId, cancellationToken);
+            var parentData = BusinessRecordDetails.Read<PolicyCardData>(parent.DetailsJson);
+            parentData.GreenCards ??= [];
+            parentData.GreenCards.RemoveAll(item => item.Id == record.Id);
+            parentData.GreenCards.Add(new PolicyGreenCard { Id = record.Id,
+                Number = card.GreenCardNumber!, StartDate = card.GreenCardStartDate,
+                EndDate = card.GreenCardEndDate, Countries = card.GreenCardCountries });
+            parent.DetailsJson = BusinessRecordDetails.Write(parentData);
+            parent.UpdatedAtUtc = now;
+            AddActivity(db, parent.Id, "Πράσινη κάρτα",
+                $"Καταχωρίστηκε η πράσινη κάρτα {record.Title}.",
+                session.Current!.DisplayName, now);
+        }
         await db.SaveChangesAsync(cancellationToken);
         return record.Id;
     }
@@ -593,8 +635,9 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένες οικονομικές κινήσεις και δεν μπορεί να διαγραφεί.");
         if (record.SectionKey == "policies" && linkedDetails.Any(item => item.SectionKey == "policies" &&
             (BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).PreviousPolicyId == id ||
-             BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).RelatedPolicyId == id)))
-            throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένη ανανέωση ή πρόσθετη πράξη και δεν μπορεί να διαγραφεί.");
+             BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).RelatedPolicyId == id ||
+             BusinessRecordDetails.Read<PolicyCardData>(item.DetailsJson).GreenCardPolicyId == id)))
+            throw new InvalidOperationException("Το ασφαλιστήριο έχει συνδεδεμένη ανανέωση, πράξη ή πράσινη κάρτα και δεν μπορεί να διαγραφεί.");
         if (record.SectionKey == "vehicles")
         {
             var claims = await db.BusinessRecords.AsNoTracking()
@@ -632,6 +675,16 @@ public sealed partial class BusinessRecordService(IApplicationDbContextFactory f
             AddActivity(db, original.Id, "Διαγραφή πρόσθετης πράξης",
                 $"Διαγράφηκε η συνδεδεμένη πράξη {record.Title}.", session.Current!.DisplayName,
                 original.UpdatedAtUtc);
+        }
+        if (record.SectionKey == "policies" && record.DocumentType == "Πράσινη κάρτα" &&
+            BusinessRecordDetails.Read<PolicyCardData>(record.DetailsJson).GreenCardPolicyId is Guid cardPolicyId)
+        {
+            var original = await db.BusinessRecords.SingleAsync(item => item.Id == cardPolicyId,
+                cancellationToken);
+            var originalData = BusinessRecordDetails.Read<PolicyCardData>(original.DetailsJson);
+            originalData.GreenCards?.RemoveAll(item => item.Id == id);
+            original.DetailsJson = BusinessRecordDetails.Write(originalData);
+            original.UpdatedAtUtc = DateTime.UtcNow;
         }
         if (record.CustomerId is Guid customerId)
             CustomerActivityLog.Add(db, customerId, "Διαγραφή εγγραφής",
