@@ -370,8 +370,9 @@ public sealed partial class BusinessRecordCardWindow
         _policyHistoryAction.SelectionChanged += (_, _) => RenderPolicyHistory();
         panel.Children.Add(_policyHistorySearch);
         panel.Children.Add(_policyHistoryAction);
-        _policyHistoryList = new ListView { Height = 350 };
-        _policyHistoryList.Header = RecordHistoryTable.Header();
+        _policyHistoryList = new ListView { Height = 350,
+            Background = new SolidColorBrush(Microsoft.UI.Colors.White) };
+        _policyHistoryList.Header = RecordHistoryTable.Header(whiteBackground: true);
         _policyHistoryList.DoubleTapped += async (_, _) =>
         {
             if (_policyHistoryList.SelectedItem is not ListViewItem { Tag: BusinessRecordActivity activity }) return;
@@ -385,7 +386,6 @@ public sealed partial class BusinessRecordCardWindow
             await DialogButtonStyles.ShowAsync(new ContentDialog { XamlRoot = _root.XamlRoot,
                 Title = "Καρτέλα ενέργειας", Content = detail, CloseButtonText = "Κλείσιμο" });
         };
-        TableRowStriping.Attach(_policyHistoryList);
         panel.Children.Add(_policyHistoryList);
         var pager = new TablePagination(_policyHistoryList);
         _policyHistoryPager = pager;
@@ -425,7 +425,7 @@ public sealed partial class BusinessRecordCardWindow
             (selected is null || item.Action == selected) &&
             (term.Length == 0 || new[] { item.Action, item.Description, item.ActorName }
                 .Any(value => value?.Contains(term, StringComparison.CurrentCultureIgnoreCase) == true))))
-            _policyHistoryList.Items.Add(RecordHistoryTable.Row(item));
+            _policyHistoryList.Items.Add(RecordHistoryTable.Row(item, whiteBackground: true));
         _policyHistoryPager.Capture();
     }
 

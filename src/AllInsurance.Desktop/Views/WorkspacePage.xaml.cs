@@ -349,7 +349,7 @@ public sealed partial class WorkspacePage : Page
         "renewals" => new RenewalsPage(),
         "updates" => new CommunicationsPage(),
         "reports" => new ReportsPage(),
-        "bridges" => new CompanyBridgesPage(),
+        "bridges" => new BridgeWorkspacePage(),
         _ => new SectionPage(section)
     };
     private async void UpdateApplication_Click(object sender, RoutedEventArgs e)
